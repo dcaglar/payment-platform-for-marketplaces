@@ -50,7 +50,7 @@ graph TD
 ```
 
 ### Full System Context Diagram
-```
+```mermaid
 flowchart TD
     %% Define Color Styles
     classDef edgeBg fill:#ffe6e6,stroke:#333,stroke-width:1px;
