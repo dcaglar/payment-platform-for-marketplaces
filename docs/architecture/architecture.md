@@ -211,128 +211,116 @@ PaymentIntent is just a domain entity living in edge layer and edge db so its no
 
 
 Authorization Flow
-```
-flowchart TD
-    %% Define Color Styles
-    classDef edgeBg fill:#ffe6e6,stroke:#333,stroke-width:1px;
-    classDef internalBg fill:#e6f2ff,stroke:#99ccff,stroke-width:2px;
-    classDef greenBox fill:#ccffcc,stroke:#333,stroke-width:1px;
-    classDef pinkBox fill:#ffcccc,stroke:#333,stroke-width:1px;
-    classDef yellowBox fill:#ffeb99,stroke:#333,stroke-width:1px;
-    classDef whiteBox fill:#ffffff,stroke:#333,stroke-width:1px;
-    classDef db fill:#e6ffe6,stroke:#ff6666,stroke-width:px;
-    classDef topic fill:#8e7cc3,stroke:#ff6666,stroke-width:px;
-    classDef consumers fill:#c27ba0,stroke:#ff6666,stroke-width:px;
-    
-    %% Kafka/Job Style (The "CaptureCommandExecutor" green style)
-    classDef actionGreen fill:#ccffcc,stroke:#333,stroke-width:1px;
+```mermaid
+sequenceDiagram
+    autonumber
 
-    subgraph External ["External Edge Host-Stateless payment acceptance service high availibility"]
-        style External fill:transparent,stroke:none,color:#cc0000,font-weight:bold
-
-        subgraph EdgeLayer ["EXTERNAL HOSTS (Edge Layer)"]
-            style EdgeLayer fill:#ffffff,stroke:#333
-
-            subgraph Cell1 ["Edge Cell 1"]
-                style Cell1 fill:#ffe6e6,stroke:#333
-                
-                PAS1["Payment Acceptance<br/>Service"]:::yellowBox
-                ID1["1. Idempotency Check<br/>⬇<br/>IdempotencyCheck"]:::greenBox
-                PSP1(["External PSP APIs<br/>(Synchronous Auth)"]):::whiteBox
-                DB1[("Edge Local db<br/>(PaymentIntent<br/>IdempotencyRecord<br/>OutboxEvent)")]:::db
-                JOB1["LocalOutboxStoreAndForwardJob"]:::actionGreen
-
-                PAS1 --> ID1
-                PAS1 -- "2a. Synchronous Auth" --> PSP1
-                PSP1 -- "2b. Persist Auth to Outbox" --> DB1
-                PAS1 -- "3. Capture / Refund" --> DB1
-                DB1 --> JOB1
-            end
-
-            subgraph Cell2 ["Edge Cell 2"]
-                style Cell2 fill:#ffe6e6,stroke:#333
-                
-                PAS2["Payment Acceptance<br/>Service"]:::yellowBox
-                ID2["1. Idempotency Check<br/>⬇<br/>IdempotencyCheck"]:::greenBox
-                PSP2(["External PSP APIs<br/>(Synchronous Auth)"]):::whiteBox
-                DB2[("Edge Local db<br/>(PaymentIntent<br/>IdempotencyRecord<br/>OutboxEvent)")]:::db
-                JOB2["LocalOutboxStoreAndForwardJob"]:::actionGreen
-
-                PAS2 --> ID2
-                PAS2 -- "2a. Synchronous Auth" --> PSP2
-                PSP2 -- "2b. Persist Auth to Outbox" --> DB2
-                PAS2 -- "3. Capture / Refund" --> DB2
-                DB2 --> JOB2
-            end
-        end
+    box rgb(240, 248, 255) "Client Layer"
+        actor Shopper
+        participant Browser as Shopper's Browser<br/>(React App)
     end
 
-    subgraph Internal ["INTERNAL HOST"]
-        style Internal fill:#e6f2ff,stroke:#99ccff,color:#cc0000,font-weight:bold
+    box rgb(255, 240, 245) "Gateway Layer"
+        participant Proxy as Backend Proxy<br/>(Node.js)
+        participant Keycloak
+    end
 
-        CDB[("Central OutboxEvent DB<br/>(OutboxEvent<br/>(Payment</br>Tx , JournalEntry<br/>Posting,</br>Account</brAccountBalance)")]:::db
-        RELAY["Polls OutboxEvents<br/>OutboxRelayJob(s)"]:::greenBox
+    box rgb(255, 244, 225) "Payment Edge Cell"
+        participant PaymentSvc as payment-service<br/>(REST API)
+        participant EdgeDB as edge-db<br/>(PostgreSQL)
+    end
 
-        JOB1 --> CDB
-        JOB2 --> CDB
-        CDB --> RELAY
+    box rgb(255, 235, 238) "External Systems"
+        participant Stripe
+    end
 
-        subgraph Kafka ["Kafka Cluster"]
-            style Kafka fill:#f1c232,stroke:#333
-            
-            K1{{"gateway.capture.commands<br/>&lt;CaptureRequested&gt;"}}:::topic
-            K2{{"gateway.capture.submitted<br/>&lt;CaptureSubmitted&gt;"}}:::topic
-            K3{{"payment.psp.results<br/>EventEnvelope&lt;PaymentAuthorized&gt;,<br/>EventEnvelope&lt;CaptureConfirmed&gt;,<br/>EventEnvelope&lt;InternalTransferCommand&gt;"}}:::topic
-            K4{{"journal.entries.recorded<br/>&lt;JournalEntriesRecorded&gt;"}}:::topic
+    %% Step 1: Create Payment Intent
+    Note over Shopper, Stripe: Phase 1: Create Payment Intent & Prepare Checkout Form
 
+    Shopper->>Browser: Fills cart details, clicks "Proceed to Checkout"
+    Browser->>Proxy: POST /api/checkout/process-payment<br/>(with cart data & Idempotency-Key)
+    
+    Proxy->>Keycloak: Request service token (client_credentials)
+    Keycloak-->>Proxy: Return JWT Access Token
+
+    Proxy->>PaymentSvc: POST /api/v1/payments<br/>(with JWT & Idempotency-Key)
+    
+    %% --- IDEMPOTENCY FLOW ---
+    PaymentSvc->>EdgeDB: SELECT response FROM idempotency_keys
+    alt First Request (Key is new)
+        EdgeDB-->>PaymentSvc: Not Found
+        PaymentSvc->>PaymentSvc: Create PaymentIntent (status=CREATED_PENDING)
+        PaymentSvc->>EdgeDB: INSERT INTO payment_intents
+        
+        par Async Stripe Call
+            PaymentSvc->>Stripe: Create PaymentIntent (API Call)
+        and Wait for Result
+            PaymentSvc->>PaymentSvc: Wait up to 3 seconds
         end
 
-        %% Link 0
-        RELAY -- "OutboxEvent&lt;PAYMENT_AUTHORIZED&gt; -> EventEnvelope&lt;PaymentAuthorized&gt; and publish " --> K3
-        %% Link 1
-        RELAY -- "OutboxEvent&lt;CAPTURE_REQUESTED&gt; -> EventEnvelope&lt;CaptureRequested&gt; and publish " --> K1
-        %% Link 2
-         RELAY -- "OutboxEvent&lt;CAPTURE_SUBMITTED&gt; -> EventEnvelope&lt;CaptureSubmitted&gt; and publish " --> K2
-        %% Link 3
-        RELAY -- "OutboxEvent&lt;CAPTURE_CONFIRMED&gt; -> EventEnvelope&lt;CaptureConfirmed&gt; and publish " --> K3
-        %% Link 4
-        RELAY -- "OutboxEvent&lt;JOURNAL_ENTRIES_RECORDED&gt; -> EventEnvelope&lt;JournalEntriesRecorded&gt; and publish " --> K4
-        %% Link 5
-        RELAY -- "OutboxEvent&lt;INTERNAL_TRANSFER_COMMAND&gt; -> EventEnvelope&lt;InternalTransferCommand&gt; and publish " --> K3
-        %% Link 6
-        RELAY -- "OutboxEvent&lt;SETTLEMENT_RECEIVED&gt; -> EventEnvelope&lt;SettlementReceived&gt; and publish " --> K3
-
-        subgraph Consumers ["Payment Consumers (payment-consumers)"]
-            style Consumers fill:#f2f2f2,stroke:#333
+        alt Stripe Responds < 3s
+            Stripe-->>PaymentSvc: Return { id, clientSecret }
+            PaymentSvc->>PaymentSvc: Update PaymentIntent (status=CREATED)
+            PaymentSvc->>EdgeDB: INSERT response INTO idempotency_keys
+            PaymentSvc-->>Proxy: 201 Created<br/>{ paymentIntentId, clientSecret }
+        else Timeout (> 3s)
+            PaymentSvc-->>Proxy: 202 Accepted (Retry-After: 2s)<br/>{ paymentIntentId, clientSecret: null }
             
-            C_CCE["CaptureCommandExecutor"]:::consumers
-            C_CPC["CapturePspPerformedConsumer"]:::consumers
-            C_PRC["PspResultConsumer"]:::consumers
-            C_GCA["GrossCaptureAllocationConsumer"]:::consumers
-            C_ABC["AccountBalanceConsumer"]:::consumers
-           C_SDR["SimulatedSdrStreamingProcessorConsumer"]:::consumers
+            Note over Proxy, PaymentSvc: Client enters polling loop
+            
+            loop Polling
+                Proxy->>PaymentSvc: GET /payments/{id}
+                PaymentSvc-->>Proxy: 200 OK { ... }
+            end
 
+            Note right of PaymentSvc: Background Thread
+            Stripe-->>PaymentSvc: Return { id, clientSecret } (Delayed)
+            PaymentSvc->>PaymentSvc: Update PaymentIntent (status=CREATED)
         end
 
-        K1 --> C_CCE 
-        K2 --> C_CPC 
-        K3 --> C_PRC
-        K4 --> C_ABC
-        K4 --> C_GCA
-         K4 --> C_SDR
- 
-        C_CCE -- "psp.asynCapure</br>append OutboxEvent&lt;CAPTURE_SUBMITTED&gt;" -->  CDB  
-        C_GCA -- "listen for Capture JournalEntries,based on the presence of payment-split, it does perform idempotent update on Transfer, InternalTransferTx,and OutboxEvent(InternalTransferCommand)" --> CDB
-        C_PRC --> CDB
-        C_CPC --> CDB
-        C_GCA --> CDB
-        C_SDR --> CDB
+    else Retry (Key already processed)
+        EdgeDB-->>PaymentSvc: Return stored JSON response
+        PaymentSvc-->>Proxy: 200 OK (Replayed)<br/>{ paymentIntentId, clientSecret }
+    end
+    %% --- END IDEMPOTENCY FLOW ---
 
+    Proxy-->>Browser: Return { clientSecret }
 
-        linkStyle 13,14,15,16,17,18,19 stroke:#6a0dad,stroke-width:3px;
-        linkStyle 20,21,22,23,24,25 stroke:#f44336,stroke-width:2px;
-        linkStyle 26,27,28,29,30,31 stroke:#8fce00,stroke-width:5px;
-end
+    %% Step 2: Collect Card Details via Stripe Element
+    Note over Shopper, Stripe: Phase 2: Securely Collect Card Details
+
+    Browser->>Stripe: Stripe.js initializes Payment Element using clientSecret
+    Stripe-->>Browser: Renders secure card input form (iframe)
+    
+    Shopper->>Browser: Enters card details into Stripe's form
+    Note right of Shopper: Card data goes directly to Stripe,<br/>never touching any of our servers.
+
+    %% Step 3: Confirm Payment with Stripe and Authorize Internally
+    Note over Shopper, Stripe: Phase 3: Confirm Payment & Finalize State
+
+    Shopper->>Browser: Clicks "Pay Now"
+    Browser->>Stripe: elements.submit() (Tokenize & Associate)
+    Note right of Browser: Stripe JS sends card data,<br/>creates PaymentMethod,<br/>links it to PaymentIntent
+    Stripe-->>Browser: Validation OK
+    Browser->>Proxy: POST /api/checkout/authorize-payment/{paymentId}
+    
+    Proxy->>Keycloak: Request service token (can be cached)
+    Keycloak-->>Proxy: Return JWT Access Token
+
+    Proxy->>PaymentSvc: POST /api/v1/payments/{paymentId}/authorize
+    
+    PaymentSvc->>Stripe: paymentIntents.confirm(id)
+    Stripe-->>PaymentSvc: SUCCEEDED
+
+    rect rgb(230, 240, 255)
+        note over PaymentSvc: @Transactional
+        PaymentSvc->>PaymentSvc: Update PaymentIntent status to AUTHORIZED
+        PaymentSvc->>PaymentSvc: Save PaymentAuthorized to Outbox table
+    end
+
+    PaymentSvc-->>Proxy: 200 OK { status: 'AUTHORIZED' }
+    Proxy-->>Browser: Return final success status
+    Browser->>Shopper: Display "Payment Successful" message
 ```
 
 ## **For Sellers**
