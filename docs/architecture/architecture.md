@@ -9,7 +9,7 @@ The platform manages the **full payment lifecycle**: synchronous authorization, 
 
 # 🟦   High Level Plaform Arhictecture
 
-### Full System Context Diagram
+### Full System Context Diagram(Create Payment Intent/Authorization flows are merged here for the sake of simplicity, please check below detailed authorization flow )
 ```mermaid
 flowchart TD
     %% Define Color Styles
@@ -135,44 +135,10 @@ end
 ```
 
 
-# 🟩 Key Clarifications (MoR Model)
-
-
-### **1. Is the payment platform internal?**
-Yes. The payment platform is an **internal backend domain service**, not exposed to shoppers directly. While it provides endpoints like `POST /api/v1/payments/{paymentId}/authorize`, these are meant to be called by your own internal proxies or checkout services, never directly by the shopper's browser.
-
----
-
-### **2. Do we perform the actual financial authorization ourselves?**
-No. Even though we expose an `/authorize` endpoint to orchestrate the flow, we do not perform the actual financial authorization. We simply act as a gateway to trigger and record the authorization happening at an external PSP (like Stripe).  
-From the PSP’s perspective, we appear as a **single merchant-of-record**; seller details remain completely internal to our ledger.
-
----
-
-### **3. Do we distribute funds to sellers internally?**
-Yes. As the MoR, the platform manages all **fund allocation**, applies platform fees, credits seller balances, and schedules payouts.  
-The PSP simply transfers funds into the MoR account.
-
----
-
-### **4. Why separate PaymentIntent and Payment?**
-PaymentIntent is just a domain entity living in edge layer and edge db so its not a global entity,but Payment is part of central cluster and it is the real entity created after a financial ionteraction with external world
-
-# 🟧 Functional Requirements
-*(written using Shopper, Seller, and Internal Services as actors)*
-
-## **For Shoppers**
-
-### **FR1 — Shoppers should be able to make a payment for a multi-seller basket.**
-- A shopper must be able to proceed to checkout page(cretePaymentIntent), and then pay via clicking pay button on checkout page(authorize endpoint)
-
-### **FR2 — Shoppers should be able to see accurate payment authorization status.**
-- Shoppers should be able to view whether their payment is authorized or declined, its a syncronous psp call, and shoppers can see payment status via the paymentintent
-
----
-
-
-Authorization Flow
+### Authorization Flow (This illustrates a demo checkout PCI compliant checkout page
+##Please note that in direct integrations merchant will do 2 http call
+   1-Sending  POST request on /api/v1/payments(with JWT & Idempotency-Key),a response with paymentintentid returned to merchant
+   2-Using the payment intentid  in the response of step-1 , merhcant calls  POST /api/v1/payments/{paymentIntentId}/authorize(with JWT))
 ```mermaid
 sequenceDiagram
     autonumber
@@ -284,6 +250,46 @@ sequenceDiagram
     Proxy-->>Browser: Return final success status
     Browser->>Shopper: Display "Payment Successful" message
 ```
+
+
+# 🟩 Key Clarifications (MoR Model)
+
+
+### **1. Is the payment platform internal?**
+Yes. The payment platform is an **internal backend domain service**, not exposed to shoppers directly. While it provides endpoints like `POST /api/v1/payments/{paymentId}/authorize`, these are meant to be called by your own internal proxies or checkout services, never directly by the shopper's browser.
+
+---
+
+### **2. Do we perform the actual financial authorization ourselves?**
+No. Even though we expose an `/authorize` endpoint to orchestrate the flow, we do not perform the actual financial authorization. We simply act as a gateway to trigger and record the authorization happening at an external PSP (like Stripe).  
+From the PSP’s perspective, we appear as a **single merchant-of-record**; seller details remain completely internal to our ledger.
+
+---
+
+### **3. Do we distribute funds to sellers internally?**
+Yes. As the MoR, the platform manages all **fund allocation**, applies platform fees, credits seller balances, and schedules payouts.  
+The PSP simply transfers funds into the MoR account.
+
+---
+
+### **4. Why separate PaymentIntent and Payment?**
+PaymentIntent is just a domain entity living in edge layer and edge db so its not a global entity,but Payment is part of central cluster and it is the real entity created after a financial ionteraction with external world
+
+# 🟧 Functional Requirements
+*(written using Shopper, Seller, and Internal Services as actors)*
+
+## **For Shoppers**
+
+### **FR1 — Shoppers should be able to make a payment for a multi-seller basket.**
+- A shopper must be able to proceed to checkout page(cretePaymentIntent), and then pay via clicking pay button on checkout page(authorize endpoint)
+
+### **FR2 — Shoppers should be able to see accurate payment authorization status.**
+- Shoppers should be able to view whether their payment is authorized or declined, its a syncronous psp call, and shoppers can see payment status via the paymentintent
+
+---
+
+
+
 
 ## **For Sellers**
 
