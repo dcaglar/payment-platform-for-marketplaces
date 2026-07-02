@@ -7,47 +7,7 @@ The platform manages the **full payment lifecycle**: synchronous authorization, 
 ---
 
 
-# 🟦   High Level Plaform Arhictecture 
-
-### Edge Cell Physical Topology
-```mermaid
-graph TD
-    classDef pod fill:#e6f3ff,stroke:#0066cc,stroke-width:2px,color:#333
-    classDef container fill:#fff,stroke:#666,stroke-width:1px,color:#333
-    classDef db fill:#e2f0d9,stroke:#70ad47,stroke-width:2px,color:#333
-    classDef external fill:#fff2cc,stroke:#ffc000,stroke-width:2px,color:#333
-
-    subgraph EdgeNode["Physical Azure VM (Standard_D8ds_v6)"]
-        direction TB
-        
-        subgraph PodEdgeCell["Pod: payment-edge-cell"]
-            direction TB
-            API["Container: payment-service<br/>(Spring Boot REST API)"]
-            DB[("Container: edge-db<br/>(PostgreSQL)")]
-        end
-        
-        subgraph PodEdgeWorkers["Pod: payment-edge-workers"]
-            Worker["Container: edge-worker<br/>(LocalOutboxForwarderJob)"]
-        end
-    end
-    
-    Proxy["Internal Gateway / Proxy"]
-    Stripe["Stripe PSP API"]
-    CentralDB[("Central Consolidated DB<br/>(PostgreSQL)")]
-    
-    Proxy == "1. POST /api/v1/payments" ==> API
-    API -. "2. Check Idempotency & Save Intent" .-> DB
-    API == "3. Synchronous Auth" ==> Stripe
-    API -. "4. Write OutboxEvent" .-> DB
-    
-    Worker -. "5. Poll NEW OutboxEvents" .-> DB
-    Worker == "6. Forward to Central Outbox" ==> CentralDB
-
-    class PodEdgeCell,PodEdgeWorkers pod
-    class API,Worker container
-    class DB,CentralDB db
-    class Proxy,Stripe external
-```
+# 🟦   High Level Plaform Arhictecture
 
 ### Full System Context Diagram
 ```mermaid
@@ -412,11 +372,15 @@ These actors perform operations on payments, orders, balances, and payouts.
 
 # 🟩 Core Business Entities
 Here you can see t journey of a paymentintent -> pamyent- > capture/refund/ settle/ payout/ split transaction
-![Architecture](docs/architecture/payments-journey.svg)
+
 
 These are the fundamental nouns of our Merchant-of-Record payment platform.
 
 ---
+
+![UML Diagram](um-diagram-payment-ledger-domain.png)
+
+
 
 ## **1. PaymentIntent**
 
