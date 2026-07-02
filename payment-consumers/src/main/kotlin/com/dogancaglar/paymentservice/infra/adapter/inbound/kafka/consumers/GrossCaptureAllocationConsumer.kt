@@ -62,7 +62,7 @@ class GrossCaptureAllocationConsumer(
                 // 1. Verify a successful CAPTURE journal entry exists in this ledger batch
                 val captureEntry = event.ledgerEntries.find { it.journalType == JournalType.CAPTURE }
                 if (captureEntry == null) {
-                    logger.debug("No CAPTURE journal entry found in this batch. No clearing allocation required.")
+                    logger.debug("No CAPTURE journal entry found in this JournalEntriesRecorded. No clearing allocation required.")
                     dedupe.markProcessed(eventId, 3600)
                     logger.info("Gross capture allocation consumer executed successfully for paymentIntentId=${event.publicPaymentIntentId}")
                     return@with

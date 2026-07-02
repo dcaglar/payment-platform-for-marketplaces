@@ -102,7 +102,7 @@ const SCENARIOS = {
         preAllocatedVUs: 50,
         maxVUs: 5000,
         stages: [
-            { duration: '15m', target: 350 },  // Ramp to find true 2-pod ceiling
+            { duration: '15m', target: 1500 },  // Ramp to find true 2-pod ceiling
         ],
         tags: { test_type: 'breakpoint' },
     }
@@ -235,7 +235,7 @@ function generateRandomOrder(sellerPool) {
 
 // --- 4. Main User Journey ---
 export default function () {
-    const baseUrl = __ENV.BASE_URL || "http://51.105.254.202";
+    const baseUrl = __ENV.BASE_URL || "http://57.153.89.116";
 
     // Pick a random marketplace (and its scoped seller pool) for this iteration
     const marketplace = pickRandomMarketplace();

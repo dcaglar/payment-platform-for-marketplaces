@@ -22,7 +22,7 @@
       "id": 1,
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{application=\"payment-service\"}[1m])) by (uri, pod)",
+          "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"payment\"}[1m])) by (uri, pod)",
           "legendFormat": "{{uri}} - {{pod}}"
         }
       ]
@@ -38,11 +38,11 @@
       "id": 2,
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"payment-service\"}[1m])) by (le, uri, pod))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=\"payment\"}[1m])) by (le, uri, pod))",
           "legendFormat": "P95 - {{uri}} - {{pod}}"
         },
         {
-          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{application=\"payment-service\"}[1m])) by (le, uri, pod))",
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{namespace=\"payment\"}[1m])) by (le, uri, pod))",
           "legendFormat": "P99 - {{uri}} - {{pod}}"
         }
       ]
@@ -58,7 +58,7 @@
       "id": 3,
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{application=\"payment-service\", status=~\"5..\"}[1m])) by (uri, pod) / sum(rate(http_server_requests_seconds_count{application=\"payment-service\"}[1m])) by (uri, pod)",
+          "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"payment\", status=~\"5..\"}[1m])) by (uri, pod) / sum(rate(http_server_requests_seconds_count{namespace=\"payment\"}[1m])) by (uri, pod)",
           "legendFormat": "Error Rate - {{uri}} - {{pod}}"
         }
       ]
@@ -154,7 +154,7 @@
       "id": 8,
       "targets": [
         {
-          "expr": "sum(kafka_consumergroup_lag{consumergroup=~\"psp-.*\"}) by (consumergroup)",
+          "expr": "sum(kafka_consumergroup_lag{namespace=\"payment\"}) by (consumergroup)",
           "legendFormat": "{{consumergroup}}"
         }
       ]
