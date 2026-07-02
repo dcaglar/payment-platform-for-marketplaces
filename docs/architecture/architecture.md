@@ -496,7 +496,6 @@ Used for reporting, analytics, payouts, and consistency validation.
 
 
 
-## Sequnce Diagrams
 
 
 
@@ -521,7 +520,69 @@ Historically, consumers would read an event, process it (e.g. call a PSP), and t
 3. **Outbox Relay**: The `OutboxRelayJob` reads these results from the database outbox and publishes them asynchronously to their respective Kafka topics (e.g., `psp-result-queue`, `capture-execution-queue`, `internal-transfer-queue`, `journal.entries.recorded`) based on the event type.
 4. **Result Processing (`PspResultConsumer`)**: Listens to the `psp-result-queue` to apply the results to the central database, finalize payment statuses, trigger internal double-entry ledger bookkeeping, and schedule any required internal transfers.
 
-### Authorization/Idempotency Sequence Diagram
+### Psp Result Consumer Detailed Flow ( NOT %100 ACCURATE/DRAFT WIP)
+```mermaid
+graph TD
+%% Define Styles
+classDef branch fill:#f9f9f9,stroke:#333,stroke-width:2px;
+classDef atomic fill:#e1f5fe,stroke:#0277bd,stroke-width:2px;
+
+    %% Branch definitions
+    subgraph AuthBranch ["Branch: processAuthorized"]
+        A_State[("Payment: Initialize<br/>Status: AUTH")]:::branch
+        A_Tx[("Tx: Create AuthTx<br/>Status: SUCCESS")]:::branch
+        A_Ledger["JournalEntry: authHold<br/>(DR: Receivable / CR: Liability)"]:::branch
+        A_Outbox["Outbox: CaptureRequested"]:::branch
+    end
+
+    subgraph CaptureBranch ["Branch: processCaptureConfirmed"]
+        B_State[("Payment: ApplyCapture<br/>Status: CAPTURED")]:::branch
+        B_Tx[("Tx: CaptureTx<br/>Status: SUCCESS")]:::branch
+        B_Ledger["JournalEntry: captureGrossAsset<br/>(DR: Liab / CR: Pool)"]:::branch
+        B_Outbox["Outbox: JournalEntriesRecorded"]:::branch
+    end
+
+    subgraph TransferBranch ["Branch: processInternalTransferCommand"]
+        C_State[("Payment: (No State Change)")]:::branch
+        C_Tx[("Tx: InternalTransferTx<br/>Status: SUCCESS")]:::branch
+        C_Ledger["JournalEntry: (Commission/Transfer/Revenue)<br/>(Recipe-specific DR/CR)"]:::branch
+        C_Outbox["Outbox: JournalEntriesRecorded"]:::branch
+    end
+
+    subgraph SettleBranch ["Branch: processSettlementLineReconciled"]
+        D_State[("Payment: reconcileCaptureSettlement<br/>(Status: SETTLED)")]:::branch
+        D_Tx[("Tx: SettleTx<br/>Status: SUCCESS")]:::branch
+        D_Ledger["JournalEntry: settlementLineItem<br/>(DR: Cash & Fee Exp / CR: PSP Recv)"]:::branch
+        D_Outbox["Outbox: JournalEntriesRecorded"]:::branch
+    end
+
+    %% Persistence
+    Persistence[("Atomic Commit (CentralDb)")]:::atomic
+
+    %% Link all branches to persistence
+    AuthBranch --> Persistence
+    CaptureBranch --> Persistence
+    TransferBranch --> Persistence
+    SettleBranch --> Persistence
+
+    %% Connections within branches (example for Auth)
+    A_State & A_Tx & A_Ledger & A_Outbox --> Persistence
+    B_State & B_Tx & B_Ledger & B_Outbox --> Persistence
+    C_State & C_Tx & C_Ledger & C_Outbox --> Persistence
+    D_State & D_Tx & D_Ledger & D_Outbox --> Persistence
+```
+
+
+
+### AccountBalanceConsumer Details ( TODO )
+
+
+###  CaptureCommandExecutor/RefundCommandExecutor Details ( TODO )
+
+###  GrossCaptureAllocationConsumer Details ( TODO )
+
+###  SimulatedSdrStreamingProcessorConsumer Details ( TODO )
+
 
 
 
