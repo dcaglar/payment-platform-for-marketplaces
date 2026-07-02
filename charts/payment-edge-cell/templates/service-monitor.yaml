@@ -20,11 +20,7 @@ spec:
       scrapeTimeout: {{.Values.serviceMonitor.scrapeTimeout | default "10s"}}
       scheme: {{.Values.serviceMonitor.scheme | default "http"}}
 
-    - port: metrics-db
-      path: /metrics
-      interval: {{.Values.serviceMonitor.interval | default "30s"}}
-      scrapeTimeout: {{.Values.serviceMonitor.scrapeTimeout | default "30s"}}
-      scheme: {{.Values.serviceMonitor.scheme | default "http"}}
+
   # optional: only needed if the Service is in another namespace than this SM
   # namespaceSelector:
   #   matchNames:

@@ -62,7 +62,7 @@ kubectl get svc -n monitoring prometheus-stack-grafana -o jsonpath='{.status.loa
 ```
 To fetch defaul username/password
 ```bash
-kubectl get svc -n monitoring prometheus-stack-grafana -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+ kubectl get secret --namespace monitoring prometheus-stack-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
 ```
 
 
@@ -106,4 +106,59 @@ kubectl port-forward -n payment statefulset/payment-edge-cell 5433:5432
 Run this command, then connect your local Kafka tools to `localhost:9092`:
 ```bash
 kubectl port-forward -n payment svc/kafka 9092:9092
+```
+
+---
+
+## 6. Testing the Payment API
+
+Once your Azure infrastructure is deployed, you can test the public Payment API using standard curl commands. 
+
+### Step 1: Generate a valid JWT Token
+You must fetch a valid token from your Azure Keycloak instance using the provided helper script:
+```bash
+# This fetches the token and saves it to ./keycloak/output/jwt/payment-service.token
+bash ./keycloak/get-token-azure.sh
+```
+
+### Step 2: Extract the Public API IP
+Store the NGINX Ingress public IP into an environment variable:
+```bash
+export API_IP=$(kubectl get ingress -n payment payment-edge-cell -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "Public API IP: $API_IP"
+```
+
+### Step 3: Create a Payment Intent
+Execute the curl request against the public IP, injecting the token from the file:
+```bash
+IDEMPOTENCY_KEY=$(printf '%08x-%04x-7%03x-8%03x-%04x%08x' $((RANDOM*RANDOM)) $((RANDOM)) $((RANDOM%4096)) $((RANDOM%4096)) $((RANDOM)) $((RANDOM*RANDOM)))
+echo "Using Idempotency-Key=$IDEMPOTENCY_KEY"
+curl -i -X POST http://51.105.254.202/api/v1/payments \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(cat ./keycloak/output/jwt/payment-service.token)" \
+  -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+  -d '{
+    "orderId": "ORDER-1450",
+    "buyerId": "BUYER-1450",
+    "merchantAccount": "MARKETPLACE-5",
+    "processingModel": "MARKETPLACE",
+    "totalAmount": { "quantity": 3000, "currency": "EUR" },
+    "splits": [
+      { "type": "BalanceAccount", "account": "SELLER-5-1", "amount": { "quantity": 1400, "currency": "EUR" }},
+      { "type": "Commission", "amount": { "quantity": 100, "currency": "EUR" }},
+      { "type": "BalanceAccount", "account": "SELLER-5-2", "amount": { "quantity": 1400, "currency": "EUR" }},
+      { "type": "Commission", "amount": { "quantity": 100, "currency": "EUR" }}
+    ]
+  }'
+```
+
+### Step 4: Authorize the Payment Intent
+Copy the `paymentIntentId` returned from Step 3 (e.g., `pi_AcqzYyHCcAA`) and authorize it:
+```bash
+PAYMENT_INTENT_ID="<paste-your-payment-intent-id-here>"
+
+curl -i -X POST "http://51.105.254.202/api/v1/payments/pi_Ar6RoATCAAA/authorize" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(cat ./keycloak/output/jwt/payment-service.token)" \
+  -d '{}'
 ```

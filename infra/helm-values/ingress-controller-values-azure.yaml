@@ -1,13 +1,13 @@
 
-# ingress-controller-values-local.yaml
+# ingress-controller-values-azure.yaml
 controller:
   metrics:
     enabled: true
     serviceMonitor:
       enabled: true
-      namespace: ingress-nginx # or wherever your operator is
+      namespace: ingress-nginx
       additionalLabels:
-        release: prometheus-stack # Match the label your operator looks for
+        release: prometheus-stack
   service:
     type: LoadBalancer
     annotations:
@@ -18,9 +18,9 @@ controller:
   resources:
     requests:
       cpu: 100m
-      memory: 400Mi
+      memory: 1Gi
     limits:
-      memory: 400Mi
+      memory: 1.5Gi
   admissionWebhooks:
     enabled: false
     patch:
@@ -37,3 +37,15 @@ controller:
           memory: 32Mi
         limits:
           memory: 64Mi
+
+  # ── Cell Routing: Lua snippet support ──────────────────────────────────────
+  # configuration-snippet is rated "Critical" by ingress-nginx ≥ v1.9.0.
+  # This cluster is single-tenant (we own all Ingress objects), so the risk is
+  # accepted. Without these two flags the annotation is silently dropped.
+  allowSnippetAnnotations: true
+
+  config:
+    # Unlocks "Critical"-rated annotations (configuration-snippet is one of them).
+    annotations-risk-level: "Critical"
+    # 1 MB shared dict for the Snowflake cell-routing Lua block.
+    lua-shared-dicts: "cell_routing: 1m"

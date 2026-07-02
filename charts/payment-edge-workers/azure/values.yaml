@@ -11,7 +11,7 @@ runPrivilegeGrantJob: true
 keda:
   enabled: true
   minReplicaCount: 1
-  maxReplicaCount: 2
+  maxReplicaCount: 3
   pollingInterval: 15
   cooldownPeriod: 300
   triggers:
@@ -53,4 +53,4 @@ config:
   EDGE_DB_NAME: "edge-db"
   CENTRAL_DB_NAME: "central-db"
 serviceMonitor:
-  enabled: true
+  enabled: false

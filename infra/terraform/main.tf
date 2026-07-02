@@ -9,7 +9,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   dns_prefix          = var.dns_prefix
-
+  sku_tier = "Free"
   # System Node Pool — DSv4 family (quota: 2/10 vCPU)
   # Standard_D2s_v4: 2 vCPU, 8 GiB RAM
   # Hosts only AKS system pods (CoreDNS, kube-proxy, metrics-server).

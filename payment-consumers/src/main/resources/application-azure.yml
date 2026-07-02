@@ -73,7 +73,4 @@ spring:
       security.protocol: PLAINTEXT
       session.timeout.ms: 45000
 
-logging:
-  level:
-    root: ERROR
-    org.springframework: ERROR
+

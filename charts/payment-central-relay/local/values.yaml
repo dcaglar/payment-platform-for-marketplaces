@@ -6,7 +6,7 @@ kafka:
 spring:
   profile: local
 serviceMonitor:
-  enabled: true
+  enabled: false
   labels:
     release: prometheus-stack
   path: /actuator/prometheus

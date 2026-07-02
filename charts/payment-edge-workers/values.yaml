@@ -3,7 +3,7 @@ edgeWorker:
     repository: dcaglar1987/payment-edge-workers
     tag: "latest"
 serviceMonitor:
-  enabled: true
+  enabled: false
   labels:
     release: prometheus-stack
 runPrivilegeGrantJob: true

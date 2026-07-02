@@ -82,8 +82,4 @@ psp:
             statusCheck: 0
             nonRetryable: 0
 
-logging:
-  level:
-    root: ERROR
-    org.springframework: ERROR
-    com.dogancaglar.paymentservice: ERROR
+

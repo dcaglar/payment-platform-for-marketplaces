@@ -1,26 +1,37 @@
-{{- if .Values.ingress.enabled }}
+{{- if .Values.ingress.enabled -}}
+  {{- $fullName := include "payment-edge-cell.fullname" . -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "payment-edge-cell.fullname" . }}
+  name: {{ $fullName }}
   labels:
     {{- include "payment-edge-cell.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
   annotations:
-    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className | default "nginx" }}
   rules:
-    - {{ if .Values.ingress.host }}host: {{ .Values.ingress.host | quote }}
-      {{ end -}}
-                                           http:
-                                             paths:
-                                               - path: {{ .Values.ingress.path | default "/" }}
-                                                 pathType: {{ .Values.ingress.pathType | default "Prefix" }}
-                                                 backend:
-                                                   service:
-                                                     name: {{ include "payment-edge-cell.fullname" . }}
-                                                     port:
-                                                       number: {{ .Values.service.port | default 8080 }}
+    - http:
+        paths:
+          # 1. Main Business API Routing
+          - path: {{ .Values.ingress.appPath }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: {{ .Values.ingress.appPort }}
+
+          # 2. Management / Health Routing
+          - path: {{ .Values.ingress.healthPath }}
+            pathType: Exact
+            backend:
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: {{ .Values.ingress.healthPort }}
   {{- with .Values.ingress.tls }}
   tls:
     {{- toYaml . | nindent 4 }}

@@ -64,8 +64,6 @@ Two companion articles go deeper on the problems that matter most in production 
 ---
 
 Please check [here](docs/architecture/architecture.md) for detailed architecture details.
-![Architecture](docs/architecture/high-level-context-full-architecture.png)
-
 
 
 

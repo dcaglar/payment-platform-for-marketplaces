@@ -45,7 +45,4 @@ outbox-relay:
   batch-size: 2000
   poll-interval: 200
 
-logging:
-  level:
-    root: ERROR
-    org.springframework: ERROR
+

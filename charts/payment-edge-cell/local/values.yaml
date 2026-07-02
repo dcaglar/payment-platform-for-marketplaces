@@ -82,29 +82,26 @@ edgeDb:
     - "synchronous_commit=on"
 ingress:
   enabled: true
-  className: nginx
+  className: "nginx"
   host: ""
-  path: /
-  pathType: Prefix
   annotations:
-    # 1. Load Balancing Algorithm
     nginx.ingress.kubernetes.io/load-balance: "ewma"
-    # 2. Increase Timeouts
-    # 10s is too short when the DB is under heavy pressure.
-    # Give the backend 30s to respond before Nginx kills the request.
     nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
-    # 3. Connection Management
-    # Increase keepalive to prevent the overhead of recreating TCP connections constantly.
     nginx.ingress.kubernetes.io/upstream-keepalive-timeout: "120"
     nginx.ingress.kubernetes.io/upstream-keepalive-connections: "200"
-    # 4. Concurrency Protection (The Bouncer)
-    # Limit simultaneous connections to slightly above your total capacity (Threads + Queue).
-    # 250 threads + 100 accept-count = 350. Set limit to 400.
     nginx.ingress.kubernetes.io/limit-connections: "350"
-  tls: [] # HTTP for minikube
+  paths:
+    - path: /api/v1/payments
+      pathType: Prefix
+    - path: /swagger-ui
+      pathType: Prefix
+    - path: /v3/api-docs
+      pathType: Prefix
+    - path: /actuator
+      pathType: Prefix
 serviceMonitor:
-  enabled: true
+  enabled: false
   path: /actuator/prometheus
   interval: 15s
   scrapeTimeout: 10s

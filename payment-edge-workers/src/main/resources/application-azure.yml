@@ -55,7 +55,4 @@ db:
     lock-timeout-ms: 500
     idle-in-tx-timeout-ms: 0
 
-logging:
-  level:
-    root: ERROR
-    org.springframework: ERROR
+

@@ -1,5 +1,9 @@
 replicaCount: 1
 
+auth:
+  adminUser: admin
+  adminPassword: adminpassword
+
 postgresql:
   enabled: true
   auth:
@@ -9,11 +13,9 @@ postgresql:
   # leave ports at defaults (5432). Do NOT override.
 
 service:
-  type: NodePort
+  type: ClusterIP
   ports:
     http: 8080
-  nodePorts:
-    http: 32080
 
 # single-node cache; also blank out KC_CACHE_STACK so no jdbc-ping surprise
 extraEnvVars:
@@ -23,6 +25,8 @@ extraEnvVars:
     value: "kubernetes"
   - name: KC_PROXY
     value: "edge"
+  - name: KC_HTTP_RELATIVE_PATH
+    value: "/auth"
   # Configure hostname to use cluster-internal DNS so JWT issuer matches payment service config
   # This ensures tokens have issuer: http://keycloak:8080/realms/ecommerce-platform
   - name: KC_HOSTNAME
@@ -31,10 +35,8 @@ extraEnvVars:
     value: "8080"
   - name: KC_HOSTNAME_STRICT
     value: "false"
-  - name: KEYCLOAK_ADMIN
-    value: "admin"
-  - name: KEYCLOAK_ADMIN_PASSWORD
-    value: "adminpassword"
+  # KEYCLOAK_ADMIN and KEYCLOAK_ADMIN_PASSWORD are managed by auth.adminUser/adminPassword above.
+  # Do NOT set them here — duplicate plain 'value:' conflicts with Bitnami's internal secretKeyRef.
 
 resources:
   requests:
@@ -56,3 +58,17 @@ readinessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 10
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  pathType: ImplementationSpecific
+  path: "/auth(/|$)(.*)"
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/load-balance: "ewma"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
+    nginx.ingress.kubernetes.io/upstream-keepalive-timeout: "120"
+    nginx.ingress.kubernetes.io/upstream-keepalive-connections: "200"
+    nginx.ingress.kubernetes.io/limit-connections: "350"

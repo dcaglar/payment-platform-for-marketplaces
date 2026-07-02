@@ -8,6 +8,8 @@ metadata:
     {{- include "payment-consumers.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
     name: {{ include "payment-consumers.fullname" . }}
   minReplicaCount: {{ .Values.keda.minReplicaCount | default 1 }}
   maxReplicaCount: {{ .Values.keda.maxReplicaCount | default 6 }}

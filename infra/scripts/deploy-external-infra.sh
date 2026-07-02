@@ -96,10 +96,11 @@ helm repo update
 
 echo "📦 Deploying $RELEASE_NAME into namespace $NAMESPACE..."
 # Note: we are passing HELM_ARGS and EXTRA_ARGS unquoted intentionally so they expand
-helm secrets upgrade --install "$RELEASE_NAME" "$CHART" \
+# Plain helm — no SOPS-encrypted secrets are used for external infra (keycloak, kafka, redis, keda, ingress-controller)
+helm upgrade --install "$RELEASE_NAME" "$CHART" \
   -n "$NAMESPACE" --create-namespace \
   $HELM_ARGS \
-  $EXTRA_ARGS \
+  $EXTRA_ARGS
 
 
 echo "✅ Deployment request  of $SERVICE_NAME to $ENV helm  complete."

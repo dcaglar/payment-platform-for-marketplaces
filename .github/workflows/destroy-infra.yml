@@ -38,10 +38,36 @@ jobs:
           name: tfplan-destroy
           path: infra/terraform/tfplan
 
+  graceful-k8s-shutdown:
+    name: "Graceful Kubernetes Shutdown"
+    runs-on: ubuntu-latest
+    needs: terraform-plan-destroy
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Azure Login & AKS Credentials
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          az login --service-principal -u $ARM_CLIENT_ID -p $ARM_CLIENT_SECRET --tenant $ARM_TENANT_ID
+          az aks get-credentials --resource-group rg-payment-platform-loadtest --name aks-payment-loadtest
+
+      - name: Execute Teardown Script
+        run: |
+          chmod +x ./infra/scripts/delete-all-azure.sh
+          ./infra/scripts/delete-all-azure.sh
+
   destroy-infrastructure:
     name: "Terraform Destroy"
     runs-on: ubuntu-latest
-    needs: terraform-plan-destroy # <--- FIX: Must wait for the plan
+    needs: graceful-k8s-shutdown # <--- FIX: Must wait for graceful shutdown
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -72,3 +98,25 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: terraform apply tfplan
+
+      - name: Force Cleanup Orphaned AKS Node Resource Group
+        if: always() # Run even if Terraform destroy fails or times out
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            echo "Checking for orphaned MC_ resource group..."
+            RG_NAME="MC_rg-payment-platform-loadtest_aks-payment-loadtest_westeurope"
+            
+            az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+            az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+            
+            EXISTS=$(az group exists --name $RG_NAME)
+            
+            if [ "$EXISTS" = "true" ]; then
+              echo "⚠️ Orphaned resource group $RG_NAME found! Force deleting to prevent costs..."
+              az group delete --name $RG_NAME --yes --no-wait
+              echo "✅ Deletion triggered."
+            else
+              echo "✅ No orphaned resource group found."
+            fi

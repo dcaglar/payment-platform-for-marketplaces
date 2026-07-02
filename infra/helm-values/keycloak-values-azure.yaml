@@ -1,4 +1,8 @@
 replicaCount: 1
+
+auth:
+  adminUser: admin
+  adminPassword: adminpassword
 postgresql:
   enabled: true
   auth:
@@ -32,10 +36,9 @@ extraEnvVars:
     value: "8080"
   - name: KC_HOSTNAME_STRICT
     value: "false"
-  - name: KEYCLOAK_ADMIN
-    value: "admin"
-  - name: KEYCLOAK_ADMIN_PASSWORD
-    value: "adminpassword"
+  # KEYCLOAK_ADMIN and KEYCLOAK_ADMIN_PASSWORD are managed by auth.adminUser/adminPassword above.
+  # Do NOT set them here — the Bitnami chart injects them via secretKeyRef, and a duplicate
+  # plain 'value:' entry causes: "may not be specified when value is not empty".
 resources:
   requests:
     memory: 1Gi

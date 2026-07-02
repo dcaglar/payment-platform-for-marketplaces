@@ -22,7 +22,7 @@ Bash
 az group delete --name rg-payment-platform-loadtest --yes --no-wait
 --no-wait: This returns control to your terminal immediately while the deletion happens in the background.
 
-3. Monitoring the Deletion
+1. Monitoring the Deletion
    Since you used --no-wait, you need to monitor the deletion process to confirm when it is finished.
 
 Check the deletion status:

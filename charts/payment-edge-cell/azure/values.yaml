@@ -3,9 +3,9 @@ spring:
 keda:
   enabled: true
   minReplicaCount: 1
-  maxReplicaCount: 2
+  maxReplicaCount: 3
   pollingInterval: 15
-  cooldownPeriod: 300
+  cooldownPeriod: 120
   triggers:
     - type: cpu
       metricType: Utilization
@@ -14,7 +14,7 @@ keda:
         containerName: "payment-service"
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 300
+      stabilizationWindowSeconds: 60
       selectPolicy: Max
       policies:
         - type: Pods
@@ -42,6 +42,93 @@ redis:
   url: "redis://redis-master:6379"
 ingress:
   enabled: true
+  appPath: "/api/v1/payments"
+  appPort: 8080
+  healthPath: "/healthz"
+  healthPort: 9000
+
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    # ── Snowflake Cell Router ─────────────────────────────────────────────────
+    # Mirrors PublicIdCodec.kt (Base64URL, big-endian 8 bytes, no padding) and
+    # SnowflakeCore.kt (NODE_SHIFT=12, NODE_MASK=31).
+    #
+    # Flow for POST /api/v1/payments/pi_{base64url}/authorize:
+    #   1. Extract base64url token from URL path
+    #   2. Re-add stripped padding + swap URL-safe chars → standard Base64
+    #   3. ngx.decode_base64 → 8 raw bytes
+    #   4. Parse big-endian unsigned 64-bit integer (two 32-bit halves)
+    #   5. nodeId = floor(lo / 4096) % 32   [ = (id >> 12) & 0x1F ]
+    #   6. Set $cell_target = payment-edge-cell-<nodeId>.payment-edge-cell-headless.payment.svc.cluster.local
+    #
+    # Non-matching paths (e.g. POST /api/v1/payments) fall through unchanged.
+    # ─────────────────────────────────────────────────────────────────────────
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      if ($uri = "/healthz") {
+        rewrite ^/healthz$ /actuator/health break;
+      }
+      set $cell_target "";
+      access_by_lua_block {
+        local uri = ngx.var.uri
+        ngx.log(ngx.WARN, "[cell-router-debug] URI accessed: ", uri)
+
+        -- Only intercept paths that carry a paymentIntentId
+        local b64 = string.match(uri, "^/api/v1/payments/pi_([A-Za-z0-9_%-]+)")
+        ngx.log(ngx.WARN, "[cell-router-debug] Extracted b64 match group: ", tostring(b64))
+
+        if not b64 then
+          ngx.log(ngx.WARN, "[cell-router-debug] No paymentIntentId in URI. Passing through: ", uri)
+          return  -- initial POST /payments or unrelated path — pass through
+        end
+
+        -- Step 1: URL-safe Base64 → standard Base64
+        b64 = string.gsub(b64, "-", "+")
+        b64 = string.gsub(b64, "_", "/")
+        ngx.log(ngx.WARN, "[cell-router-debug] Step 1 b64 (standard format): ", b64)
+
+        -- Step 2: Re-add PKCS#7 padding that PublicIdCodec strips
+        local pad = #b64 % 4
+        ngx.log(ngx.WARN, "[cell-router-debug] Calculated padding needed: ", pad)
+
+        if pad == 2 then b64 = b64 .. "=="
+        elseif pad == 3 then b64 = b64 .. "="
+        end
+        ngx.log(ngx.WARN, "[cell-router-debug] Final padded standard Base64: ", b64)
+
+        -- Step 3: Decode → 8 raw bytes (big-endian signed Long)
+        local raw = ngx.decode_base64(b64)
+        ngx.log(ngx.WARN, "[cell-router-debug] Base64 raw decode success: ", tostring(raw ~= nil))
+
+        if not raw or #raw ~= 8 then
+          ngx.log(ngx.WARN, "[cell-router] decode failed for uri=", uri)
+          return  -- fall through to default upstream
+        end
+
+        -- Step 4: Reconstruct 64-bit integer from big-endian bytes
+        --   We work in two 32-bit halves to stay within Lua 5.1 integer precision.
+        --   hi = bytes[1..4],  lo = bytes[5..8]
+        local b = string.byte
+        local lo = b(raw,5) * 16777216   -- 0x01000000
+                 + b(raw,6) * 65536      -- 0x00010000
+                 + b(raw,7) * 256        -- 0x00000100
+                 + b(raw,8)
+        ngx.log(ngx.WARN, "[cell-router-debug] Reconstructed lo byte value: ", lo)
+
+        -- Step 5: nodeId = (lo >> 12) & 31  (sequence=12bits, node=5bits)
+        local node_id = math.floor(lo / 4096) % 32
+        ngx.log(ngx.WARN, "[cell-router-debug] Extracted node_id: ", node_id)
+
+        -- Step 6: Route to exact StatefulSet pod via headless service DNS
+        ngx.var.cell_target = "payment-edge-cell-" .. node_id
+          .. ".payment-edge-cell-headless.payment.svc.cluster.local:8080"
+        ngx.log(ngx.WARN, "[cell-router] Target cell set: ", ngx.var.cell_target)
+      }
+      if ($cell_target != "") {
+        proxy_pass http://$cell_target;
+      }
+
+
+
 config:
   KEYCLOAK_ISSUER_URL: "http://keycloak:8080/realms/ecommerce-platform"
   EDGE_DB_URL: "jdbc:postgresql://localhost:5432/edge-db?options=-c%20timezone=UTC"

@@ -38,9 +38,10 @@ service:
   portName: http
 
 
-# Add this to charts/payment-edge-cell/values.yaml
 ingress:
   enabled: false
   className: "nginx"
-  path: "/"
-  pathType: "Prefix"
+  host: ""
+  paths:
+    - path: /
+      pathType: Prefix

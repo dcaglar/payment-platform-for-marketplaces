@@ -447,3 +447,20 @@ Standard DSv5 Family vCPUs
 5. **GitHub Secrets Pipeline:** Fixed `setup-github-secrets.sh` to ensure the Service Principal ID (`AZ_CLIENT_ID`) is properly parsed *before* attempting to assign it the "Storage Blob Data Contributor" role for Terraform state access.
 
 **Result:** The entire provisioning and deployment pipeline is now genuinely declarative. Developers and CI pipelines can spin up the full cluster (locally or in Azure) by executing a single script without any manual pauses, hacky port forwarding, or order-dependent steps. Remote state authentication is also fully stabilized.
+
+---
+
+## 21. ADR-002: Embedded Ingress with Toggles (L7 Routing Decoupling)
+
+### 21.1 Context
+We have NGINX Ingress Controller routing public traffic to Keycloak (`/auth`) and the payment service (`/api/v1/payments`). Originally, Ingress configurations were tightly coupled to the application templates, exposing the application to raw root `/` paths. We needed to separate infrastructure routing rules from application logic without introducing complex custom routing charts.
+
+### 21.2 Decision
+We adopt the industry-standard **Embedded Ingress with Toggles** pattern:
+1. **Keycloak Ingress**: Managed natively by Keycloak's Helm release using the Bitnami chart's built-in ingress parameters inside `infra/helm-values/keycloak-values-azure.yaml` (mapping `/auth(/|$)(.*)` with regex matching).
+2. **Payment Ingress**: Managed inside `charts/payment-edge-cell/templates/ingress.yaml`, disabled by default (`ingress.enabled: false`). It is enabled only via environment overrides (`azure/values.yaml` and `local/values.yaml`), mapping only the explicit API prefixes (`/api/v1/payments`, `/swagger-ui`, `/v3/api-docs`, `/actuator`).
+3. This keeps the application workload vanilla (no load balancer logic when disabled) and separates Keycloak's onboarding configuration from the payment service.
+
+### 21.3 Rejected Alternatives
+1. **Centralized Routing Gateway Chart (`edge-ingress-gateway`)**: Rejected because it required managing a custom chart inside `charts/` and created cross-chart coupling (hardcoding ports/service names of other releases).
+2. **Manifests via raw Helm chart (`bedag/raw`)**: Rejected because introducing a third-party wrapper chart for manifests brings security, auditing, and maintenance concerns without true standard benefits.
