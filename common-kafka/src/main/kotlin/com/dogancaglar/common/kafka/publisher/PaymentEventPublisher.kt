@@ -26,42 +26,6 @@ class PaymentEventPublisher(
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    // ======================================================================
-    // SYNC PUBLISH
-    // ======================================================================
-    override fun <T : Event> publishSync(
-        aggregateId: String,
-        data: T,
-        traceId: String,
-        parentEventId: String?,
-        timeoutSeconds: Long
-    ): EventEnvelope<T> {
-        val eventMetaData = eventMetaDataRegistry.metadataForEvent(data)
-        val envelope = EventEnvelopeFactory.envelopeFor(
-            data = data,
-            aggregateId = aggregateId,
-            traceId = traceId,
-            parentEventId = parentEventId
-        )
-
-        val record = buildRecord(eventMetaData, envelope)
-
-        try {
-            kafkaTemplate.send(record).get(timeoutSeconds, TimeUnit.SECONDS)
-            logger.debug(
-                "📨 publishSync OK topic={} key={} eventId={}",
-                eventMetaData.topic, envelope.aggregateId, envelope.eventId
-            )
-        } catch (e: TimeoutException) {
-            logger.warn(
-                "⏱️ publishSync TIMEOUT {}s topic={} key={} eventId={}",
-                timeoutSeconds, eventMetaData.topic, envelope.aggregateId, envelope.eventId
-            )
-            throw e
-        }
-
-        return envelope
-    }
 
 
 
