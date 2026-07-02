@@ -50,126 +50,128 @@ graph TD
 ```
 
 ### Full System Context Diagram
-```mermaid
-graph TD
-    %% Styles
-    classDef edgeCell fill:#fff0f0,stroke:#ffbaba,stroke-width:2px,color:#333
-    classDef internalHost fill:#f0f8ff,stroke:#baddff,stroke-width:2px,color:#333
-    classDef db fill:#e2f0d9,stroke:#70ad47,stroke-width:2px,color:#333
-    classDef service fill:#fff2cc,stroke:#ffc000,stroke-width:2px,color:#333
-    classDef job fill:#e1dfdd,stroke:#a6a6a6,stroke-width:2px,color:#333
-    classDef topic fill:#e8d1ff,stroke:#b160ff,stroke-width:2px,color:#333
-    classDef consumer fill:#ffe6cc,stroke:#f4b183,stroke-width:2px,color:#333
+```
+flowchart TD
+    %% Define Color Styles
+    classDef edgeBg fill:#ffe6e6,stroke:#333,stroke-width:1px;
+    classDef internalBg fill:#e6f2ff,stroke:#99ccff,stroke-width:2px;
+    classDef greenBox fill:#ccffcc,stroke:#333,stroke-width:1px;
+    classDef pinkBox fill:#ffcccc,stroke:#333,stroke-width:1px;
+    classDef yellowBox fill:#ffeb99,stroke:#333,stroke-width:1px;
+    classDef whiteBox fill:#ffffff,stroke:#333,stroke-width:1px;
+    classDef db fill:#e6ffe6,stroke:#ff6666,stroke-width:px;
+    classDef topic fill:#8e7cc3,stroke:#ff6666,stroke-width:px;
+    classDef consumers fill:#c27ba0,stroke:#ff6666,stroke-width:px;
+    
+    %% Kafka/Job Style (The "CaptureCommandExecutor" green style)
+    classDef actionGreen fill:#ccffcc,stroke:#333,stroke-width:1px;
 
-    subgraph ExternalLayer["EXTERNAL HOSTS (Edge Layer)"]
-        direction LR
-        
-        subgraph Edge1["Edge Node 1 (edgepool)"]
-            direction TB
-            subgraph PodEdgeCell1["Pod: payment-edge-cell"]
-                direction TB
-                API1["Payment Acceptance Service"]
-                EdgeDB1[("Edge Local DB (PostgreSQL)<br/>IdempotencyRecord<br/>PaymentIntent<br/>OutboxEvents")]
-            end
-            
-            subgraph PodEdgeWorkers1["Pod: payment-edge-workers"]
-                Fwd1[["LocalOutboxStoreAndForwardJob"]]
-            end
-            
-            PSP_Edge1["External PSP API<br/>(Synchronous Auth)"]
-            
-            %% Flow Splits inside Edge
-            API1 -.->|1. Idempotency Check| EdgeDB1
-            API1 ===>|2a. Synchronous Auth Pass<br/>Shopper Present| PSP_Edge1
-            PSP_Edge1 ===>|2b. Persist Auth Response to local Outbox  as  EventEnvelope &lt;PaymentAuthorized&gt; | EdgeDB1
-            API1 -->|3.  Capture / Refund received from merchant <br/>Persisted to Outbox as  EventEnvelope &lt;CaptureRequested&gt; in edge db  without any psp interaction| EdgeDB1
-            Fwd1 -.->|Polls local DB| EdgeDB1
-        end
+    subgraph External ["External Edge Host-Stateless payment acceptance service high availibility"]
+        style External fill:transparent,stroke:none,color:#cc0000,font-weight:bold
 
-        subgraph Edge2["Edge Node 2 (edgepool2)"]
-            direction TB
-            subgraph PodEdgeCell2["Pod: payment-edge-cell"]
-                direction TB
-                API2["Payment Acceptance Service"]
-                EdgeDB2[("Edge Local DB (PostgreSQL)<br/>IdempotencyRecord<br/>PaymentIntent<br/>OutboxEvents")]
+        subgraph EdgeLayer ["EXTERNAL HOSTS (Edge Layer)"]
+            style EdgeLayer fill:#ffffff,stroke:#333
+
+            subgraph Cell1 ["Edge Cell 1"]
+                style Cell1 fill:#ffe6e6,stroke:#333
+                
+                PAS1["Payment Acceptance<br/>Service"]:::yellowBox
+                ID1["1. Idempotency Check<br/>⬇<br/>IdempotencyCheck"]:::greenBox
+                PSP1(["External PSP APIs<br/>(Synchronous Auth)"]):::whiteBox
+                DB1[("Edge Local db<br/>(PaymentIntent<br/>IdempotencyRecord<br/>OutboxEvent)")]:::db
+                JOB1["LocalOutboxStoreAndForwardJob"]:::actionGreen
+
+                PAS1 --> ID1
+                PAS1 -- "2a. Synchronous Auth" --> PSP1
+                PSP1 -- "2b. Persist Auth to Outbox" --> DB1
+                PAS1 -- "3. Capture / Refund" --> DB1
+                DB1 --> JOB1
             end
-            
-            subgraph PodEdgeWorkers2["Pod: payment-edge-workers"]
-                Fwd2[["LocalOutboxStoreAndForwardJob"]]
+
+            subgraph Cell2 ["Edge Cell 2"]
+                style Cell2 fill:#ffe6e6,stroke:#333
+                
+                PAS2["Payment Acceptance<br/>Service"]:::yellowBox
+                ID2["1. Idempotency Check<br/>⬇<br/>IdempotencyCheck"]:::greenBox
+                PSP2(["External PSP APIs<br/>(Synchronous Auth)"]):::whiteBox
+                DB2[("Edge Local db<br/>(PaymentIntent<br/>IdempotencyRecord<br/>OutboxEvent)")]:::db
+                JOB2["LocalOutboxStoreAndForwardJob"]:::actionGreen
+
+                PAS2 --> ID2
+                PAS2 -- "2a. Synchronous Auth" --> PSP2
+                PSP2 -- "2b. Persist Auth to Outbox" --> DB2
+                PAS2 -- "3. Capture / Refund" --> DB2
+                DB2 --> JOB2
             end
-            
-            PSP_Edge2["External PSP API<br/>(Synchronous Auth)"]
-            
-            %% Flow Splits inside Edge
-            API2 -.->|1. Idempotency Check| EdgeDB2
-            API2 ===>|2a. Synchronous Auth Pass<br/>Shopper Present| PSP_Edge2
-            PSP_Edge2 ===>|2b. Persist Auth Response to local Outbox  as  EventEnvelope &lt;PaymentAuthorized&gt; | EdgeDB2
-            API2 -->|3.  Capture / Refund received from merchant <br/>Persisted to  local Outbox as  EventEnvelope &lt;CaptureRequested&gt; in edge db  without any psp interaction| EdgeDB2
-            Fwd2 -.->|Polls local DB| EdgeDB2
         end
     end
 
-    subgraph InternalLayer["INTERNAL HOST (Central Cluster)"]
-        direction TB
-        
-        CentralDB[("Central DB<br/>OutboxEvent, Payment, PaymentTx,<br/>LedgerEntry, JournalEntry, Postings")]
-        
-        Relay[["OutboxRelayJob<br/>(payment-central-relay)"]]
-        
-        subgraph Topics["Kafka Topics"]
-            direction LR
-            CAPTURE_COMMANDS_TOPIC>"gateway.capture.commands<br/>(Accepted: EventEnvelope &lt;CaptureRequested&gt;)"]
-            JOURNAL_ENTRIES_RECORDED_TOPIC>"journal.entries.recorded<br/>(Accepted: EventEnvelope &lt;JournalEntriesRecorded&gt;)"]
-            CAPTURE_SUBMITTED_ACKS_TOPIC>"gateway.capture.submitted<br/>(Accepted: EventEnvelope &lt;CaptureSubmitted&gt;)"]
-            PSP_RESULTS_TOPIC>"payment.psp.results<br/>(Accepted: EventEnvelope &lt;PaymentAuthorized&gt;, &lt;CaptureConfirmed&gt;, &lt;InternalTransferCommand&gt;)"]
+    subgraph Internal ["INTERNAL HOST"]
+        style Internal fill:#e6f2ff,stroke:#99ccff,color:#cc0000,font-weight:bold
+
+        CDB[("Central OutboxEvent DB<br/>(OutboxEvent<br/>(Payment</br>Tx , JournalEntry<br/>Posting,</br>Account</brAccountBalance)")]:::db
+        RELAY["Polls OutboxEvents<br/>OutboxRelayJob(s)"]:::greenBox
+
+        JOB1 --> CDB
+        JOB2 --> CDB
+        CDB --> RELAY
+
+        subgraph Kafka ["Kafka Cluster"]
+            style Kafka fill:#f1c232,stroke:#333
+            
+            K1{{"gateway.capture.commands<br/>&lt;CaptureRequested&gt;"}}:::topic
+            K2{{"gateway.capture.submitted<br/>&lt;CaptureSubmitted&gt;"}}:::topic
+            K3{{"payment.psp.results<br/>EventEnvelope&lt;PaymentAuthorized&gt;,<br/>EventEnvelope&lt;CaptureConfirmed&gt;,<br/>EventEnvelope&lt;InternalTransferCommand&gt;"}}:::topic
+            K4{{"journal.entries.recorded<br/>&lt;JournalEntriesRecorded&gt;"}}:::topic
+
         end
-        
-        CentralDB -->|Polls OutboxEvents| Relay
-        
-        Relay -->|EventEnvelope &lt;CaptureRequested&gt;| CAPTURE_COMMANDS_TOPIC
-        Relay -->|EventEnvelope &lt;CaptureSubmitted&gt;| CAPTURE_SUBMITTED_ACKS_TOPIC
-        Relay -->|EventEnvelope &lt;PaymentAuthorized&gt;| PSP_RESULTS_TOPIC
-        Relay -->|EventEnvelope &lt;CaptureConfirmed&gt;| PSP_RESULTS_TOPIC
-        Relay -->|EventEnvelope &lt;JournalEntriesRecorded&gt;| JOURNAL_ENTRIES_RECORDED_TOPIC
-        Relay -->|EventEnvelope &lt;InternalTransferCommand&gt;| PSP_RESULTS_TOPIC
 
-        
-        subgraph Consumers["Payment Consumers (payment-consumers)"]
-            direction TB
-            CaptureCommandExecutor("CaptureCommandExecutor<br/> Consumes EventEnvelope &lt;CaptureRequested&gt;<br/>Calls psp.capture() async endpoint<br/>Stores OutboxEvent EventEnvelope&lt;CaptureSubmitted&gt;")
-            GrossCaptureAllocationConsumer("GrossCaptureAllocationConsumer<br/> Consumes EventEnvelope &lt;JournalEntriesRecorded&gt;<br/>Checks for CAPTURE entries, and creates an OutboxEvent EventEnvelope &lt;InternalTransferCommand&gt; for splits")
-            AccountBalanceConsumer("AccountBalanceConsumer<br/> Consumes EventEnvelope &lt;JournalEntriesRecorded&gt;<br/>Updates account balances in Redis caching layer")
-            CapturePspPerformedConsumer("CapturePspPerformedConsumer<br/> Consumes EventEnvelope &lt;CaptureSubmitted&gt;")
-     
-            PspResultConsumer("PspResultConsumer<br/> Consumes &lt;PaymentAuthorized&gt;, &lt;CaptureConfirmed&gt; and &lt;InternalTransferCommand&gt;<br/><b>if &lt;PaymentAuthorized&gt;</b> -> creates Payment, AuthTx, JournalEntry (AuthHold), appends &lt;JournalEntriesRecorded&gt;<br/><b>if &lt;CaptureConfirmed&gt;</b> -> updates to CAPTURED, updates CaptureTx, JournalEntry (Capture), appends &lt;JournalEntriesRecorded&gt;<br/><b>if &lt;InternalTransferCommand&gt;</b> -> updates InternalTransferTx, JournalEntry (InternalTransfer)")
+        %% Link 0
+        RELAY -- "OutboxEvent&lt;PAYMENT_AUTHORIZED&gt; -> EventEnvelope&lt;PaymentAuthorized&gt; and publish " --> K3
+        %% Link 1
+        RELAY -- "OutboxEvent&lt;CAPTURE_REQUESTED&gt; -> EventEnvelope&lt;CaptureRequested&gt; and publish " --> K1
+        %% Link 2
+         RELAY -- "OutboxEvent&lt;CAPTURE_SUBMITTED&gt; -> EventEnvelope&lt;CaptureSubmitted&gt; and publish " --> K2
+        %% Link 3
+        RELAY -- "OutboxEvent&lt;CAPTURE_CONFIRMED&gt; -> EventEnvelope&lt;CaptureConfirmed&gt; and publish " --> K3
+        %% Link 4
+        RELAY -- "OutboxEvent&lt;JOURNAL_ENTRIES_RECORDED&gt; -> EventEnvelope&lt;JournalEntriesRecorded&gt; and publish " --> K4
+        %% Link 5
+        RELAY -- "OutboxEvent&lt;INTERNAL_TRANSFER_COMMAND&gt; -> EventEnvelope&lt;InternalTransferCommand&gt; and publish " --> K3
+        %% Link 6
+        RELAY -- "OutboxEvent&lt;SETTLEMENT_RECEIVED&gt; -> EventEnvelope&lt;SettlementReceived&gt; and publish " --> K3
+
+        subgraph Consumers ["Payment Consumers (payment-consumers)"]
+            style Consumers fill:#f2f2f2,stroke:#333
+            
+            C_CCE["CaptureCommandExecutor"]:::consumers
+            C_CPC["CapturePspPerformedConsumer"]:::consumers
+            C_PRC["PspResultConsumer"]:::consumers
+            C_GCA["GrossCaptureAllocationConsumer"]:::consumers
+            C_ABC["AccountBalanceConsumer"]:::consumers
+           C_SDR["SimulatedSdrStreamingProcessorConsumer"]:::consumers
+
         end
-        
-        CAPTURE_COMMANDS_TOPIC --> CaptureCommandExecutor
-        CAPTURE_SUBMITTED_ACKS_TOPIC --> CapturePspPerformedConsumer
-        JOURNAL_ENTRIES_RECORDED_TOPIC --> GrossCaptureAllocationConsumer 
-        JOURNAL_ENTRIES_RECORDED_TOPIC --> AccountBalanceConsumer 
-        PSP_RESULTS_TOPIC --> PspResultConsumer
-        
-        CaptureCommandExecutor -->|Calls external async psp capture, Writes Outbox EventEnvelope &lt;CaptureSubmitted&gt; | CentralDB
-        GrossCaptureAllocationConsumer -->|Writes Outbox EventEnvelope &lt;InternalTransferCommand&gt;| CentralDB
-        AccountBalanceConsumer -.->|Updates Cache| CentralDB
-        PspResultConsumer -->|Upserts Txs & JournalEntries, appends Outbox EventEnvelope &lt;JournalEntriesRecorded&gt; | CentralDB
-        CapturePspPerformedConsumer -->|Writes Result State| CentralDB
 
-    end
+        K1 --> C_CCE 
+        K2 --> C_CPC 
+        K3 --> C_PRC
+        K4 --> C_ABC
+        K4 --> C_GCA
+         K4 --> C_SDR
+ 
+        C_CCE -- "psp.asynCapure</br>append OutboxEvent&lt;CAPTURE_SUBMITTED&gt;" -->  CDB  
+        C_GCA -- "listen for Capture JournalEntries,based on the presence of payment-split, it does perform idempotent update on Transfer, InternalTransferTx,and OutboxEvent(InternalTransferCommand)" --> CDB
+        C_PRC --> CDB
+        C_CPC --> CDB
+        C_GCA --> CDB
+        C_SDR --> CDB
 
-    %% Network Links
-    Fwd1 ===>|Forwards OutboxEvents Asynchronously| CentralDB
-    Fwd2 ===>|Forwards OutboxEvents Asynchronously| CentralDB
 
-    %% Assign Classes
-    class Edge1,Edge2 edgeCell
-    class InternalLayer internalHost
-    class IdemDB1,EdgeDB1,IdemDB2,EdgeDB2,CentralDB db
-    class API1,API2 service
-    class Fwd1,Fwd2,Relay job
-    class CapTopic,TransTopic,ResTopic topic
-    class CapCons,TransCons,ResCons consumer
+        linkStyle 13,14,15,16,17,18,19 stroke:#6a0dad,stroke-width:3px;
+        linkStyle 20,21,22,23,24,25 stroke:#f44336,stroke-width:2px;
+        linkStyle 26,27,28,29,30,31 stroke:#8fce00,stroke-width:5px;
+end
 ```
 
 
