@@ -7,13 +7,14 @@ import java.time.Instant
 data class JournalEntriesRecorded(
     override val paymentIntentId: String,
     override val publicPaymentIntentId: String,
+    override val merchantAccountId: String,
     val customPartitionKey: String?,
     override val amountValue: Long,
     override val currency: String,
     val ledgerBatchId: String,
     val ledgerEntries: List<JournalEntryEventData>,
     override val timestamp: Instant
-) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, amountValue, currency, timestamp) {
+) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, merchantAccountId ,amountValue, currency, timestamp) {
 
     override val eventType: String = EVENT_TYPE
 
@@ -34,6 +35,7 @@ data class JournalEntriesRecorded(
         ) = JournalEntriesRecorded(
             paymentIntentId = cmd.paymentIntentId,
             publicPaymentIntentId = cmd.publicPaymentIntentId,
+            merchantAccountId = cmd.merchantAccountId,
             customPartitionKey =  customPartitionKey,
             amountValue = cmd.amountValue,
             currency = cmd.currency,

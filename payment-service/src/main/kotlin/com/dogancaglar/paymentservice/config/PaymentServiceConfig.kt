@@ -6,6 +6,7 @@ import com.dogancaglar.paymentservice.application.service.CapturePaymentService
 import com.dogancaglar.paymentservice.application.service.CreatePaymentIntentService
 import com.dogancaglar.paymentservice.application.service.GetPaymentIntentService
 import com.dogancaglar.paymentservice.application.service.UpdatePaymentIntentService
+import com.dogancaglar.paymentservice.infra.adapter.outbound.serialization.OutboxEventEventFactory
 import com.dogancaglar.paymentservice.ports.inbound.usecases.CreatePaymentIntentUseCase
 import com.dogancaglar.paymentservice.ports.inbound.usecases.GetPaymentIntentUseCase
 import com.dogancaglar.paymentservice.ports.outbound.PaymentTransactionalFacadePort
@@ -19,7 +20,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 
 @Configuration
-class PaymentServiceConfig {
+class PaymentServiceConfig(val serializationPort: SerializationPort) {
 
     @Profile("test")
     @Bean
@@ -41,8 +42,9 @@ class PaymentServiceConfig {
         @Qualifier("localOutboxWriterAdapter")  localOutboxWriterPort: LocalOutboxWriterPort,
         idGeneratorPort: IdGeneratorPort,
         paymentIntentRepository: PaymentIntentRepository,
+        outboxEventFactoryPort: OutboxEventFactoryPort,
         serializationPort: SerializationPort): CapturePaymentService {
-        return CapturePaymentService(localOutboxWriterPort, idGeneratorPort, serializationPort, paymentIntentRepository)
+        return CapturePaymentService(localOutboxWriterPort, idGeneratorPort, outboxEventFactoryPort,serializationPort, paymentIntentRepository)
     }
 
 
@@ -53,10 +55,12 @@ class PaymentServiceConfig {
         resilientExecutionPort: ResilientExecutionPort,
         serializationPort: SerializationPort,
         pspAuthGatewayPort: PspAuthorizationGatewayPort,
-        paymentTransactionalFacadePort : PaymentTransactionalFacadePort
+        paymentTransactionalFacadePort : PaymentTransactionalFacadePort,
+        outboxEventFactoryPort: OutboxEventFactoryPort,
     ): AuthorizePaymentIntentService {
         return AuthorizePaymentIntentService(
             idGeneratorPort = idGeneratorPort,
+            outboxEventFactoryPort = outboxEventFactoryPort,
             paymentIntentRepository = paymentIntentRepository,
             resilientExecutionPort = resilientExecutionPort,
             pspAuthGatewayPort = pspAuthGatewayPort,
@@ -64,6 +68,8 @@ class PaymentServiceConfig {
             paymentTransactionalFacadePort = paymentTransactionalFacadePort
         )
     }
+
+
 
 
     @Bean
@@ -97,5 +103,11 @@ class PaymentServiceConfig {
             pspAuthGatewayPort = pspAuthGatewayPort,
             resilientExecutionPort = resilientExecutionPort
             )
+    }
+
+
+    @Bean
+    fun outboxEventFactoryPort(serializationPort: SerializationPort): OutboxEventFactoryPort{
+        return OutboxEventEventFactory(serializationPort)
     }
 }

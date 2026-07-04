@@ -8,11 +8,11 @@ import java.time.Instant
 data class CaptureConfirmed(
     override val paymentIntentId: String,
     override val publicPaymentIntentId: String,
-    val merchantAccount: String,
+    override val merchantAccountId: String,
     override val amountValue: Long,
     override val currency: String,
     override val timestamp: Instant = Utc.nowInstant()
-) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, amountValue, currency, timestamp) {
+) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, merchantAccountId,amountValue, currency, timestamp) {
 
     override val eventType: String = EventType.CAPTURE_CONFIRMED
 
@@ -20,14 +20,14 @@ data class CaptureConfirmed(
         fun from(
             paymentIntentId: String,
             publicPaymentIntentId: String,
-            merchantAccount: String,
+            merchantAccountId: String,
             amountValue: Long,
             currency: String,
             timestamp: Instant = Utc.nowInstant()
         ) = CaptureConfirmed(
             paymentIntentId = paymentIntentId,
             publicPaymentIntentId = publicPaymentIntentId,
-            merchantAccount = merchantAccount,
+            merchantAccountId = merchantAccountId,
             amountValue = amountValue,
             currency = currency,
             timestamp = timestamp

@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
+import com.dogancaglar.common.db.converter.OutboxEventEntityMapper
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.common.db.entity.OutboxEventEntity
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.CentralOutboxWriterMapper
@@ -26,15 +27,6 @@ class CentralOutboxWriterAdapter(
     }
 
     private fun toEntity(event: OutboxEvent): OutboxEventEntity {
-        return OutboxEventEntity(
-            oeid = event.oeid,
-            eventType = event.eventType,
-            aggregateId = event.aggregateId,
-            payload = event.payload,
-
-            status = event.status.name,
-            createdAt = event.createdAt.toInstant(UTC),
-            updatedAt = event.updatedAt.toInstant(UTC)
-        )
+        return OutboxEventEntityMapper.toEntity(event)
     }
 }

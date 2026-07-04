@@ -9,6 +9,7 @@ import com.dogancaglar.paymentservice.domain.model.payment.PspCaptureGatewayResp
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import com.dogancaglar.paymentservice.ports.inbound.usecases.ExecuteCaptureUseCase
 import com.dogancaglar.paymentservice.ports.outbound.CentralOutboxWriterPort
+import com.dogancaglar.paymentservice.ports.outbound.OutboxEventFactoryPort
 import com.dogancaglar.paymentservice.ports.outbound.PaymentRepository
 import com.dogancaglar.paymentservice.ports.outbound.PspCaptureGatewayPort
 import com.dogancaglar.paymentservice.ports.outbound.RetryQueuePort
@@ -24,6 +25,7 @@ open class ProcessCaptureService(
     private val paymentRepository: PaymentRepository,
     private val retryQueuePort: RetryQueuePort<CaptureRequested>,
     private val centralOutboxWriterPort: CentralOutboxWriterPort,
+    private val outboxEventFactoryPort: OutboxEventFactoryPort,
     private val serializationPort: SerializationPort
 ) : ExecuteCaptureUseCase {
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -77,18 +79,6 @@ open class ProcessCaptureService(
 
     private fun toOutboxCaptureSubmittedEvent(captureRequested: CaptureRequested, pspCaptureGatewayResponse: PspCaptureGatewayResponse): OutboxEvent {
         val captureSubmittedEvent = CaptureSubmitted.from(captureRequested, pspCaptureGatewayResponse.pspReference)
-        val envelope = EventEnvelopeFactory.envelopeFor(
-            traceId = EventLogContext.getTraceId(),
-            data = captureSubmittedEvent,
-            aggregateId = captureSubmittedEvent.paymentIntentId,
-            parentEventId = EventLogContext.getEventId()
-        )
-
-        return OutboxEvent.createNew(
-            oeid = captureSubmittedEvent.paymentIntentId.toLong(),
-            eventType = envelope.eventType,
-            aggregateId = envelope.aggregateId,
-            payload = serializationPort.toJson(envelope),
-        )
+        return outboxEventFactoryPort.create(captureSubmittedEvent)
     }
 }

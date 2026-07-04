@@ -1,3 +1,4 @@
+/*
 package com.dogancaglar.common.kafka.publisher
 
 import com.dogancaglar.common.event.Event
@@ -83,3 +84,4 @@ class PaymentEventPublisher(
         add(RecordHeader(key, value.toByteArray(StandardCharsets.UTF_8)))
     }
 }
+*/

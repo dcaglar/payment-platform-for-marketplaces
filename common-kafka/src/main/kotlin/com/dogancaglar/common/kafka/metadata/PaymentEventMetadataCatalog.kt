@@ -20,7 +20,6 @@ object PaymentEventMetadataCatalog {
         override val eventType = EventType.PAYMENT_AUTHORIZED
         override val clazz = PaymentAuthorized::class.java
         override val typeRef = object : TypeReference<EventEnvelope<PaymentAuthorized>>() {}
-        override val partitionKey = { evt: PaymentAuthorized -> evt.publicPaymentIntentId }
     }
 
     // 2. Routes to CAPTURE_COMMANDS for the PaymentCaptureExecutor
@@ -29,7 +28,6 @@ object PaymentEventMetadataCatalog {
         override val eventType = EventType.CAPTURE_REQUESTED
         override val clazz = CaptureRequested::class.java
         override val typeRef = object : TypeReference<EventEnvelope<CaptureRequested>>() {}
-        override val partitionKey = { evt: CaptureRequested -> evt.publicPaymentIntentId }
     }
 
     // 3. Routes to CAPTURE_SUBMITTED_ACKS (The HTTP 202)
@@ -38,7 +36,6 @@ object PaymentEventMetadataCatalog {
         override val eventType = EventType.CAPTURE_SUBMITTED
         override val clazz = CaptureSubmitted::class.java
         override val typeRef = object : TypeReference<EventEnvelope<CaptureSubmitted>>() {}
-        override val partitionKey = { evt: CaptureSubmitted -> evt.publicPaymentIntentId }
     }
 
     // 4. Routes to shared PSP_RESULTS topic (The Adyen Webhook)
@@ -48,7 +45,6 @@ object PaymentEventMetadataCatalog {
         override val clazz = CaptureConfirmed::class.java
         override val typeRef = object : TypeReference<EventEnvelope<CaptureConfirmed>>() {}
         // Use publicPaymentIntentId here to ensure it lands in the exact same partition as PaymentAuthorized
-        override val partitionKey = { evt: CaptureConfirmed -> evt.merchantAccount }
     }
         //publish LEdgerEntriesRecorded
     object JournalEntriesRecordedMetadata : EventMetadata<JournalEntriesRecorded> {
@@ -56,7 +52,6 @@ object PaymentEventMetadataCatalog {
         override val eventType = EventType.JOURNAL_ENTRIES_RECORDED
         override val clazz = JournalEntriesRecorded::class.java
         override val typeRef = object : TypeReference<EventEnvelope<JournalEntriesRecorded>>() {}
-        override val partitionKey = { evt: JournalEntriesRecorded -> evt.customPartitionKey!! }
     }
 
     // 5. Routes to PSP RESULT
@@ -65,16 +60,6 @@ object PaymentEventMetadataCatalog {
         override val eventType = EventType.INTERNAL_TRANSFER_COMMAND
         override val clazz = InternalTransferCommand::class.java
         override val typeRef = object : TypeReference<EventEnvelope<InternalTransferCommand>>() {}
-        override val partitionKey = { evt: InternalTransferCommand -> evt.targetAccount }
-    }
-
-    // 6. Routes simulated SDR results to PSP_RESULTS
-    object SettlementLineReconciledMetadata : EventMetadata<SettlementReceived> {
-        override val topic = Topics.PSP_RESULTS
-        override val eventType = EventType.SETTLEMENT_RECEIVED
-        override val clazz = SettlementReceived::class.java
-        override val typeRef = object : TypeReference<EventEnvelope<SettlementReceived>>() {}
-        override val partitionKey = { evt: SettlementReceived -> evt.merchantAccount }
     }
 
     val all: List<EventMetadata<*>> = listOf(
@@ -83,8 +68,7 @@ object PaymentEventMetadataCatalog {
         CaptureSubmittedMetadata,
         CaptureConfirmedMetadata,
         InternalTransferCommandMetadata,
-        JournalEntriesRecordedMetadata,
-        SettlementLineReconciledMetadata
+        JournalEntriesRecordedMetadata
     )
 
 }

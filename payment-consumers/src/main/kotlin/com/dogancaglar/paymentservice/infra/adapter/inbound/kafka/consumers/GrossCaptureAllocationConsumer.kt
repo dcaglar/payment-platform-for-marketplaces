@@ -5,6 +5,7 @@ import com.dogancaglar.common.kafka.metadata.CONSUMER_GROUPS
 import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.JournalEntriesRecorded
+import com.dogancaglar.paymentservice.application.util.toPublicPaymentIntentId
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalType
 import com.dogancaglar.paymentservice.domain.model.ledger.TxStatus
@@ -102,7 +103,7 @@ class GrossCaptureAllocationConsumer(
                     recordInternalTransferSubmissionUseCase.recordSubmission(
                         paymentId = payment.paymentId,
                         paymentIntentId = paymentIntentId,
-                        publicPaymentIntentId = event.publicPaymentIntentId,
+                        paymentMerchantAccountId = payment.merchantAccount,
                         captureTxId = captureTx.txId,
                         sourceAccount = grossSuspenseAccount.accountCode,
                         targetAccount = merchantDirectRevenueAccount.accountCode,
@@ -113,7 +114,10 @@ class GrossCaptureAllocationConsumer(
 
                     // A2. Charge Mor-DC's infrastructure processing fee from direct revenue
                     recordInternalTransferSubmissionUseCase.recordSubmission(
-                        paymentId = payment.paymentId, paymentIntentId = paymentIntentId, publicPaymentIntentId = event.publicPaymentIntentId, captureTxId = captureTx.txId,
+                        paymentId = payment.paymentId,
+                        paymentIntentId = paymentIntentId,
+                        paymentMerchantAccountId = payment.merchantAccount,
+                        captureTxId = captureTx.txId,
                         sourceAccount = merchantDirectRevenueAccount.accountCode, targetAccount = platformEscrowAccount.accountCode,
                         journalType = JournalType.COMMISSION_FEE, transferAmount = morDcPlatformFee
                     )
@@ -132,7 +136,7 @@ class GrossCaptureAllocationConsumer(
                     recordInternalTransferSubmissionUseCase.recordSubmission(
                         paymentId = payment.paymentId,
                         paymentIntentId = paymentIntentId,
-                        publicPaymentIntentId = event.publicPaymentIntentId,
+                        paymentMerchantAccountId = payment.merchantAccount,
                         captureTxId = captureTx.txId,
                         sourceAccount = grossSuspenseAccount.accountCode,
                         targetAccount = targetAccountCode,
@@ -145,7 +149,9 @@ class GrossCaptureAllocationConsumer(
                 val operatorCommissionAccount = accountDirectory.getAccountProfile(AccountType.MARKETPLACE_COMMISSION_REVENUE_BALANCE_ACCOUNT, masterAccountCode)
 
                 recordInternalTransferSubmissionUseCase.recordSubmission(
-                    paymentId = payment.paymentId, paymentIntentId = paymentIntentId, publicPaymentIntentId = event.publicPaymentIntentId, captureTxId = captureTx.txId,
+                    paymentId = payment.paymentId, paymentIntentId = paymentIntentId,
+                    paymentMerchantAccountId = payment.merchantAccount,
+                    captureTxId = captureTx.txId,
                     sourceAccount = operatorCommissionAccount.accountCode, targetAccount = platformEscrowAccount.accountCode,
                     journalType = JournalType.COMMISSION_FEE, transferAmount = morDcPlatformFee
                 )

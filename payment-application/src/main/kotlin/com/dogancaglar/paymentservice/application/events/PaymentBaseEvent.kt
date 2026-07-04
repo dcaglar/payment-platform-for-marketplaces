@@ -18,14 +18,16 @@ import java.time.Instant
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 abstract class PaymentBaseEvent(
-    @JsonProperty("paymentIntentId")       open val paymentIntentId: String,
-    @JsonProperty("publicPaymentIntentId") open val publicPaymentIntentId: String,
-    @JsonProperty("amountValue")           open val amountValue: Long,
-    @JsonProperty("currency")             open val currency: String,
-    @JsonProperty("timestamp")            override val timestamp: Instant = Utc.nowInstant()
+    @JsonProperty("paymentIntentId") override val paymentIntentId: String,
+    @JsonProperty("publicPaymentIntentId") override val publicPaymentIntentId: String,
+    @JsonProperty("merchantAccountId") override val merchantAccountId: String,
+    @JsonProperty("amountValue") open val amountValue: Long,
+    @JsonProperty("currency")  open val currency: String,
+    @JsonProperty("timestamp") override val timestamp: Instant = Utc.nowInstant()
 ) : Event {
 
     abstract override val eventType: String
 
+    // Standardized logic for everyone
     override fun deterministicEventId(): String = "$publicPaymentIntentId:$eventType"
 }

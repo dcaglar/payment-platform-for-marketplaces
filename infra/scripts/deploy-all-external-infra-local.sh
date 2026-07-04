@@ -18,10 +18,15 @@ if [[ "$CURRENT_CONTEXT" != "orbstack" ]]; then
     echo "🔄 Switching context to 'orbstack'..."
     kubectl config use-context orbstack
   else
-    echo "❌ orbstack context not found! Is OrbStack running with Kubernetes enabled?"
+    echo "❌ orbstack context not found! Is OrbStack running with Kubernetes enabled?Setting/using context orbstack"
+        kubectl config set-context orbstack
+        kubectl config use-context orbstack
+
     exit 1
   fi
 fi
+
+
 
 echo "🚀 Deployin all external infrasracture(Redis,Keycloak,Kafka) locally"
 

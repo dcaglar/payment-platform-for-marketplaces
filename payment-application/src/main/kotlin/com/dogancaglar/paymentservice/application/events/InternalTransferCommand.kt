@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.application.events
 
+import com.dogancaglar.common.id.PublicIdFactory
 import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.domain.model.payment.InternalTransfer
 import java.time.Instant
@@ -16,8 +17,9 @@ data class InternalTransferCommand(
     val status: String,
     override val paymentIntentId: String,
     override val publicPaymentIntentId: String,
+    override val merchantAccountId: String,
     override val timestamp: Instant = Utc.nowInstant()
-) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, amountValue, currency, timestamp) {
+) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, merchantAccountId,amountValue, currency, timestamp) {
     override val eventType: String = EventType.INTERNAL_TRANSFER_COMMAND
 
     companion object {
@@ -27,14 +29,15 @@ data class InternalTransferCommand(
                 transferId = transfer.transferId.value,
                 internalTransferTxId = txId,
                 sourceTransactionId = transfer.sourceTransactionId.value,
+                paymentIntentId = transfer.paymentIntentId.toString(),
+                publicPaymentIntentId = PublicIdFactory.publicPaymentIntentId(transfer.paymentIntentId.value),
+                merchantAccountId = transfer.merchantAccountId,
                 amountValue = transfer.amount.quantity,
                 currency = transfer.amount.currency.currencyCode,
                 journalType= journalType,
                 sourceAccount = transfer.sourceAccount,
                 targetAccount = transfer.targetAccount,
                 status = transfer.status.name,
-                paymentIntentId = paymentIntentId,
-                publicPaymentIntentId = publicPaymentIntentId
             )
         }
     }

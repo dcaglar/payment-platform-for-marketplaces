@@ -1,6 +1,7 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.scheduler
 
 import com.dogancaglar.common.event.EventEnvelope
+import com.dogancaglar.common.kafka.publisher.RawEventPublisher
 import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.application.events.PaymentAuthorized
 import com.dogancaglar.paymentservice.application.events.CaptureRequested
@@ -35,9 +36,8 @@ import kotlinx.coroutines.runBlocking
 @Service
 class OutboxRelayJob(
     private val centralOutboxRepository: CentralOutboxRelayPort,
-    @Qualifier("batchPaymentEventPublisher") private val kafkaPublisher: EventPublisherPort,
+    private val rawEventPublisher: RawEventPublisher,
     @Qualifier("resilientExecutor") private val executor: ThreadPoolTaskExecutor,
-    @Qualifier("myObjectMapper") private val objectMapper: ObjectMapper,
     @Value("\${outbox-relay.batch-size:500}") private val batchSize: Int,
     @Value("\${app.instance-id:central-relay}") private val appInstanceId: String,
     private val meterRegistry: MeterRegistry
@@ -132,27 +132,9 @@ class OutboxRelayJob(
     private fun processEntryAsync(entry: OutboxEvent): CompletableFuture<*> {
         return try {
             logger.debug("🚀 OutboxRelayJob: Processing outbox event oeid={} of type={}", entry.oeid, entry.eventType)
-            when (OutboxEventTypes.from(entry.eventType)) {
-                OutboxEventTypes.PAYMENT_AUTHORIZED -> kafkaPublisher.publishAsync(convertToEnvelope(entry, PaymentAuthorized::class.java))
-                OutboxEventTypes.CAPTURE_REQUESTED -> kafkaPublisher.publishAsync(convertToEnvelope(entry, CaptureRequested::class.java))
-                OutboxEventTypes.CAPTURE_SUBMITTED -> kafkaPublisher.publishAsync(convertToEnvelope(entry, CaptureSubmitted::class.java))
-                OutboxEventTypes.CAPTURE_CONFIRMED -> kafkaPublisher.publishAsync(convertToEnvelope(entry, CaptureConfirmed::class.java))
-                OutboxEventTypes.JOURNAL_ENTRIES_RECORDED -> kafkaPublisher.publishAsync(convertToEnvelope(entry, JournalEntriesRecorded::class.java))
-                OutboxEventTypes.INTERNAL_TRANSFER_COMMAND -> kafkaPublisher.publishAsync(convertToEnvelope(entry, InternalTransferCommand::class.java))
-                OutboxEventTypes.SETTLEMENT_RECEIVED -> kafkaPublisher.publishAsync(convertToEnvelope(entry, SettlementReceived::class.java))
-                else -> {
-                    logger.warn("❓ Unknown outbox event type=${entry.eventType}, skipping oeid=${entry.oeid}")
-                    CompletableFuture.completedFuture<Any>(null)
-                }
-            }
+            rawEventPublisher.publishRaw(entry)
         } catch (e: Exception) {
             CompletableFuture.failedFuture<Any>(e)
         }
-    }
-
-    private fun <T : PaymentBaseEvent> convertToEnvelope(evt: OutboxEvent, clazz: Class<T>): EventEnvelope<T> {
-        val envelopeType = objectMapper.typeFactory.constructParametricType(EventEnvelope::class.java, clazz)
-        logger.debug("Outboxevent type is ${evt.eventType}, resolving EventEnvelope generic Event class to ${clazz.name}")
-        return objectMapper.readValue(evt.payload, envelopeType) as EventEnvelope<T>
     }
 }

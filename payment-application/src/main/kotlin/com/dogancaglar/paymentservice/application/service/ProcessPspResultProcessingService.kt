@@ -40,6 +40,7 @@ import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import com.dogancaglar.paymentservice.domain.model.vo.TxId
 import com.dogancaglar.paymentservice.ports.inbound.usecases.ProcessPspResultUseCase
+import com.dogancaglar.paymentservice.ports.outbound.OutboxEventFactoryPort
 import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
 import com.dogancaglar.paymentservice.ports.outbound.TransferRepository
 
@@ -50,7 +51,8 @@ open class ProcessPspResultProcessingService(
     private val idGeneratorPort: IdGeneratorPort,
     private val paymentRepository: PaymentRepository,
     private val transferRepository: TransferRepository,
-    private val serializationPort: SerializationPort
+    private val serializationPort: SerializationPort,
+    private val outboxEventFactoryPort: OutboxEventFactoryPort
 ) : ProcessPspResultUseCase{
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -73,7 +75,7 @@ open class ProcessPspResultProcessingService(
             paymentId = PaymentId(paymentIdValue),
             paymentIntentId = PaymentIntentId(event.paymentIntentId.toLongOrNull() ?: 0L),
             buyerId = BuyerId(event.buyerId),
-            merchantAccount = event.merchantAccount,
+            merchantAccount = event.merchantAccountId,
             processingModel = ProcessingModel.valueOf(event.processingModel),
             totalAmount = amount,
             splits = splits
@@ -104,24 +106,12 @@ open class ProcessPspResultProcessingService(
         val captureRequested = CaptureRequested(
             paymentIntentId = event.paymentIntentId,
             publicPaymentIntentId = event.publicPaymentIntentId,
-            merchantAccount = event.merchantAccount,
+            merchantAccountId = event.merchantAccountId,
             amountValue = event.totalAmountValue,
             currency = event.currency
         )
 
-        val captureEnvelope = EventEnvelopeFactory.envelopeFor(
-            traceId = EventLogContext.getTraceId(),
-            data = captureRequested,
-            aggregateId = event.publicPaymentIntentId,
-            parentEventId = EventLogContext.getEventId()
-        )
-
-        val captureOutboxEvent = OutboxEvent.createNew(
-            oeid = idGeneratorPort.generateId(),
-            eventType = captureEnvelope.eventType,
-            aggregateId = captureEnvelope.aggregateId,
-            payload = serializationPort.toJson(captureEnvelope)
-        )
+        val captureOutboxEvent = outboxEventFactoryPort.create(captureRequested)
 
         // 5. Emit an OutboxEvent containing the raw JournalEntries
         val now = Utc.nowInstant()
@@ -129,23 +119,10 @@ open class ProcessPspResultProcessingService(
             cmd = event,
             batchId = transaction.txId.value.toString()+transaction.txType + transaction.status.name,
             entries = journalEntries.map { LedgerDomainEventEntityMapper.toLedgerEntryEventData(it) },
-            customPartitionKey = event.merchantAccount,
+            customPartitionKey = event.merchantAccountId,
             now = now
         )
-
-        val ledgerEnvelope = EventEnvelopeFactory.envelopeFor(
-            traceId = EventLogContext.getTraceId(),
-            data = ledgerEvent,
-            aggregateId = event.publicPaymentIntentId,
-            parentEventId = EventLogContext.getEventId()
-        )
-
-        val ledgerOutboxEvent = OutboxEvent.createNew(
-            oeid = idGeneratorPort.generateId(),
-            eventType = ledgerEnvelope.eventType,
-            aggregateId = ledgerEnvelope.aggregateId,
-            payload = serializationPort.toJson(ledgerEnvelope)
-        )
+        val ledgerOutboxEvent = outboxEventFactoryPort.create(ledgerEvent)
 
         // 6. Persist all
         centralDbTransactionalFacadePort.recordPaymentOperationInLedger(
@@ -179,7 +156,7 @@ open class ProcessPspResultProcessingService(
             status = SUCCESS
         )
         // Commit gross ledger distributions
-        val merchantGrossPool = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.MERCHANT_GROSS_CAPTURE_SUSPENSE, "${event.merchantAccount}.${event.currency}"))
+        val merchantGrossPool = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.MERCHANT_GROSS_CAPTURE_SUSPENSE, "${event.merchantAccountId}.${event.currency}"))
         val authReceivable = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.AUTH_RECEIVABLE, "GLOBAL.${event.currency}"))
         val authLiability = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.AUTH_LIABILITY, "GLOBAL.${event.currency}"))
         val pspReceivable = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.PSP_RECEIVABLES, "GLOBAL.${event.currency}"))
@@ -202,24 +179,12 @@ open class ProcessPspResultProcessingService(
             cmd = event,
             batchId = captureTx.txId.value.toString()+captureTx.txType +  captureTx.status.name,
             entries = journalEntries.map { LedgerDomainEventEntityMapper.toLedgerEntryEventData(it) },
-            customPartitionKey = event.merchantAccount,
+            customPartitionKey = event.merchantAccountId,
             now = now
         )
 
-        val envelope = EventEnvelopeFactory.envelopeFor(
-            traceId = EventLogContext.getTraceId(),
-            data = ledgerEvent,
-            aggregateId = event.publicPaymentIntentId,
-            parentEventId = EventLogContext.getEventId()
-        )
 
-        val outboxEvent = OutboxEvent.createNew(
-            oeid = idGeneratorPort.generateId(),
-            eventType = envelope.eventType,
-            aggregateId = envelope.aggregateId,
-            payload = serializationPort.toJson(envelope)
-        )
-
+        val outboxEvent = outboxEventFactoryPort.create(ledgerEvent)
         centralDbTransactionalFacadePort.recordPaymentOperationInLedger(
             payment = capturedPayment,
             tx = updatedTx,
@@ -299,19 +264,7 @@ open class ProcessPspResultProcessingService(
             now = now
         )
 
-        val envelope = EventEnvelopeFactory.envelopeFor(
-            traceId = EventLogContext.getTraceId(),
-            data = ledgerEvent,
-            aggregateId = event.publicPaymentIntentId,
-            parentEventId = EventLogContext.getEventId()
-        )
-
-        val outboxEvent = OutboxEvent.createNew(
-            oeid = idGeneratorPort.generateId(),
-            eventType = envelope.eventType,
-            aggregateId = envelope.aggregateId,
-            payload = serializationPort.toJson(envelope)
-        )
+        val outboxEvent = outboxEventFactoryPort.create(ledgerEvent)
 
         // 4. Persist
         centralDbTransactionalFacadePort.recordInternalTransferOperationInLedger(
@@ -386,22 +339,11 @@ open class ProcessPspResultProcessingService(
             cmd = event,
             batchId = settlementTxId.value.toString() + settlementTxRecord.txType + settlementTxRecord.status,
             entries = settlementJournals.map { LedgerDomainEventEntityMapper.toLedgerEntryEventData(it) },
-            customPartitionKey = event.merchantAccount,
+            customPartitionKey = event.merchantAccountId,
             now = now
         )
 
-        val ledgerOutboxEvent = OutboxEvent.createNew(
-            oeid = idGeneratorPort.generateId(),
-            eventType = "payment_ledger_journal_recorded",
-            aggregateId = event.publicPaymentIntentId,
-            payload = serializationPort.toJson(EventEnvelopeFactory.envelopeFor(
-                traceId = EventLogContext.getTraceId(),
-                data = ledgerEvent,
-                aggregateId = event.publicPaymentIntentId,
-                parentEventId = EventLogContext.getEventId()
-            ))
-        )
-
+        val ledgerOutboxEvent = outboxEventFactoryPort.create(ledgerEvent)
         // 5. Persist the fully validated units safely through outbound ports
         logger.debug("Committing balanced reconciliation tracking state indices atomically for paymentId=${payment.paymentId.value}")
         centralDbTransactionalFacadePort.recordPaymentOperationInLedger(

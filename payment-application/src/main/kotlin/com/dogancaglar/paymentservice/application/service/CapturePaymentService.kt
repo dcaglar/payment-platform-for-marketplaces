@@ -10,6 +10,7 @@ import com.dogancaglar.paymentservice.ports.inbound.usecases.CapturePaymentUseCa
 import com.dogancaglar.paymentservice.ports.outbound.IdGeneratorPort
 
 import com.dogancaglar.paymentservice.ports.outbound.LocalOutboxWriterPort
+import com.dogancaglar.paymentservice.ports.outbound.OutboxEventFactoryPort
 import com.dogancaglar.paymentservice.ports.outbound.PaymentIntentRepository
 import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
 import org.slf4j.LoggerFactory
@@ -17,6 +18,7 @@ import org.slf4j.LoggerFactory
 class CapturePaymentService(
     private val localOutboxWriterPort: LocalOutboxWriterPort,
     private val idGeneratorPort: IdGeneratorPort,
+    private val outboxEventFactoryPort: OutboxEventFactoryPort,
     private val serializationPort: SerializationPort,
     private val paymentIntentRepository: PaymentIntentRepository
 ) : CapturePaymentUseCase {
@@ -34,22 +36,8 @@ class CapturePaymentService(
             captureAmount = cmd.amount
         )
 
-        val envelope = EventEnvelopeFactory.envelopeFor(
-            traceId = EventLogContext.getTraceId(),
-            data = captureEvent,
-            aggregateId = captureEvent.publicPaymentIntentId,
-            parentEventId = EventLogContext.getEventId()
-        )
+        val outboxEvent = outboxEventFactoryPort.create(captureEvent)
 
-        val payload = serializationPort.toJson(envelope)
-
-        val outboxEvent = OutboxEvent.createNew(
-            oeid = idGeneratorPort.generateId(),
-            eventType = envelope.eventType,
-            aggregateId = envelope.aggregateId,
-            payload = payload
-        )
-        //write tolocal outbox
         localOutboxWriterPort.saveAll(listOf(outboxEvent))
         
         return paymentIntent

@@ -13,15 +13,15 @@ import java.time.Instant
 data class PaymentAuthorized(
     override val paymentIntentId: String,
     override val publicPaymentIntentId: String,
+    override val merchantAccountId: String,
     val buyerId: String,
-    val merchantAccount: String,
     val processingModel: String,
     @JsonProperty("totalAmountValue") val totalAmountValue: Long,
-    override val currency: String,
+     override val currency: String,
     val splits: List<PaymentSplitDto>,
     override val timestamp: Instant = Utc.nowInstant(),
     val isSale: Boolean? = true
-) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, totalAmountValue, currency, timestamp) {
+) : PaymentBaseEvent( paymentIntentId,publicPaymentIntentId,merchantAccountId,totalAmountValue, currency, timestamp) {
 
     override val eventType: String = EventType.PAYMENT_AUTHORIZED
     override val amountValue: Long get() = totalAmountValue
@@ -35,7 +35,7 @@ data class PaymentAuthorized(
                 paymentIntentId = paymentIntent.paymentIntentId.value.toString(),
                 publicPaymentIntentId = paymentIntent.paymentIntentId.toPublicPaymentIntentId(),
                 buyerId = paymentIntent.buyerId.value,
-                merchantAccount = paymentIntent.merchantAccount,
+                merchantAccountId = paymentIntent.merchantAccount,
                 processingModel = paymentIntent.processingModel.name,
                 totalAmountValue = paymentIntent.totalAmount.quantity,
                 currency = paymentIntent.totalAmount.currency.currencyCode,

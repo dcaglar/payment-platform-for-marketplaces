@@ -17,6 +17,6 @@ keda:
   enabled: false
 resources:
   requests: {cpu: 200m, memory: 700Mi}
-  limits: {memory: 700Mi}
+  limits:   {cpu: 2000m, memory: 700Mi}
 config:
   CENTRAL_DB_URL: "jdbc:postgresql://central-db-postgresql:5432/central-db?options=-c%20timezone=UTC"

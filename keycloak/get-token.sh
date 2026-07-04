@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
-
+export KEYCLOAK_IP=$(kubectl get svc -n payment keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export KC_URL="http://${KEYCLOAK_IP}:8080"
 OUTPUT_DIR="$(dirname "$0")/output"
 SECRETS_FILE="${OUTPUT_DIR}/secrets.txt"
 JWT_DIR="${OUTPUT_DIR}/jwt"

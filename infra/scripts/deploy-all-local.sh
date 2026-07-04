@@ -15,10 +15,8 @@ echo "📦 Step 1/4: Building all Docker images..."
 echo "🔧 Step 2/4: Deploying external infrastructure (Redis, Keycloak, Kafka)..."
 "$SCRIPT_DIR/deploy-all-external-infra-local.sh"
 
-echo "📊 Step 3/4: Deploying monitoring stack..."
-"$SCRIPT_DIR/deploy-monitoring-stack-local.sh"
 
-echo "⚙️ Step 4/4: Deploying payment platform services..."
+echo "⚙️ Step 4/4: Deploying payment platform services to local..."
 "$SCRIPT_DIR/deploy-payment-platform-services-local.sh"
 
 echo "✅ All deployment manifests successfully submitted to local Kubernetes."
