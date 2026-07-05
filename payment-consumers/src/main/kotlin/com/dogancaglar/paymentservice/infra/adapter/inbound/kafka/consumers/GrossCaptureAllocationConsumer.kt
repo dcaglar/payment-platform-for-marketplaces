@@ -84,6 +84,8 @@ class GrossCaptureAllocationConsumer(
                     ?: throw IllegalStateException("Successful CaptureTx record missing for paymentId=${payment.paymentId.value}")
 
                 // 1. Resolve Global Platform Accounts
+
+                        //
                 val masterAccountCode = "${payment.merchantAccount}.${captureTx.amount.currency.currencyCode}"
                 val grossSuspenseAccount = accountDirectory.getAccountProfile(AccountType.MERCHANT_GROSS_CAPTURE_SUSPENSE, masterAccountCode)
                 val platformEscrowAccount = accountDirectory.getAccountProfile(AccountType.PLATFORM_COMMISSION_ESCROW, masterAccountCode)

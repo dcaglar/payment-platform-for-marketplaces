@@ -62,13 +62,21 @@ object PaymentEventMetadataCatalog {
         override val typeRef = object : TypeReference<EventEnvelope<InternalTransferCommand>>() {}
     }
 
+    // 6. Routes simulated SDR results to PSP_RESULTS
+    object SettlementLineReconciledMetadata : EventMetadata<SettlementReceived> {
+        override val topic = Topics.PSP_RESULTS
+        override val eventType = EventType.SETTLEMENT_RECEIVED
+        override val clazz = SettlementReceived::class.java
+        override val typeRef = object : TypeReference<EventEnvelope<SettlementReceived>>() {}
+    }
     val all: List<EventMetadata<*>> = listOf(
         PaymentAuthorizedMetadata,
         CaptureRequestedMetadata,
         CaptureSubmittedMetadata,
         CaptureConfirmedMetadata,
         InternalTransferCommandMetadata,
-        JournalEntriesRecordedMetadata
+        JournalEntriesRecordedMetadata,
+        SettlementLineReconciledMetadata
     )
 
 }

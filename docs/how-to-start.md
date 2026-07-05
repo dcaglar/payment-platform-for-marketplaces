@@ -128,7 +128,7 @@ curl -i -X POST "http://${API_BASE_URL}/api/v1/payments" \
   
   
 IDEMPOTENCY_KEY=$(printf '%08x-%04x-7%03x-8%03x-%04x%08x' $((RANDOM*RANDOM)) $((RANDOM)) $((RANDOM%4096)) $((RANDOM%4096)) $((RANDOM)) $((RANDOM*RANDOM)))
-API_ENDPOINT="http://$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/payments"
+API_ENDPOINT="http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/payments"
 echo "Using Idempotency-Key=${IDEMPOTENCY_KEY}"
 echo "Using base url: http://${API_ENDPOINT}"
 curl -i -X POST "${API_ENDPOINT}" \
@@ -166,7 +166,7 @@ curl -i -X POST "${API_ENDPOINT}" \
 > **Note**: In production, payment details are collected by Stripe Payment Element (browser → Stripe). The authorize endpoint doesn't require payment method details - it uses the stored PaymentIntent ID. For testing with curl, you can send an empty body or omit paymentMethod:
 
 ```bash
-AUTHORIZATION_ENDPOINT="http://$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/payments/pi_AsON4dLCAAA/authorize"
+AUTHORIZATION_ENDPOINT="http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/payments/pi_AsQbmxVCAAA/authorize"
 curl -i -X POST "$AUTHORIZATION_ENDPOINT" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(cat ./keycloak/output/jwt/payment-service.token)" \

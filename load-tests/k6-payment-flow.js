@@ -4,6 +4,9 @@ import { Trend } from 'k6/metrics';
 
 // --- 1. Load Configurations & Credentials ---
 const ACCESS_TOKEN = open('../keycloak/output/jwt/payment-service.token').replace(/[\r\n]+$/, '');
+const BASE_URL = open('./endpoint.txt').replace(/[\r\n]+$/, '');
+const CREATE_PAYMENT_INTENT_ENDPOINT = `${BASE_URL}/api/v1/payments`;
+const AUTHORIZE_ENDPOINT = `${BASE_URL}/api/v1/payments`;
 
 // --- 2. Multi-Profile Workload Scenarios ---
 const SCENARIOS = {
@@ -21,7 +24,7 @@ const SCENARIOS = {
         executor: 'constant-arrival-rate',
         rate: 20,
         timeUnit: '1s',
-        duration: '40m',
+        duration: '5m',
         preAllocatedVUs: 10,
         maxVUs: 40,
         tags: { test_type: 'smoke' },
@@ -96,8 +99,10 @@ const SCENARIOS = {
 // Select the profile using an environment variable (defaults to smoke)
 // Example: k6 run -e PROFILE=stress k6-payment-flow.js
 const PROFILE = __ENV.PROFILE || 'smoke';
+const API_BASE_URL = __ENV.API_BASE_URL || 'http://localhost';
 
 export const options = {
+    summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
     scenarios: {
         [PROFILE]: SCENARIOS[PROFILE] || SCENARIOS.smoke
     },
@@ -220,8 +225,6 @@ function generateRandomOrder(sellerPool) {
 
 // --- 4. Main User Journey ---
 export default function () {
-    const baseUrl = "http://localhost";
-
     // Pick a random marketplace (and its scoped seller pool) for this iteration
     const marketplace = pickRandomMarketplace();
 
@@ -231,7 +234,7 @@ export default function () {
     };
 
     // --- STEP A: Create a Payment Intent ---
-    const createUrl = `${baseUrl}/api/v1/payments`;
+    const createUrl = CREATE_PAYMENT_INTENT_ENDPOINT;
     const orderData = generateRandomOrder(marketplace.sellers);
 
     const createPayload = JSON.stringify({
@@ -270,7 +273,7 @@ export default function () {
         // Realistic human pacing delay
         sleep(0.2);
 
-        const authUrl = `${baseUrl}/api/v1/payments/${paymentIntentId}/authorize`;
+        const authUrl = `${AUTHORIZE_ENDPOINT}/${paymentIntentId}/authorize`;
         const authPayload = JSON.stringify({
             paymentMethod: { type: 'CardToken', token: 'tok_visa', cvc: '123' }
         });

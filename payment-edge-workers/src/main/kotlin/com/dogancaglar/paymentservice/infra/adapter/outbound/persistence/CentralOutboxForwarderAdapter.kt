@@ -19,7 +19,18 @@ class CentralOutboxForwarderAdapter(
     override fun insertBatch(edgeNodeId: String, entries: List<OutboxEvent>) {
         if (entries.isEmpty()) return
         val entities = entries.map {
-            OutboxEventEntityMapper.toEntity(it)
+            OutboxEventEntityMapper.toEntity(
+                OutboxEvent.createNew(
+                    it.oeid,
+                    it.partitionKey,
+                    it.eventType,
+                    it.aggregateId,
+                    it.traceId,
+                    it.eventId,
+                    it.parentEventId,
+                    it.payload
+                )
+            )
         }
         mapper.insertBatch(entities)
     }

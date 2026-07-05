@@ -1,65 +1,124 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
+trap 'echo "❌ Error occurred on line $LINENO. Command: $BASH_COMMAND"' ERR
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-kubectl config use-context orbstack || echo "⚠️ Could not switch to orbstack context. Continuing anyway..."
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$REPO_ROOT"
 
+echo "🛡️  Checking and setting Kubernetes context..."
+kubectl config set-context orbstack
+kubectl config use-context orbstack
+CURRENT_CONTEXT=$(kubectl config current-context || echo "none")
 
+if [[ "$CURRENT_CONTEXT" != "orbstack" ]]; then
+  echo "❌ Current context is '$CURRENT_CONTEXT'. Refusing to execute local deletion on the wrong cluster!"
+  echo "Run: first kubectl config set-context orbstack , then kubectl config use-context orbstack, and re-run the script again"
+  exit 1
+fi
+echo "ℹ️  Context successfully validated as: $CURRENT_CONTEXT"
 
-echo "🚀 Helm uninstall keycloak..."
-helm uninstall -n payment  keycloak  --ignore-not-found || echo "⚠️ Could not uninstall keycloak"
+echo "🧹 Starting explicit uninstall of all local resources..."
 
+# -----------------------------------------------------------------------------
+# 1. PLATFORM SERVICES (LOCAL CHARTS)
+#    Deleted in the exact reverse order of their deployment
+#    Format: RELEASE_NAME|NAMESPACE
+# -----------------------------------------------------------------------------
+LOCAL_RELEASES=(
+  "payment-central-relay|payment"
+  "payment-consumers|payment"
+  "central-db|payment"
+  "payment-edge-workers|payment"
+  "payment-edge-cell|payment"
+)
 
-echo "🚀 Helm uninstall kafka..."
-helm uninstall -n payment  kafka  || true
+echo "========================================================"
+echo "🧹 Phase 1: Uninstalling Platform Services (Local Charts)"
+echo "========================================================"
 
+for RELEASE_INFO in "${LOCAL_RELEASES[@]}"; do
+  IFS='|' read -r RELEASE_NAME NAMESPACE <<< "$RELEASE_INFO"
 
-echo "🚀 Helm uninstall kafka-exporter..."
-helm uninstall -n payment  kafka-exporter  || true
+  echo "🗑️  Deleting local release $RELEASE_NAME in namespace $NAMESPACE..."
+  helm uninstall "$RELEASE_NAME" \
+    -n "$NAMESPACE" \
+    --wait \
+    --timeout=60s \
+    --ignore-not-found
+    
+  # Clean up any lingering local subcharts downloaded by helm dependency update
+  CHART_ROOT="$REPO_ROOT/charts/$RELEASE_NAME"
+  if [ -d "$CHART_ROOT" ]; then
+    echo "🧹 Cleaning up local subcharts for $RELEASE_NAME..."
+    rm -rf "$CHART_ROOT/charts"
+    rm -f "$CHART_ROOT/Chart.lock"
+  fi
+done
 
+# -----------------------------------------------------------------------------
+# 2. EXTERNAL INFRASTRUCTURE
+#    Deleted in the exact reverse order of their deployment
+#    Format: RELEASE_NAME|NAMESPACE|REPO_NAME
+# -----------------------------------------------------------------------------
+EXTERNAL_RELEASES=(
+  "nginx-ingress-controller|ingress-controller|ingress-nginx"
+  "keda|keda|kedacore"
+  "redis|payment|bitnami"
+  "postgresql-exporter|payment|prometheus-community"
+  "kafka-exporter|payment|prometheus-community"
+  "kafka|payment|bitnami"
+  "keycloak|payment|bitnami"
+)
 
+echo "========================================================"
+echo "🧹 Phase 2: Uninstalling External Infrastructure"
+echo "========================================================"
 
-echo "🚀 Helm uninstall redis..."
-helm uninstall -n payment  redis  --ignore-not-found || echo "⚠️ Could not uninstall redis"
+for RELEASE_INFO in "${EXTERNAL_RELEASES[@]}"; do
+  IFS='|' read -r RELEASE_NAME NAMESPACE REPO_NAME <<< "$RELEASE_INFO"
 
+  echo "🗑️  Deleting external release $RELEASE_NAME in namespace $NAMESPACE..."
+  helm uninstall "$RELEASE_NAME" \
+    -n "$NAMESPACE" \
+    --wait \
+    --timeout=60s \
+    --ignore-not-found
+done
 
+# Clean up Helm Repositories
+remove_helm_repo() {
+  local repo=$1
+  local err
+  err=$(helm repo remove "$repo" 2>&1) && return 0
 
+  if echo "$err" | grep -q "no repo named"; then
+    echo "   ${repo} repo already removed."
+  else
+    echo "❌ Failed to remove Helm repository ${repo}: ${err}" >&2
+    exit 1
+  fi
+}
 
+echo "🧹 Phase 3: Removing Helm repositories..."
+for RELEASE_INFO in "${EXTERNAL_RELEASES[@]}"; do
+  IFS='|' read -r RELEASE_NAME NAMESPACE REPO_NAME <<< "$RELEASE_INFO"
+  
+  if [ -n "$REPO_NAME" ]; then
+    remove_helm_repo "$REPO_NAME"
+  fi
+done
 
-
-
-
-
-echo "🚀 Deleting application services..."
-"$SCRIPT_DIR/delete.sh" payment-central-relay local
-"$SCRIPT_DIR/delete.sh" payment-consumers local
-"$SCRIPT_DIR/delete.sh" payment-edge-workers local
-"$SCRIPT_DIR/delete.sh" payment-edge-cell local
-"$SCRIPT_DIR/delete.sh" central-db local
-
-
-
-echo "🚀 Deleting ALL PVCs in namespace payment (dev wipe)"
-kubectl get pvc -n payment -o name | xargs -r kubectl delete -n payment || true
-
-echo "🚀 Deleting PVs orphaned from namespace payment"
-PVS=$(kubectl get pv -o jsonpath='{range .items[?(@.spec.claimRef.namespace=="payment")]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
-if [ -n "$PVS" ]; then
-  for pv in $PVS; do
-    echo "🧹 Deleting PV $pv"
-    if ! kubectl delete pv "$pv" --wait=true --timeout=30s; then
-      echo "🔧 PV $pv stuck; removing finalizers and forcing delete"
-      kubectl patch pv "$pv" --type=merge -p '{"metadata":{"finalizers":[]}}' || true
-      kubectl delete pv "$pv" --wait=false || true
-    fi
-  done
-  echo "✅ No PVs found for namespace payment"
+# -----------------------------------------------------------------------------
+# 3. ULTIMATE NUCLEAR RESET
+# -----------------------------------------------------------------------------
+if command -v orb &>/dev/null; then
+  echo "========================================================"
+  echo "🔥 OrbStack CLI detected. Obliterating and recreating the local Kubernetes cluster for a perfectly clean slate..."
+  orb delete k8s  || y
+  orb start k8s
+  echo "✅ Entire local Kubernetes cluster obliterated and rebuilt successfully."
 fi
 
-echo "🚀 Removing Helm repositories..."
-helm repo remove bitnami 2>/dev/null || echo "ℹ️ bitnami repo already removed"
-helm repo remove prometheus-community 2>/dev/null || echo "ℹ️ prometheus-community repo already removed"
-helm repo remove kedacore 2>/dev/null || echo "ℹ️ kedacore repo already removed"
-helm repo remove ingress-nginx 2>/dev/null || echo "ℹ️ ingress-nginx repo already removed"
-
-echo "✅ All local resources deleted."
+echo "✅ All uninstalls completed successfully!"

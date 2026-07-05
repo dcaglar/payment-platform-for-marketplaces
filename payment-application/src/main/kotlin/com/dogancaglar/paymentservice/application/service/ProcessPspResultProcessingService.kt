@@ -54,7 +54,7 @@ open class ProcessPspResultProcessingService(
     private val serializationPort: SerializationPort,
     private val outboxEventFactoryPort: OutboxEventFactoryPort
 ) : ProcessPspResultUseCase{
-
+    //todo make sure PspResultConsumer uses idemptotent state update sqls
     private val logger = LoggerFactory.getLogger(javaClass)
 
     override fun processAuthorized(event: PaymentAuthorized) {

@@ -201,7 +201,7 @@ No structural changes needed — the annotation passthrough already works via `{
 # 1. Upgrade ingress controller with new config
 helm upgrade ingress-nginx ingress-nginx/ingress-nginx \
   -n ingress-nginx \
-  -f infra/helm-values/ingress-controller-values-azure.yaml
+  -f infra/helm-values/nginx-ingress-controller-values-azure.yaml
 
 # 2. Upgrade payment-edge-cell chart
 helm upgrade payment-edge-cell charts/payment-edge-cell \

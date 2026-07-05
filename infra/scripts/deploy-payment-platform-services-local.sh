@@ -1,60 +1,100 @@
 #!/usr/bin/env bash
-# Deploys all payment platform services to Local Kubvernetes ORb
-# local mirror of: deploy-payment-platform-services-local.sh
+# Deploys all payment platform services to Local Kubernetes (OrbStack)
 #
 # Usage: ./deploy-payment-platform-services-local.sh
 set -euo pipefail
 
 trap 'echo "❌ Local payment platform services deployment failed on line $LINENO. Command: $BASH_COMMAND"' ERR
-NS="payment"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$SCRIPT_DIR/../.."
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$REPO_ROOT"
 
-echo "🛡️  Checking Kubernetes context..."
-CURRENT_CONTEXT=$(kubectl config current-context 2>/dev/null || echo "none")
-if [[ "$CURRENT_CONTEXT" == "azure" ]]; then
-  echo "❌ Current context is 'azure' — refusing to deploy local workloads to azure cluster."
-  echo "💡 Run: az aks get-credentials --resource-group rg-payment-platform-loadtest --name orbstack"
+echo "🛡️  Checking and setting Kubernetes context..."
+kubectl config set-context orbstack
+kubectl config use-context orbstack
+CURRENT_CONTEXT=$(kubectl config current-context || echo "none")
+
+if [[ "$CURRENT_CONTEXT" != "orbstack" ]]; then
+  echo "❌ Current context is '$CURRENT_CONTEXT'. Refusing to deploy payment platform services to the wrong cluster!"
+  echo "Run: first kubectl config set-context orbstack , then kubectl config use-context orbstack, and re-run the script again"
   exit 1
 fi
 echo "ℹ️  Deploying to context: $CURRENT_CONTEXT"
 
-echo "🚀 Deploying all payment platform services to Local..."
+echo "🚀 Deploying all payment platform services to Local in a serialized manner..."
 
-# 1. Ingress Controller (Nginx), installed for load balancing support of payment-service
-echo "Sending a deployment request of ingress LOAD BALANCER controller to local helm..."
-"$SCRIPT_DIR/deploy-external-infra.sh" ingress-controller local
-echo "Deployment request of ingress LOAD BALANCER controller was submitted to Local helm."
+# Format: RELEASE_NAME|NAMESPACE|SECRET_ARGS
+RELEASES=(
+  "payment-edge-cell|payment|-f secrets://$REPO_ROOT/edge-cell-sops-secrets.yaml"
+  "payment-edge-workers|payment|-f secrets://$REPO_ROOT/edge-cell-sops-secrets.yaml -f secrets://$REPO_ROOT/central-db-sops-secrets.yaml"
+  "central-db|payment|-f secrets://$REPO_ROOT/central-db-sops-secrets.yaml"
+  "payment-consumers|payment|-f secrets://$REPO_ROOT/central-db-sops-secrets.yaml"
+  "payment-central-relay|payment|-f secrets://$REPO_ROOT/central-db-sops-secrets.yaml"
+)
 
-# 2. Payment Edge Cell (payment-service and local edge-db initialized with necessary
-#    username and password, and liquibase performs initial table creation)
-echo "Sending a deployment request of payment-edge-cell chart (payment-service and local edge-db) to Local helm..."
-"$SCRIPT_DIR/deploy.sh" payment-edge-cell local
-echo "Deployment request of payment-edge-cell chart was submitted to Local helm."
+log_success() {
+  echo "✅ SUCCESS: Manifests for '$1' successfully accepted by Kubernetes API."
+}
 
-# 3. Payment Edge Workers (Asynchronous OutboxForwarder job moves local outbox to
-#    central outbox, and also Outbox Maintenance job)
-echo "Sending a deployment request of payment-edge-workers chart to Local helm..."
-"$SCRIPT_DIR/deploy.sh" payment-edge-workers local
-echo "Deployment request of payment-edge-workers chart (LocalOutboxStoreAndForwardJob and LocalOutboxMaintenanceJob) was submitted to local helm."
+log_error() {
+  echo "❌ ERROR: Failed to submit manifests for '$1'."
+  echo "Details: $2"
+}
 
-# 4. Central DB — initialized with custom users/roles, liquibase creates schema
-echo "Sending a deployment request of central-db chart to LOCAL helm..."
-"$SCRIPT_DIR/deploy.sh" central-db local
-echo "Deployment request of central-db chart was submitted to LOCAL helm."
+for RELEASE_INFO in "${RELEASES[@]}"; do
+  IFS='|' read -r RELEASE_NAME NAMESPACE SECRET_ARGS <<< "$RELEASE_INFO"
 
-# 5. Payment Consumers
-echo "Sending a deployment request of payment-consumers chart to local helm..."
-"$SCRIPT_DIR/deploy.sh" payment-consumers local
-echo "Deployment request of payment-consumers chart was submitted to local helm."
+  if [ "$SECRET_ARGS" == "null" ]; then SECRET_ARGS=""; fi
 
-# 6. Payment Central Relay (OutboxRelayJob and CentralOutboxMaintenanceJob)
-echo "Sending a deployment request of payment-central-relay chart to local helm..."
-"$SCRIPT_DIR/deploy.sh" payment-central-relay local
-echo "Deployment request of payment-central-relay chart (OutboxRelayJob and CentralOutboxMaintenanceJob) was submitted to local helm."
+  echo "========================================================"
+  echo "📦 Preparing deployment for: $RELEASE_NAME"
 
-echo ""
+  CHART_ROOT="$REPO_ROOT/charts/$RELEASE_NAME"
+  if [ ! -d "$CHART_ROOT" ]; then
+    echo "❌ Error: Chart directory $CHART_ROOT does not exist."
+    exit 1
+  fi
+
+  VALUES_ARGS="-f $CHART_ROOT/values.yaml -f $CHART_ROOT/local/values.yaml"
+
+  HELM_CMD="helm upgrade"
+  if [[ -n "$SECRET_ARGS" ]]; then
+    HELM_CMD="helm secrets upgrade"
+    echo "🔐 Using helm-secrets plugin with SOPS decryption."
+  fi
+
+  echo "⬇️  Updating helm dependencies for $RELEASE_NAME..."
+  helm dependency update "$CHART_ROOT"
+
+  echo "🚀 Executing $HELM_CMD --install for $RELEASE_NAME in namespace $NAMESPACE"
+  
+  # Execute helm upgrade --install and gracefully catch "already exists" edge cases
+  if ! err=$($HELM_CMD --install "$RELEASE_NAME" "$CHART_ROOT" \
+    -n "$NAMESPACE" --create-namespace \
+    $VALUES_ARGS \
+    $SECRET_ARGS 2>&1); then
+    
+    if echo "$err" | grep -qi "already exists"; then
+      echo "⚠️  WARNING: Release $RELEASE_NAME already exists or encountered a non-fatal collision. Continuing..."
+    else
+      log_error "$RELEASE_NAME" "$err"
+      exit 1
+    fi
+  else
+    log_success "$RELEASE_NAME"
+  fi
+
+  echo "🧹 Cleaning up downloaded .tgz dependencies..."
+  rm -rf "$CHART_ROOT/charts"
+  rm -f "$CHART_ROOT/Chart.lock"
+
+  echo "🔄 Forcing pod restart to pull the latest image..."
+  kubectl rollout restart deployment "$RELEASE_NAME" -n "$NAMESPACE" 2>/dev/null || true
+  kubectl rollout restart statefulset "$RELEASE_NAME" -n "$NAMESPACE" 2>/dev/null || true
+done
+
+echo "========================================================"
 echo "✅ All manifests successfully submitted to Local Kubernetes via helm."
 echo "Kubernetes is now resolving dependencies natively via initContainers."
-echo "Check progress via: kubectl get pods -n payment -w"as
+echo "Check progress via: kubectl get pods -n payment -w"
