@@ -4,6 +4,7 @@ import com.dogancaglar.common.event.EventEnvelopeFactory
 import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.CaptureConfirmed
 import com.dogancaglar.paymentservice.application.events.CaptureSubmitted
+import com.dogancaglar.paymentservice.application.events.SettlementReceived
 import com.dogancaglar.paymentservice.ports.outbound.PspSimulationRulesPort
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
@@ -15,6 +16,7 @@ import com.dogancaglar.paymentservice.domain.model.vo.TxId
 import com.dogancaglar.paymentservice.ports.inbound.usecases.RecordCaptureSubmissionUseCase
 import com.dogancaglar.paymentservice.ports.outbound.CentralDbTransactionalFacadePort
 import com.dogancaglar.paymentservice.ports.outbound.IdGeneratorPort
+import com.dogancaglar.paymentservice.ports.outbound.OutboxEventFactoryPort
 import com.dogancaglar.paymentservice.ports.outbound.PaymentRepository
 import com.dogancaglar.paymentservice.ports.outbound.PaymentTxPort
 import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
@@ -25,6 +27,7 @@ open class RecordCaptureSubmissionService(
     private val paymentRepository: PaymentRepository,
     private val paymentTxPort: PaymentTxPort,
     private val idGeneratorPort: IdGeneratorPort,
+    private val outboxEventFactoryPort: OutboxEventFactoryPort,
     private val serializationPort: SerializationPort,
     private val pspSimulationRulesPort: PspSimulationRulesPort
 ) : RecordCaptureSubmissionUseCase {
@@ -60,30 +63,36 @@ open class RecordCaptureSubmissionService(
 
         //TODO simulation ,here also just create one Outbox<CaptureConfirmed> for simulator purposes.
         val outboxEvents = mutableListOf<OutboxEvent>()
-        if (pspSimulationRulesPort.isSimulationTarget(event.merchantAccount)) {
-            logger.debug("Simulation target profile verified for merchant=${event.merchantAccount}. Generating automatic Stage 2 loopback confirmation.")
+        if (pspSimulationRulesPort.isSimulationTarget(event.merchantAccountId)) {
+            logger.debug("Simulation target profile verified for merchant=${event.merchantAccountId}. Generating automatic Stage 2 loopback confirmation.")
             val captureConfirmed = CaptureConfirmed(
                 paymentIntentId = event.paymentIntentId,
                 publicPaymentIntentId = event.publicPaymentIntentId,
-                merchantAccount = event.merchantAccount,
+                merchantAccountId = event.merchantAccountId,
                 amountValue = event.amountValue,
                 currency = event.currency
             )
 
-            val captureConfirmedEnvelope = EventEnvelopeFactory.envelopeFor(
-                traceId = EventLogContext.getTraceId(),
-                data = captureConfirmed,
-                aggregateId = event.publicPaymentIntentId,
-                parentEventId = EventLogContext.getEventId()
-            )
+            val captureConfirmedOutboxEvent = outboxEventFactoryPort.create(captureConfirmed)
+            outboxEvents.add(captureConfirmedOutboxEvent,)
+            val grossAmountValue = event.amountValue
 
-            val captureConfirmedOutboxEvent = OutboxEvent.createNew(
-                oeid = idGeneratorPort.generateId(),
-                eventType = captureConfirmedEnvelope.eventType,
-                aggregateId = captureConfirmedEnvelope.aggregateId,
-                payload = serializationPort.toJson(captureConfirmedEnvelope)
+            // Compute standard network overhead fees (1.5% processing baseline fee reduction)
+            val feeAmountValue = (grossAmountValue * 0.015).toLong().coerceAtLeast(1L)
+            val netCashAmountValue = grossAmountValue - feeAmountValue
+
+            val settlementLineEvent = SettlementReceived(
+                paymentIntentId = event.paymentIntentId,
+                publicPaymentIntentId = event.publicPaymentIntentId,
+                merchantAccountId = event.merchantAccountId,
+                grossAmountValue =grossAmountValue,
+                pspFeeAmountValue =feeAmountValue,
+                netCashAmountValue = netCashAmountValue,
+                currency = event.currency
             )
-            outboxEvents.add(captureConfirmedOutboxEvent)
+                val settlementLineOutboxEvent = outboxEventFactoryPort.create(settlementLineEvent)
+
+            outboxEvents.add(settlementLineOutboxEvent,)
         }
 
         // 5. Commit atomic units through outbound database gateways

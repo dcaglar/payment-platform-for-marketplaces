@@ -1,6 +1,4 @@
-#!/bin/bash
-# Usage: delete.sh <service-name> <environment>
-# Example: ./delete.sh payment-central-relay local
+#!/usr/bin/env bash
 set -euo pipefail
 
 usage() {
@@ -8,15 +6,24 @@ usage() {
   echo "Example: $0 payment-central-relay local"
   exit 1
 }
-kubectl config set-context orbstack
-SERVICE_NAME=${1:-}
-ENV=${2:-}
 
-if [ -z "$SERVICE_NAME" ] || [ -z "$ENV" ]; then
+kubectl config use-context orbstack 2>/dev/null || true
+RELEASE_NAME=${1:-}
+ENV=${2:-}
+NS=${3:-"payment"}
+
+
+if [ -z "$RELEASE_NAME" ] || [ -z "$ENV" ]; then
   usage
 fi
 
-echo "🗑️ Deleting $SERVICE_NAME from $ENV environment..."
+echo "🗑️ Deleting $RELEASE_NAME from $ENV environment on name space $NS"
 
-helm uninstall -n payment "$SERVICE_NAME" --ignore-not-found || echo "⚠️ Could not uninstall $SERVICE_NAME. Is the cluster reachable?"
-echo "✅ Deletion of $SERVICE_NAME complete."
+# Standardized helm uninstall options for fast purges (timeout 60s instead of 5 minutes, ignore-not-found spacing fixed)
+helm uninstall "$RELEASE_NAME" \
+  -n "$NS" \
+  --wait \
+  --timeout=60s \
+  --ignore-not-found
+
+echo "✅ Deletion of $RELEASE_NAME complete on $ENV  on namespace $NS"

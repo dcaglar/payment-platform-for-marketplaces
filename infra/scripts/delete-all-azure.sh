@@ -16,7 +16,7 @@ helm uninstall -n payment payment-consumers --ignore-not-found
 helm uninstall -n payment central-db --ignore-not-found --wait --timeout 5m
 
 echo "🚀 Uninstalling External Infrastructure..."
-helm uninstall -n ingress-nginx ingress-nginx --ignore-not-found --wait --timeout 5m
+helm uninstall -n ingress-controller ingress-nginx --ignore-not-found --wait --timeout 5m
 helm uninstall -n payment keycloak --ignore-not-found --wait --timeout 5m
 helm uninstall -n payment kafka --ignore-not-found --wait --timeout 5m
 helm uninstall -n payment redis --ignore-not-found --wait --timeout 5m
@@ -26,8 +26,6 @@ echo "🚀 Uninstalling Monitoring Stack..."
 helm uninstall -n monitoring prometheus-stack --ignore-not-found --wait --timeout 5m
 helm uninstall -n monitoring central-db-postgres-exporter --ignore-not-found
 
-echo "🚀 Deleting ALL PVCs (Triggers Azure Disk Deletion)..."
-kubectl delete pvc --all -n payment --ignore-not-found
-kubectl delete pvc --all -n monitoring --ignore-not-found
+
 
 echo "✅ Graceful Kubernetes teardown complete. Azure disks and IPs are un-provisioning."

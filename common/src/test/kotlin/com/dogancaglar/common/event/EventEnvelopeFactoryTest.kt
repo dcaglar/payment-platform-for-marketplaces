@@ -12,15 +12,18 @@ class EventEnvelopeFactoryTest {
 
     data class TestEvent(
         override val eventType: String = "test_event",
-        val payload: String,
-        override val timestamp: Instant = Utc.nowInstant()
+        val x: Int=11,
+        override val timestamp: Instant = Utc.nowInstant(),
+        override val paymentIntentId: String ="121212",
+        override val publicPaymentIntentId: String = "pi-121313",
+        override val merchantAccountId: String= "Test"
     ) : Event {
         override fun deterministicEventId() = "fixed-id"
     }
 
     @Test
     fun `envelopeFor should generate deterministic envelope`() {
-        val evt = TestEvent(payload = "hello")
+        val evt = TestEvent()
 
         val env = EventEnvelopeFactory.envelopeFor(
             data = evt,
@@ -37,7 +40,7 @@ class EventEnvelopeFactoryTest {
 
     @Test
     fun `envelopeFor uses provided parentEventId`() {
-        val evt = TestEvent(payload = "test-payload")
+        val evt = TestEvent(x=12)
         val env = EventEnvelopeFactory.envelopeFor(
             data = evt,
             aggregateId = "agg-1",
@@ -51,7 +54,7 @@ class EventEnvelopeFactoryTest {
     @Test
     fun `envelopeFor uses explicit timestamp when passed`() {
         val t = Utc.toInstant(LocalDateTime.of(2020, 1, 1, 10, 0))
-        val evt = TestEvent(payload = "test-payload", timestamp = t)
+        val evt = TestEvent(timestamp = t)
 
         val env = EventEnvelopeFactory.envelopeFor(
             data = evt,
@@ -66,7 +69,7 @@ class EventEnvelopeFactoryTest {
 
     @Test
     fun `envelopeWithRandomId should generate random UUIDs`() {
-        val evt = TestEvent(eventType = "hello", payload = "test-payload")
+        val evt = TestEvent(eventType = "hello")
 
         val e1 = EventEnvelopeFactory.envelopeWithRandomId(
             data = evt,
@@ -87,7 +90,7 @@ class EventEnvelopeFactoryTest {
 
     @Test
     fun `envelopeWithRandomId uses random id as parentEventId fallback`() {
-        val evt = TestEvent(eventType = "hello", payload = "test-payload")
+        val evt = TestEvent(eventType = "hello")
 
         val env = EventEnvelopeFactory.envelopeWithRandomId(
             data = evt,

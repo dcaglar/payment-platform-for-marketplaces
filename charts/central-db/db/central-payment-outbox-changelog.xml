@@ -11,7 +11,11 @@
             <sql>
                 CREATE TABLE outbox_event (
                 oeid           BIGINT NOT NULL,
+                partition_key       VARCHAR(255) NOT NULL,
                 event_type     VARCHAR(255) NOT NULL,
+                trace_id       VARCHAR(255) NOT NULL,
+                event_id       VARCHAR(255) NOT NULL,
+                parent_event_id       VARCHAR(255),
                 aggregate_id   VARCHAR(255) NOT NULL,
                 payload        TEXT NOT NULL,
                 status         VARCHAR(50) NOT NULL,
@@ -53,8 +57,6 @@
                 <column name="claimed_at"/>
             </createIndex>
         </changeSet>
-
-
 
 
     </databaseChangeLog>

@@ -8,6 +8,9 @@ REALM="ecommerce-platform"
 ADMIN_USER="admin"
 ADMIN_PASS="adminpassword"
 OUTPUT_DIR="$(dirname "$0")/output"
+export KEYCLOAK_IP=$(kubectl get svc -n payment keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export KEYCLOAK_URL="http://${KEYCLOAK_IP}:8080"
+#export KEYCLOAK_IP=$(kubectl get svc -n payment keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 mkdir -p "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR/jwt"
@@ -86,7 +89,7 @@ log() { echo "[$(date +'%H:%M:%S')] $*" >&2; }
 # Default to localhost assuming port-forwarding is running
 if [[ -z "${KEYCLOAK_URL:-}" ]]; then
   log "🔍 Using cluster-internal Keycloak URL..."
-  KEYCLOAK_URL="http://keycloak.payment.svc.cluster.local:8080"
+  KEYCLOAK_URL="http://keycloak.payment.svc.cluster.local"
 
 else
   log "   Using explicit KEYCLOAK_URL: $KEYCLOAK_URL"

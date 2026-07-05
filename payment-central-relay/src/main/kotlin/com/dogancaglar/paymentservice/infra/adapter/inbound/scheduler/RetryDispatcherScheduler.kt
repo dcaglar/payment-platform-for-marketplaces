@@ -1,4 +1,4 @@
-package com.dogancaglar.paymentservice.infra.adapter.inbound.scheduler
+/*package com.dogancaglar.paymentservice.infra.adapter.inbound.scheduler
 
 import com.dogancaglar.common.event.EventEnvelope
 import com.dogancaglar.common.kafka.publisher.PaymentEventPublisher
@@ -149,3 +149,5 @@ class RetryDispatcherScheduler(
         logger.debug("Reclaimed stale inflight ({} ms)", took)
     }
 }
+
+ */

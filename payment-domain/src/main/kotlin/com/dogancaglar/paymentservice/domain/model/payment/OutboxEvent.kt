@@ -8,8 +8,13 @@ import java.time.LocalDateTime
  * Created atomically with domain changes to ensure reliable async publication.
  */class OutboxEvent private constructor(
     val oeid: Long,
+    val  partitionKey: String,
     val eventType: String,
     val aggregateId: String,
+    val traceId: String,
+    val eventId: String,
+    val parentEventId: String?,
+
     val payload: String,
     val status: Status,
     val createdAt: LocalDateTime,
@@ -38,7 +43,11 @@ import java.time.LocalDateTime
     ): OutboxEvent = OutboxEvent(
         oeid = oeid,
         eventType = eventType,
+        partitionKey = partitionKey,
         aggregateId = aggregateId,
+        traceId = traceId,
+        eventId = eventId,
+        parentEventId = parentEventId,
         payload = payload,
         status = status,
         createdAt = createdAt,
@@ -49,7 +58,7 @@ import java.time.LocalDateTime
     enum class Status { NEW, PROCESSING, SENT }
 
     override fun toString(): String {
-        return "OutboxEvent(oeid=$oeid, eventType='$eventType', aggregateId='$aggregateId', payload='$payload', status=$status, createdAt=$createdAt, updatedAt=$updatedAt)"
+        return "OutboxEvent(oeid=$oeid, eventType='$eventType', aggregateId='$aggregateId', '$aggregateId' payload='$payload', status=$status, createdAt=$createdAt, updatedAt=$updatedAt)"
     }
 
     companion object {
@@ -57,15 +66,23 @@ import java.time.LocalDateTime
         /** 🔹 Create brand new event for persistence */
         fun createNew(
             oeid: Long,
+            partitionKey: String,
             eventType: String,
             aggregateId: String,
+            traceId: String,
+            eventId:String,
+            parentEventId: String?,
             payload: String
         ): OutboxEvent {
             val now = Utc.nowLocalDateTime()
            return  OutboxEvent(
                 oeid = oeid,
+                partitionKey = partitionKey,
                 eventType = eventType,
                 aggregateId = aggregateId,
+               traceId = traceId,
+               eventId=eventId,
+               parentEventId=parentEventId,
                 payload = payload,
                 status = Status.NEW,
                 createdAt = now,
@@ -76,16 +93,24 @@ import java.time.LocalDateTime
         /** 🔹 Rehydrate from persistence row */
         fun rehydrate(
             oeid: Long,
+            partitionKey: String,
             eventType: String,
             aggregateId: String,
+            traceId: String,
+            eventId: String,
+            parentEventId: String?,
             payload: String,
             status: String,
             createdAt: LocalDateTime,
             updatedAt: LocalDateTime
         ): OutboxEvent = OutboxEvent(
             oeid = oeid,
+            partitionKey = partitionKey,
             eventType = eventType,
             aggregateId = aggregateId,
+            traceId = traceId,
+            eventId = eventId,
+            parentEventId = parentEventId,
             payload = payload,
             status = Status.valueOf(status.uppercase()), // safe parse
             createdAt = createdAt,

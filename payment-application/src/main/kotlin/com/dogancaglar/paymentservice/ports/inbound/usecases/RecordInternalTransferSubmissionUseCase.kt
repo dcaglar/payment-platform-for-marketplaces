@@ -11,7 +11,7 @@ interface RecordInternalTransferSubmissionUseCase {
     fun recordSubmission(
         paymentId: PaymentId,
         paymentIntentId: PaymentIntentId,
-        publicPaymentIntentId: String,
+        paymentMerchantAccountId:String,
         captureTxId: TxId,
         sourceAccount: String,
         targetAccount: String,

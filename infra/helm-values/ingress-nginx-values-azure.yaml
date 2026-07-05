@@ -1,11 +1,11 @@
 
-# ingress-controller-values-azure.yaml
+# nginx-ingress-controller-values-azure.yaml
 controller:
   metrics:
     enabled: true
     serviceMonitor:
       enabled: true
-      namespace: ingress-nginx
+      namespace: ingress-controller
       additionalLabels:
         release: prometheus-stack
   service:

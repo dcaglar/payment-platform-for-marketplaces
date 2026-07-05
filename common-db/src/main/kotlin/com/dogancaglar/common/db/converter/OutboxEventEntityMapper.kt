@@ -9,8 +9,12 @@ object OutboxEventEntityMapper {
     fun toDomain(entity: OutboxEventEntity): OutboxEvent =
         OutboxEvent.rehydrate(
             oeid = entity.oeid,
+            partitionKey = entity.partitionKey,
             eventType = entity.eventType,
             aggregateId = entity.aggregateId,
+            traceId =  entity.traceId,
+            eventId = entity.eventId,
+            parentEventId = entity.parentEventId,
             payload = entity.payload,
             status = entity.status,
             createdAt = entity.createdAt.atOffset(ZoneOffset.UTC).toLocalDateTime(),
@@ -20,8 +24,12 @@ object OutboxEventEntityMapper {
     fun toEntity(domain: OutboxEvent): OutboxEventEntity =
         OutboxEventEntity(
             oeid = domain.oeid,
+            partitionKey = domain.partitionKey,
             eventType = domain.eventType,
             aggregateId = domain.aggregateId,
+            traceId = domain.traceId,
+            eventId = domain.eventId,
+            parentEventId = domain.parentEventId,
             payload = domain.payload,
             status = domain.status.name,
             createdAt = domain.createdAt.toInstant(ZoneOffset.UTC),

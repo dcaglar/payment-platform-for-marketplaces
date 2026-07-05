@@ -9,11 +9,11 @@ data class CaptureSubmitted(
     val pspReference: String,
     override val paymentIntentId: String,
     override val publicPaymentIntentId: String,
-    val merchantAccount: String,
+    override val merchantAccountId: String,
     override val amountValue: Long,
     override val currency: String,
     override val timestamp: Instant = Utc.nowInstant()
-) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, amountValue, currency, timestamp) {
+) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, merchantAccountId,amountValue, currency, timestamp) {
 
     override val eventType: String = EventType.CAPTURE_SUBMITTED
     // deterministicEventId() inherited: "$publicPaymentIntentId:$eventType"
@@ -23,7 +23,7 @@ data class CaptureSubmitted(
             pspReference = pspReference,
             paymentIntentId = request.paymentIntentId,
             publicPaymentIntentId = request.publicPaymentIntentId,
-            merchantAccount = request.merchantAccount,
+            merchantAccountId = request.merchantAccountId,
             amountValue = request.amountValue,
             currency = request.currency,
             timestamp = timestamp

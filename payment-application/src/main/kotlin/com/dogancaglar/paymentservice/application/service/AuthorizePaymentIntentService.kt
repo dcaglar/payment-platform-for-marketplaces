@@ -1,14 +1,11 @@
 package com.dogancaglar.paymentservice.application.service
 
-import com.dogancaglar.common.event.EventEnvelopeFactory
-import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.application.command.AuthorizePaymentIntentCommand
 import com.dogancaglar.paymentservice.application.events.PaymentAuthorized
 import com.dogancaglar.paymentservice.domain.exception.PaymentNotReadyException
 import com.dogancaglar.paymentservice.domain.exception.PspPermanentException
 import com.dogancaglar.paymentservice.domain.exception.PspTransientException
-import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntentStatus
 
@@ -20,6 +17,7 @@ import java.util.concurrent.RejectedExecutionException
 
 class AuthorizePaymentIntentService(
     private val idGeneratorPort: IdGeneratorPort,
+    private  val outboxEventFactoryPort: OutboxEventFactoryPort,
     private val paymentIntentRepository: PaymentIntentRepository,
     private val pspAuthGatewayPort: PspAuthorizationGatewayPort,
     private val resilientExecutionPort: ResilientExecutionPort,
@@ -161,29 +159,13 @@ class AuthorizePaymentIntentService(
     private fun handleAuthorizedPaymentResult(confirmedPaymentIntent : PaymentIntent){
         if(confirmedPaymentIntent.status == PaymentIntentStatus.AUTHORIZED){
             //generate outbox<paymentauthorized> +  from paymentintent objefct which is just authorized
-            val outboxEventPaymentAuthorizedEvent = toOutboxPaymentAuthorizedEvent(confirmedPaymentIntent)
+            val paymentAuthorizedEvent = PaymentAuthorized.from(confirmedPaymentIntent,Utc.nowInstant())
+            val outboxEventPaymentAuthorizedEvent = outboxEventFactoryPort.create(paymentAuthorizedEvent)
             val startUpdate = System.currentTimeMillis()
             paymentTransactionalFacadePort.handleAuthorized(confirmedPaymentIntent,outboxEventPaymentAuthorizedEvent)
             val finishUpdate = System.currentTimeMillis()
             logger.debug("paymentTransactionalFacadePort.handleAuthorize TOOK{} MS", finishUpdate - startUpdate)
         }
-    }
-
-    private fun toOutboxPaymentAuthorizedEvent(paymentIntent: PaymentIntent): OutboxEvent {
-        val paymentAuthorizedEvent = PaymentAuthorized.from(paymentIntent,Utc.nowInstant())
-        val envelope = EventEnvelopeFactory.envelopeFor(
-            traceId = EventLogContext.getTraceId(),
-            data = paymentAuthorizedEvent,
-            aggregateId = paymentAuthorizedEvent.paymentIntentId,
-            parentEventId = EventLogContext.getEventId()
-        )
-
-        return OutboxEvent.createNew(
-            oeid = paymentIntent.paymentIntentId.value,
-            eventType = envelope.eventType,
-            aggregateId = envelope.aggregateId,
-            payload = serializationPort.toJson(envelope),
-        )
     }
 
 

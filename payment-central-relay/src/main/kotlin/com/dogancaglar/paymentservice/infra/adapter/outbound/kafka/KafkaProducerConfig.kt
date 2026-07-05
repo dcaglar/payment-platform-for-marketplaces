@@ -1,25 +1,22 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.kafka
 
-import com.dogancaglar.common.event.EventEnvelope
 import com.dogancaglar.common.event.metadata.EventMetaDataRegistry
-import com.dogancaglar.common.kafka.publisher.PaymentEventPublisher
-import com.dogancaglar.common.kafka.serde.EventEnvelopeKafkaSerializer
 import com.dogancaglar.common.kafka.metadata.PaymentEventMetadataCatalog
+import com.dogancaglar.common.kafka.publisher.RawEventPublisher
+import com.dogancaglar.common.kafka.serde.EventEnvelopeKafkaSerializer
 import io.micrometer.core.instrument.MeterRegistry
+import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringSerializer
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
+import org.springframework.kafka.core.KafkaAdmin
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.kafka.core.MicrometerProducerListener
-import org.springframework.kafka.core.KafkaAdmin
-import org.apache.kafka.clients.admin.AdminClientConfig
-
-import org.springframework.context.annotation.Configuration
 
 /**
  * Configuration for shared Kafka producer infrastructure.
@@ -69,53 +66,30 @@ class KafkaProducerConfig(
             put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "zstd")
         }
 
-    @Bean("syncPaymentEventProducerFactory")
-    fun syncPaymentEventProducerFactory(mr: MeterRegistry): DefaultKafkaProducerFactory<String, EventEnvelope<*>> =
-        DefaultKafkaProducerFactory<String, EventEnvelope<*>>(
-            baseProps().apply {
-                put(ProducerConfig.CLIENT_ID_CONFIG, "$appName-sync-payment-tx-producer-client")
+        @Bean("rawBatchProducerFactory")
+        fun rawBatchProducerFactory(mr: MeterRegistry): DefaultKafkaProducerFactory<String, String> {
+            // Start with baseProps, but force the StringSerializer
+            val props = baseProps().toMutableMap().apply {
+                put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java)
+                put(ProducerConfig.CLIENT_ID_CONFIG, "$appName-raw-producer-client")
             }
-        ).apply {
-            addListener(MicrometerProducerListener(mr))
+
+            return DefaultKafkaProducerFactory<String, String>(props).apply {
+                addListener(MicrometerProducerListener(mr))
+            }
         }
 
-    @Bean("syncPaymentEventKafkaTemplate")
-    fun syncPaymentEventKafkaTemplate(
-        @Qualifier("syncPaymentEventProducerFactory") pf: DefaultKafkaProducerFactory<String, EventEnvelope<*>>
-    ) = KafkaTemplate(pf)
 
-    @Bean("syncPaymentEventPublisher")
-    fun syncPaymentEventPublisher(
-        @Qualifier("syncPaymentEventKafkaTemplate") kt: KafkaTemplate<String, EventEnvelope<*>>,
+    @Bean("rawEventKafkaTemplate")
+    fun rawEventKafkaTemplate(@Qualifier("rawBatchProducerFactory")rbpf: DefaultKafkaProducerFactory<String,String>) = KafkaTemplate(rbpf)
+
+
+    @Bean("rawEventPublisher")
+    fun rawEventPublisher(
+        @Qualifier("rawEventKafkaTemplate") kt: KafkaTemplate<String, String>,
         eventMetaDataRegistry: EventMetaDataRegistry,
         mr: MeterRegistry
-    ) = PaymentEventPublisher(kt, eventMetaDataRegistry, mr)
-
-
-
-    @Bean("batchPaymentProducerFactory")
-    fun batchPaymentProducerFactory(mr: MeterRegistry): DefaultKafkaProducerFactory<String, EventEnvelope<*>> =
-        DefaultKafkaProducerFactory<String, EventEnvelope<*>>(
-            baseProps().apply {
-                put(ProducerConfig.CLIENT_ID_CONFIG, "$appName-batch-payment-tx-producer-client")
-            }
-        ).apply {
-            addListener(MicrometerProducerListener(mr))
-        }
-
-    @Bean("batchPaymentKafkaTemplate")
-    fun batchPaymentKafkaTemplate(
-        @Qualifier("batchPaymentProducerFactory") pf: DefaultKafkaProducerFactory<String, EventEnvelope<*>>
-    ) = KafkaTemplate(pf)
-
-    @Bean("batchPaymentEventPublisher")
-    fun batchPaymentEventPublisher(
-        @Qualifier("batchPaymentKafkaTemplate") kt: KafkaTemplate<String, EventEnvelope<*>>,
-        mr: MeterRegistry,
-        eventMetaDataRegistry: EventMetaDataRegistry
-    ) = PaymentEventPublisher(kt, eventMetaDataRegistry, mr)
-
-
+    ) = RawEventPublisher(kt, eventMetaDataRegistry)
 
     @Bean
     fun eventMetaDataRegistry() = EventMetaDataRegistry(PaymentEventMetadataCatalog.all)

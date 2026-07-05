@@ -16,7 +16,7 @@ service:
 
 prometheus:
   serviceMonitor:
-    enabled: true
+    enabled: false
     namespace: payment           # ServiceMonitor lives in payment
     additionalLabels:
       release: prometheus-stack       # 👈 Prometheus will pick it up

@@ -1,11 +1,11 @@
 
-# ingress-controller-values-local.yaml
+# nginx-ingress-controller-values-local.yaml
 controller:
   metrics:
     enabled: true
     serviceMonitor:
-      enabled: true
-      namespace: ingress-nginx # or wherever your operator is
+      enabled: false
+      namespace: ingress-controller # or wherever your operator is
       additionalLabels:
         release: prometheus-stack # Match the label your operator looks for
   service:
@@ -35,3 +35,10 @@ controller:
           memory: 32Mi
         limits:
           memory: 64Mi
+
+  # ── Cell Routing: Lua snippet support ──────────────────────────────────────
+  allowSnippetAnnotations: true
+
+  config:
+    annotations-risk-level: "Critical"
+    lua-shared-dicts: "cell_routing: 1m"

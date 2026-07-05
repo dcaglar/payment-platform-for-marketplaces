@@ -24,7 +24,7 @@ echo "🚀 Deploying all payment platform services to Azure..."
 
 # 1. Ingress Controller (Nginx), installed for load balancing support of payment-service
 echo "Sending a deployment request of ingress LOAD BALANCER controller to Azure helm..."
-"$SCRIPT_DIR/deploy-external-infra.sh" ingress-controller azure
+"$SCRIPT_DIR/deploy-external-infra.sh" nginx-ingress-controller azure
 echo "Deployment request of ingress LOAD BALANCER controller was submitted to Azure helm."
 
 # 2. Payment Edge Cell (payment-service and local edge-db initialized with necessary

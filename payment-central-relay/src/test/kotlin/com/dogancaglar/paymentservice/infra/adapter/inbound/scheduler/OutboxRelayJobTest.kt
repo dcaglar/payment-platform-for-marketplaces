@@ -1,16 +1,12 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.scheduler
 
-import com.dogancaglar.common.event.EventEnvelope
+import com.dogancaglar.common.kafka.publisher.KafkaDeliveryResult
+import com.dogancaglar.common.kafka.publisher.RawEventPublisher
 import com.dogancaglar.common.time.Utc
-import com.dogancaglar.paymentservice.application.events.CaptureConfirmed
-import com.dogancaglar.paymentservice.application.events.PaymentAuthorized
-import com.dogancaglar.paymentservice.application.events.CaptureRequested
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.paymentservice.ports.outbound.CentralOutboxRelayPort
-import com.dogancaglar.paymentservice.ports.outbound.EventPublisherPort
-import com.fasterxml.jackson.databind.JavaType
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.type.TypeFactory
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -18,29 +14,23 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import java.time.Instant
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import java.util.concurrent.CompletableFuture
 
 class OutboxRelayJobTest {
 
     private lateinit var centralOutboxRepository: CentralOutboxRelayPort
-    private lateinit var kafkaPublisher: EventPublisherPort
+    private lateinit var rawEventPublisher: RawEventPublisher
     private lateinit var executor: ThreadPoolTaskExecutor
-    private lateinit var objectMapper: ObjectMapper
-
     private lateinit var meterRegistry: MeterRegistry
     private lateinit var outboxRelayJob: OutboxRelayJob
 
     @BeforeEach
     fun setUp() {
         centralOutboxRepository = mockk<CentralOutboxRelayPort>(relaxed = true)
-        kafkaPublisher = mockk<EventPublisherPort>(relaxed = true)
+        rawEventPublisher = mockk<RawEventPublisher>(relaxed = true)
         executor = mockk<ThreadPoolTaskExecutor>(relaxed = true)
-        objectMapper = mockk<ObjectMapper>(relaxed = true)
 
-
-        // Make mock executor run tasks synchronously in tests, wrapping in try-catch to mimic background thread isolation
+        // Make mock executor run tasks synchronously in tests
         every { executor.execute(any()) } answers {
             val runnable = firstArg<Runnable>()
             try {
@@ -54,116 +44,78 @@ class OutboxRelayJobTest {
 
         outboxRelayJob = OutboxRelayJob(
             centralOutboxRepository = centralOutboxRepository,
-            kafkaPublisher = kafkaPublisher,
+            rawEventPublisher = rawEventPublisher,
             executor = executor,
-            objectMapper = objectMapper,
             batchSize = 100,
+            appInstanceId = "test-relay",
             meterRegistry = meterRegistry
+        )
+    }
+
+    // Helper to create events matching the new rehydrate signature
+    private fun createTestEvent(oeid: Long, aggregateId: String, eventType: String): OutboxEvent {
+        val now = Utc.nowLocalDateTime()
+        return OutboxEvent.rehydrate(
+            oeid = oeid,
+            partitionKey = "pk-$oeid",
+            eventType = eventType,
+            aggregateId = aggregateId,
+            traceId = "trace-$oeid",
+            eventId = "evt-$oeid",
+            parentEventId = "parent-$oeid",
+            payload = "{\"data\":\"test\"}",
+            status = "NEW",
+            createdAt = now,
+            updatedAt = now
         )
     }
 
     @Test
     fun `should default tSafe to now if null and continue polling`() {
-        // Given
         every { centralOutboxRepository.computeTSafe() } returns null
-        every { centralOutboxRepository.findEligible(any(), any()) } returns emptyList()
+        every { centralOutboxRepository.findEligible(any(), any(), any()) } returns emptyList()
 
-        // When
         outboxRelayJob.poll()
 
-        // Then
-        verify(exactly = 1) { centralOutboxRepository.findEligible(any(), any()) }
-        verify(exactly = 0) { executor.execute(any()) }
+        verify(exactly = 1) { centralOutboxRepository.findEligible(any(), any(), any()) }
         verify(exactly = 0) { executor.execute(any()) }
     }
 
     @Test
     fun `should skip poll if no eligible events`() {
-        // Given
-        val tSafe = Instant.ofEpochMilli(12345L)
+        val tSafe = Instant.now()
         every { centralOutboxRepository.computeTSafe() } returns tSafe
-        every { centralOutboxRepository.findEligible(tSafe, 100) } returns emptyList()
+        every { centralOutboxRepository.findEligible(tSafe, 100, any()) } returns emptyList()
 
-        // When
         outboxRelayJob.poll()
 
-        // Then
-        verify(exactly = 1) { centralOutboxRepository.findEligible(tSafe, 100) }
+        verify(exactly = 1) { centralOutboxRepository.findEligible(tSafe, 100, any()) }
         verify(exactly = 0) { executor.execute(any()) }
     }
 
     @Test
     fun `should group events by aggregateId and publish successfully`() {
-        // Given
-        val tSafe = Instant.ofEpochMilli(12345L)
-        val now = Utc.nowLocalDateTime()
-        val event1 = OutboxEvent.rehydrate(
-            oeid = 1L,
-            eventType = "payment_authorized",
-            aggregateId = "seller-1",
-            payload = "{\"paymentId\":\"1\"}",
-            status = "NEW",
-            createdAt = now,
-            updatedAt = now
-        )
-        val event2 = OutboxEvent.rehydrate(
-            oeid = 2L,
-            eventType = "CAPTURE_REQUESTED",
-            aggregateId = "seller-1",
-            payload = "{\"paymentOrderId\":\"2\"}",
-            status = "NEW",
-            createdAt = now,
-            updatedAt = now
-        )
-        val event3 = OutboxEvent.rehydrate(
-            oeid = 3L,
-            eventType = "CAPTURE_CONFIRMED",
-            aggregateId = "seller-2",
-            payload = "{\"paymentOrderId\":\"3\"}",
-            status = "NEW",
-            createdAt = now,
-            updatedAt = now
-        )
+        val tSafe = Instant.now()
+        val event1 = createTestEvent(1L, "seller-1", "PAYMENT_AUTHORIZED")
+        val event2 = createTestEvent(2L, "seller-1", "CAPTURE_REQUESTED")
+        val event3 = createTestEvent(3L, "seller-2", "CAPTURE_CONFIRMED")
 
         every { centralOutboxRepository.computeTSafe() } returns tSafe
-        every { centralOutboxRepository.findEligible(tSafe, 100) } returns listOf(event1, event2, event3)
+        every { centralOutboxRepository.findEligible(tSafe, 100, any()) } returns listOf(event1, event2, event3)
 
-        // Mock Jackson TypeFactory and ObjectMapper
-        val mockTypeFactory = mockk<TypeFactory>()
-        val mockJavaType = mockk<JavaType>()
-        every { objectMapper.typeFactory } returns mockTypeFactory
-        
-        every { mockTypeFactory.constructParametricType(EventEnvelope::class.java, PaymentAuthorized::class.java) } returns mockJavaType
-        every { mockTypeFactory.constructParametricType(EventEnvelope::class.java, CaptureRequested::class.java) } returns mockJavaType
-        every { mockTypeFactory.constructParametricType(EventEnvelope::class.java, CaptureConfirmed::class.java) } returns mockJavaType
+        every { rawEventPublisher.publishRaw(any()) } returns CompletableFuture.completedFuture(mockk())
 
-        val envelope1 = mockk<EventEnvelope<PaymentAuthorized>>()
-        val envelope2 = mockk<EventEnvelope<CaptureRequested>>()
-        val envelope3 = mockk<EventEnvelope<CaptureConfirmed>>()
-
-        every { objectMapper.readValue<Any>(event1.payload, mockJavaType) } returns envelope1
-        every { objectMapper.readValue<Any>(event2.payload, mockJavaType) } returns envelope2
-        every { objectMapper.readValue<Any>(event3.payload, mockJavaType) } returns envelope3
-
-        every { kafkaPublisher.publishAsync(envelope1) } returns CompletableFuture.completedFuture(envelope1)
-        every { kafkaPublisher.publishAsync(envelope2) } returns CompletableFuture.completedFuture(envelope2)
-        every { kafkaPublisher.publishAsync(envelope3) } returns CompletableFuture.completedFuture(envelope3)
-
-        // When
         outboxRelayJob.poll()
 
-        // Then
-        // Verify we grouped by aggregateId, resulting in 2 separate executor tasks:
-        // One task for "seller-1" (with event1 and event2)
-        // One task for "seller-2" (with event3)
+        // 2 groups (seller-1, seller-2) = 2 executor tasks
         verify(exactly = 2) { executor.execute(any()) }
 
-        // Verify Kafka publish for each event envelope
-        verify(exactly = 1) { kafkaPublisher.publishAsync(envelope1) }
-        verify(exactly = 1) { kafkaPublisher.publishAsync(envelope2) }
-        verify(exactly = 1) { kafkaPublisher.publishAsync(envelope3) }
+        // Verify all 3 events sent
+        verify(exactly = 1) { rawEventPublisher.publishRaw(event1) }
+        verify(exactly = 1) { rawEventPublisher.publishRaw(event2) }
+        verify(exactly = 1) { rawEventPublisher.publishRaw(event3) }
 
-        // Verify that centralOutboxRepository.markDispatched was called for all events upon successful publish
+        // Verify marked as dispatched
         verify(exactly = 1) { centralOutboxRepository.markDispatched(1L, any()) }
         verify(exactly = 1) { centralOutboxRepository.markDispatched(2L, any()) }
         verify(exactly = 1) { centralOutboxRepository.markDispatched(3L, any()) }
@@ -171,89 +123,19 @@ class OutboxRelayJobTest {
 
     @Test
     fun `should not mark event as dispatched if Kafka publish fails`() {
-        // Given
-        val tSafe = Instant.ofEpochMilli(12345L)
-        val now = Utc.nowLocalDateTime()
-        val event = OutboxEvent.rehydrate(
-            oeid = 4L,
-            eventType = "payment_authorized",
-            aggregateId = "seller-1",
-            payload = "{\"paymentId\":\"1\"}",
-            status = "NEW",
-            createdAt = now,
-            updatedAt = now
-        )
+        val tSafe = Instant.now()
+        val event = createTestEvent(4L, "seller-1", "PAYMENT_AUTHORIZED")
 
         every { centralOutboxRepository.computeTSafe() } returns tSafe
-        every { centralOutboxRepository.findEligible(tSafe, 100) } returns listOf(event)
+        every { centralOutboxRepository.findEligible(tSafe, 100, any()) } returns listOf(event)
 
-        val mockTypeFactory = mockk<TypeFactory>()
-        val mockJavaType = mockk<JavaType>()
-        every { objectMapper.typeFactory } returns mockTypeFactory
-        every { mockTypeFactory.constructParametricType(EventEnvelope::class.java, PaymentAuthorized::class.java) } returns mockJavaType
-
-        val envelope = mockk<EventEnvelope<PaymentAuthorized>>()
-        every { objectMapper.readValue<Any>(event.payload, mockJavaType) } returns envelope
-
-        val failedFuture = CompletableFuture<EventEnvelope<PaymentAuthorized>>()
+        val failedFuture = CompletableFuture<Any>()
         failedFuture.completeExceptionally(RuntimeException("Kafka error"))
-        every { kafkaPublisher.publishAsync(envelope) } returns failedFuture
+        every { rawEventPublisher.publishRaw(event) } returns failedFuture as CompletableFuture<KafkaDeliveryResult>
 
-        // When
         outboxRelayJob.poll()
 
-        // Then
-        verify(exactly = 1) { kafkaPublisher.publishAsync(envelope) }
+        verify(exactly = 1) { rawEventPublisher.publishRaw(event) }
         verify(exactly = 0) { centralOutboxRepository.markDispatched(4L, any()) }
-    }
-
-    @Test
-    fun `should handle unexpected serialization exceptions gracefully and continue`() {
-        // Given
-        val tSafe = Instant.ofEpochMilli(12345L)
-        val now = Utc.nowLocalDateTime()
-        val event1 = OutboxEvent.rehydrate(
-            oeid = 5L,
-            eventType = "payment_authorized",
-            aggregateId = "seller-1",
-            payload = "invalid payload",
-            status = "NEW",
-            createdAt = now,
-            updatedAt = now
-        )
-        val event2 = OutboxEvent.rehydrate(
-            oeid = 6L,
-            eventType = "payment_authorized",
-            aggregateId = "seller-2",
-            payload = "{\"paymentId\":\"2\"}",
-            status = "NEW",
-            createdAt = now,
-            updatedAt = now
-        )
-
-        every { centralOutboxRepository.computeTSafe() } returns tSafe
-        every { centralOutboxRepository.findEligible(tSafe, 100) } returns listOf(event1, event2)
-
-        val mockTypeFactory = mockk<TypeFactory>()
-        val mockJavaType = mockk<JavaType>()
-        every { objectMapper.typeFactory } returns mockTypeFactory
-        every { mockTypeFactory.constructParametricType(EventEnvelope::class.java, PaymentAuthorized::class.java) } returns mockJavaType
-
-        // First read throws exception, second succeeds
-        every { objectMapper.readValue<Any>(event1.payload, mockJavaType) } throws RuntimeException("JSON error")
-        val envelope2 = mockk<EventEnvelope<PaymentAuthorized>>()
-        every { objectMapper.readValue<Any>(event2.payload, mockJavaType) } returns envelope2
-
-        every { kafkaPublisher.publishAsync(envelope2) } returns CompletableFuture.completedFuture(envelope2)
-
-        // When
-        outboxRelayJob.poll()
-
-        // Then
-        // Should publish event2 successfully
-        verify(exactly = 1) { kafkaPublisher.publishAsync(envelope2) }
-        // markDispatched is only called for event2
-        verify(exactly = 0) { centralOutboxRepository.markDispatched(5L, any()) }
-        verify(exactly = 1) { centralOutboxRepository.markDispatched(6L, any()) }
     }
 }

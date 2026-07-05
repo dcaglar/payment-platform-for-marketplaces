@@ -129,7 +129,7 @@ grafana:
         gnetId: 7589     # Kafka — consumer lag, throughput, partition metrics
         revision: 5
         datasource: Prometheus
-      nginx-ingress:
+      nginx-ingress-controller:
         gnetId: 9614     # ingress-nginx — RPS, P95/P99, upstream latency
         revision: 1
         datasource: Prometheus

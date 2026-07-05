@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-#export KEYCLOAK_IP=$(kubectl get svc -n payment keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-export KEYCLOAK_IP=98.64.91.238
+export KEYCLOAK_IP=$(kubectl get svc -n payment keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 export KEYCLOAK_URL="http://${KEYCLOAK_IP}:8080"
 echo "🎯 Connecting to Keycloak LoadBalancer at: $KEYCLOAK_URL"
 

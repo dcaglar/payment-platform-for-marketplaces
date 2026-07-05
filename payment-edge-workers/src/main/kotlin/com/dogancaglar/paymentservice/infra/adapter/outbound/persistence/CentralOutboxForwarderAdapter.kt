@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
+import com.dogancaglar.common.db.converter.OutboxEventEntityMapper
 import com.dogancaglar.common.time.Utc
 import com.dogancaglar.common.db.entity.OutboxEventEntity
 import com.dogancaglar.common.db.entity.EdgeWatermarkEntity
@@ -18,14 +19,17 @@ class CentralOutboxForwarderAdapter(
     override fun insertBatch(edgeNodeId: String, entries: List<OutboxEvent>) {
         if (entries.isEmpty()) return
         val entities = entries.map {
-            OutboxEventEntity(
-                oeid = it.oeid,
-                eventType = it.eventType,
-                aggregateId = it.aggregateId,
-                payload = it.payload,
-                status = "NEW",
-                createdAt = Utc.toInstant(it.createdAt),
-                updatedAt = Utc.toInstant(it.createdAt)
+            OutboxEventEntityMapper.toEntity(
+                OutboxEvent.createNew(
+                    it.oeid,
+                    it.partitionKey,
+                    it.eventType,
+                    it.aggregateId,
+                    it.traceId,
+                    it.eventId,
+                    it.parentEventId,
+                    it.payload
+                )
             )
         }
         mapper.insertBatch(entities)

@@ -12,7 +12,7 @@ kubectl config use-context orbstack || echo "⚠️ Could not switch context, co
 # 1. Smash Helm Releases (no hooks, no waiting)
 echo "💥 Forcibly uninstalling all Helm releases..."
 helm ls -a -n payment -q 2>/dev/null | xargs -r helm uninstall -n payment --no-hooks --wait=false || true
-helm ls -a -n ingress-nginx -q 2>/dev/null | xargs -r helm uninstall -n ingress-nginx --no-hooks --wait=false || true
+helm ls -a -n ingress-controller -q 2>/dev/null | xargs -r helm uninstall -n ingress-controller --no-hooks --wait=false || true
 helm ls -a -n monitoring -q 2>/dev/null | xargs -r helm uninstall -n monitoring --no-hooks --wait=false || true
 
 # 2. Smash finalizers on StatefulSets and PVCs (prevents hanging deletions)

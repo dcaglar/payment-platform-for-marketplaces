@@ -9,7 +9,7 @@ The platform manages the **full payment lifecycle**: synchronous authorization, 
 
 # 🟦   High Level Plaform Arhictecture
 
-### Full System Context Diagram
+### Full System Context Diagram (Create Payment Intent/Authorization flows are merged here for the sake of simplicity, please check below detailed authorization flow)
 ```mermaid
 flowchart TD
     %% Define Color Styles
@@ -26,19 +26,23 @@ flowchart TD
     %% Kafka/Job Style (The "CaptureCommandExecutor" green style)
     classDef actionGreen fill:#ccffcc,stroke:#333,stroke-width:1px;
 
+    Client["🌐 Client<br/>(k6 / Merchant App)"]:::whiteBox
+
     subgraph External ["External Edge Host-Stateless payment acceptance service high availibility"]
         style External fill:transparent,stroke:none,color:#cc0000,font-weight:bold
+
+        NGINX["NGINX Ingress Controller<br/>(Snowflake Lua Router)"]:::greenBox
 
         subgraph EdgeLayer ["EXTERNAL HOSTS (Edge Layer)"]
             style EdgeLayer fill:#ffffff,stroke:#333
 
-            subgraph Cell1 ["Edge Cell 1"]
+            subgraph Cell1 ["Edge Cell 1 (Pod 0)"]
                 style Cell1 fill:#ffe6e6,stroke:#333
                 
                 PAS1["Payment Acceptance<br/>Service"]:::yellowBox
                 ID1["1. Idempotency Check<br/>⬇<br/>IdempotencyCheck"]:::greenBox
                 PSP1(["External PSP APIs<br/>(Synchronous Auth)"]):::whiteBox
-                DB1[("Edge Local db<br/>(PaymentIntent<br/>IdempotencyRecord<br/>OutboxEvent)")]:::db
+                DB1[("Edge Local db 0<br/>(PaymentIntent<br/>IdempotencyRecord<br/>OutboxEvent)")]:::db
                 JOB1["LocalOutboxStoreAndForwardJob"]:::actionGreen
 
                 PAS1 --> ID1
@@ -48,13 +52,13 @@ flowchart TD
                 DB1 --> JOB1
             end
 
-            subgraph Cell2 ["Edge Cell 2"]
+            subgraph Cell2 ["Edge Cell 2 (Pod 1)"]
                 style Cell2 fill:#ffe6e6,stroke:#333
                 
                 PAS2["Payment Acceptance<br/>Service"]:::yellowBox
                 ID2["1. Idempotency Check<br/>⬇<br/>IdempotencyCheck"]:::greenBox
                 PSP2(["External PSP APIs<br/>(Synchronous Auth)"]):::whiteBox
-                DB2[("Edge Local db<br/>(PaymentIntent<br/>IdempotencyRecord<br/>OutboxEvent)")]:::db
+                DB2[("Edge Local db 1<br/>(PaymentIntent<br/>IdempotencyRecord<br/>OutboxEvent)")]:::db
                 JOB2["LocalOutboxStoreAndForwardJob"]:::actionGreen
 
                 PAS2 --> ID2
@@ -127,6 +131,11 @@ flowchart TD
         C_GCA --> CDB
         C_SDR --> CDB
 
+        %% Ingress/Client Links (placed at end to preserve linkStyle index positions)
+        Client -- "POST /payments (Round-Robin)" --> NGINX
+        Client -- "POST /payments/pi_XXX/authorize (Snowflake-Routed)" --> NGINX
+        NGINX -- "proxy_pass to pod 0" --> PAS1
+        NGINX -- "proxy_pass to pod 1" --> PAS2
 
         linkStyle 13,14,15,16,17,18,19 stroke:#6a0dad,stroke-width:3px;
         linkStyle 20,21,22,23,24,25 stroke:#f44336,stroke-width:2px;
@@ -135,44 +144,10 @@ end
 ```
 
 
-# 🟩 Key Clarifications (MoR Model)
-
-
-### **1. Is the payment platform internal?**
-Yes. The payment platform is an **internal backend domain service**, not exposed to shoppers directly. While it provides endpoints like `POST /api/v1/payments/{paymentId}/authorize`, these are meant to be called by your own internal proxies or checkout services, never directly by the shopper's browser.
-
----
-
-### **2. Do we perform the actual financial authorization ourselves?**
-No. Even though we expose an `/authorize` endpoint to orchestrate the flow, we do not perform the actual financial authorization. We simply act as a gateway to trigger and record the authorization happening at an external PSP (like Stripe).  
-From the PSP’s perspective, we appear as a **single merchant-of-record**; seller details remain completely internal to our ledger.
-
----
-
-### **3. Do we distribute funds to sellers internally?**
-Yes. As the MoR, the platform manages all **fund allocation**, applies platform fees, credits seller balances, and schedules payouts.  
-The PSP simply transfers funds into the MoR account.
-
----
-
-### **4. Why separate PaymentIntent and Payment?**
-PaymentIntent is just a domain entity living in edge layer and edge db so its not a global entity,but Payment is part of central cluster and it is the real entity created after a financial ionteraction with external world
-
-# 🟧 Functional Requirements
-*(written using Shopper, Seller, and Internal Services as actors)*
-
-## **For Shoppers**
-
-### **FR1 — Shoppers should be able to make a payment for a multi-seller basket.**
-- A shopper must be able to proceed to checkout page(cretePaymentIntent), and then pay via clicking pay button on checkout page(authorize endpoint)
-
-### **FR2 — Shoppers should be able to see accurate payment authorization status.**
-- Shoppers should be able to view whether their payment is authorized or declined, its a syncronous psp call, and shoppers can see payment status via the paymentintent
-
----
-
-
-Authorization Flow
+### Authorization Flow (This illustrates a demo checkout PCI compliant checkout page
+##Please note that in direct integrations merchant will do 2 http call
+   1-Sending  POST request on /api/v1/payments(with JWT & Idempotency-Key),a response with paymentintentid returned to merchant
+   2-Using the payment intentid  in the response of step-1 , merhcant calls  POST /api/v1/payments/{paymentIntentId}/authorize(with JWT))
 ```mermaid
 sequenceDiagram
     autonumber
@@ -284,6 +259,46 @@ sequenceDiagram
     Proxy-->>Browser: Return final success status
     Browser->>Shopper: Display "Payment Successful" message
 ```
+
+
+# 🟩 Key Clarifications (MoR Model)
+
+
+### **1. Is the payment platform internal?**
+Yes. The payment platform is an **internal backend domain service**, not exposed to shoppers directly. While it provides endpoints like `POST /api/v1/payments/{paymentId}/authorize`, these are meant to be called by your own internal proxies or checkout services, never directly by the shopper's browser.
+
+---
+
+### **2. Do we perform the actual financial authorization ourselves?**
+No. Even though we expose an `/authorize` endpoint to orchestrate the flow, we do not perform the actual financial authorization. We simply act as a gateway to trigger and record the authorization happening at an external PSP (like Stripe).  
+From the PSP’s perspective, we appear as a **single merchant-of-record**; seller details remain completely internal to our ledger.
+
+---
+
+### **3. Do we distribute funds to sellers internally?**
+Yes. As the MoR, the platform manages all **fund allocation**, applies platform fees, credits seller balances, and schedules payouts.  
+The PSP simply transfers funds into the MoR account.
+
+---
+
+### **4. Why separate PaymentIntent and Payment?**
+PaymentIntent is just a domain entity living in edge layer and edge db so its not a global entity,but Payment is part of central cluster and it is the real entity created after a financial ionteraction with external world
+
+# 🟧 Functional Requirements
+*(written using Shopper, Seller, and Internal Services as actors)*
+
+## **For Shoppers**
+
+### **FR1 — Shoppers should be able to make a payment for a multi-seller basket.**
+- A shopper must be able to proceed to checkout page(cretePaymentIntent), and then pay via clicking pay button on checkout page(authorize endpoint)
+
+### **FR2 — Shoppers should be able to see accurate payment authorization status.**
+- Shoppers should be able to view whether their payment is authorized or declined, its a syncronous psp call, and shoppers can see payment status via the paymentintent
+
+---
+
+
+
 
 ## **For Sellers**
 
@@ -654,6 +669,57 @@ A single Edge Cell ecosystem runs on an isolated `edgepool` node and consists of
 - **Lifecycle Fault Isolation**: Previously, the worker and API shared the same Pod (the Sidecar pattern). However, if the worker crashed or required a restart, Kubernetes would forcefully terminate the entire Pod, bringing down the healthy Web API and Database with it. By separating them into independent Pods, a worker maintenance cycle or crash has zero impact on the synchronous Web API's uptime.
 - **Co-Located Scheduling**: Even though they are separate Pods, strict `nodeSelector` rules force them to land on the exact same physical `edgepool` Virtual Machine, minimizing network latency while maximizing fault isolation.
 - **Topology Spread Constraints**: The Edge Cells are mathematically forced to spread evenly across Cloud Availability Zones to survive datacenter outages.
+
+### **Stage 1B: Snowflake-Aware Ingress Routing (Stateful Cell Routing)**
+
+To achieve high horizontal scalability (NFR5) and fault isolation (NFR1), the Edge Layer utilizes a **cell-based stateful architecture**. Each `payment-edge-cell` pod is completely isolated, running its own dedicated database (e.g., `edge-db-N`). A pod can only read and write to its own database. 
+
+This design introduces a critical invariant:
+> **A `PaymentIntent` created by Cell Pod N must always be authorized/processed by Cell Pod N.**
+
+If an incoming `/authorize` request is routed to the wrong pod (e.g., round-robin to Pod 0 instead of Pod 1 where the intent was created), the pod's database query will return `null` and cause a `NullPointerException` (HTTP 500), since the data only exists in Pod 1's local database. Under scale (e.g., 3 replicas), a standard round-robin load balancer would misroute approximately $77\%$ of all `/authorize` requests.
+
+#### **The Routing Solution: NGINX OpenResty Lua Router**
+Rather than introducing application-level routing tables, distributed caches, or shared databases (which violate cell isolation), routing is solved purely mathematically at the network boundary using a **Snowflake-Aware Lua Router** running inside the NGINX Ingress Controller.
+
+```mermaid
+graph TB
+    subgraph Client["Client (Merchant App)"]
+        APP["Checkout Flow<br/>1. POST /api/v1/payments<br/>2. POST /api/v1/payments/pi_XXX/authorize"]
+    end
+
+    subgraph Gateway["NGINX Ingress Controller"]
+        LUA["ngx_lua module<br/>① Match pattern '/pi_([A-Za-z0-9_%-]+)'<br/>② Decode Base64URL to 8-byte Long<br/>③ Extract nodeId: (lo >> 12) & 31<br/>④ Target pod DNS: payment-edge-cell-N"]
+    end
+
+    subgraph Cells["StatefulSet: payment-edge-cell"]
+        C0["payment-edge-cell-0<br/>(edge-db-0)"]
+        C1["payment-edge-cell-1<br/>(edge-db-1)"]
+        C2["payment-edge-cell-2<br/>(edge-db-2)"]
+    end
+
+    APP --> NGINX
+    NGINX --> LUA
+    LUA -->|"node_id=0"| C0
+    LUA -->|"node_id=1"| C1
+    LUA -->|"node_id=2"| C2
+```
+
+#### **How It Works Under the Hood:**
+1. **Creation**: When a payment intent is created (`POST /api/v1/payments`), the request is load-balanced (round-robin) to any edge pod. The receiving pod (e.g., Pod 1) generates a 64-bit **Snowflake ID** encoding its own `nodeId` in bits 16–12. This ID is encoded into a URL-safe Base64 string prefixed with `pi_` (e.g., `pi_AByj...`) and returned to the merchant.
+2. **Interception**: When the merchant confirms the payment (`POST /api/v1/payments/pi_AByj.../authorize`), NGINX intercepts the request via `access_by_lua_block`.
+3. **Mathematical Decoding**:
+   - The router extracts the Base64 token from the URI path.
+   - It replaces URL-safe characters (`-` -> `+`, `_` -> `/`) and appends padding (`=`) to reconstruct standard Base64.
+   - It decodes the Base64 string into 8 raw bytes.
+   - Using the lower 4 bytes (as Lua 5.1 has no native 64-bit integer type), it calculates:
+     $$\text{nodeId} = \lfloor \frac{\text{lo}}{4096} \rfloor \pmod{32}$$
+     *(Which corresponds to shifting the lower half right by 12 bits and masking with 31).*
+4. **Dynamic Routing**: The router assigns the `$cell_target` variable to the exact StatefulSet pod's headless service DNS name:
+   `payment-edge-cell-<nodeId>.payment-edge-cell-headless.payment.svc.cluster.local`
+   NGINX then executes `proxy_pass` to route the request directly to the correct cell.
+
+This purely mathematical router requires **zero application code changes**, **zero client-side URL changes**, has no database or cache lookups, introduces under `< 1ms` latency overhead, and successfully brings the scale-out `/authorize` error rate down to **0%**.
 
 ### **Stage 2: Central Node (payment-central-relay & payment-consumers)**
 

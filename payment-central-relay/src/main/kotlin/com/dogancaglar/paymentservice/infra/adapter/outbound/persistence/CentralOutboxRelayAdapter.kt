@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
+import com.dogancaglar.common.db.converter.OutboxEventEntityMapper
 import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.ports.outbound.CentralOutboxRelayPort
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
@@ -17,15 +18,7 @@ class CentralOutboxRelayAdapter(
     override fun findEligible(tSafe: Instant, batchSize: Int, workerId: String): List<OutboxEvent> {
         val entities = mapper.findEligible(tSafe, batchSize, workerId)
         return entities.map {
-            OutboxEvent.rehydrate(
-                oeid = it.oeid,
-                eventType = it.eventType,
-                aggregateId = it.aggregateId,
-                payload = it.payload,
-                status = it.status,
-                createdAt = Utc.fromInstant(it.createdAt),
-                updatedAt = Utc.fromInstant(it.updatedAt)
-            )
+            OutboxEventEntityMapper.toDomain(it)
         }
     }
 

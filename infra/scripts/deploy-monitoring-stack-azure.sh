@@ -30,7 +30,7 @@ echo "Sending a deployment request of  POSTGRESQL exporter to  azure helm "
 echo "Deployment request of  POSTGRESQL exporter was submitted to azure helm"
 
 echo "🚀 Toggling ServiceMonitors to 'true' in application Helm values..."
-yq -i '.controller.metrics.serviceMonitor.enabled = true' "$REPO_ROOT/infra/helm-values/ingress-controller-values-azure.yaml" || true
+yq -i '.controller.metrics.serviceMonitor.enabled = true' "$REPO_ROOT/infra/helm-values/nginx-ingress-controller-values-azure.yaml" || true
 yq -i '.serviceMonitor.enabled = true' "$REPO_ROOT/charts/payment-edge-cell/azure/values.yaml" || true
 yq -i '.serviceMonitor.enabled = true' "$REPO_ROOT/charts/payment-consumers/azure/values.yaml" || true
 yq -i '.serviceMonitor.enabled = true' "$REPO_ROOT/charts/payment-central-relay/azure/values.yaml" || true

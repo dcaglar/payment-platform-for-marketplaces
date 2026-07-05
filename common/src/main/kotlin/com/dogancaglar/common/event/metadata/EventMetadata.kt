@@ -22,5 +22,4 @@ interface EventMetadata<T : Event> {
      * Partitioning strategy: which key to use for Kafka partition key.
      * Usually returns event.aggregateId or something derived from it.
      */
-    val partitionKey: (T) -> String
 }

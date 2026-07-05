@@ -22,7 +22,10 @@ class EventEnvelopeSerializationTest {
     data class TestEvent(
         override val eventType: String = "test_event",
         val x: Int,
-        override val timestamp: Instant = Utc.nowInstant()
+        override val timestamp: Instant = Utc.nowInstant(),
+        override val paymentIntentId: String ="121212",
+        override val publicPaymentIntentId: String = "pi-121313",
+        override val merchantAccountId: String= "Test"
     ) : Event {
         override fun deterministicEventId() = "id-$x"
     }
