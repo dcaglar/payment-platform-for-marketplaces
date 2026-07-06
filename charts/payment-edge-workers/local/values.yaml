@@ -37,4 +37,15 @@ config:
   CENTRAL_DB_URL: "jdbc:postgresql://central-db-postgresql:5432/central-db?options=-c%20timezone=UTC"
   EDGE_DB_NAME: "edge-db"
   CENTRAL_DB_NAME: "central-db"
+  MANAGEMENT_OTLP_TRACING_ENDPOINT: "http://my-opentelemetry-collector.payment.svc.cluster.local:4318/v1/traces"
+
+  # Sample 100% of traces for local visualization (default is 0.1 / 10%)
+  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+
+  # Enable explicit tracing for Kafka producers/consumers
+  SPRING_KAFKA_LISTENER_OBSERVATION_ENABLED: "true"
+  SPRING_KAFKA_TEMPLATE_OBSERVATION_ENABLED: "true"
+
+  # Enable explicit tracing for Redis (Lettuce client) commands
+  SPRING_DATA_REDIS_LETTUCE_OBSERVATION_ENABLED: "true"
 ## edge db url is generated dynamically

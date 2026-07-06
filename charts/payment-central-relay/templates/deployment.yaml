@@ -43,17 +43,14 @@ spec:
               containerPort: 8080
             - name: management
               containerPort: 9000
+          envFrom:
+          - configMapRef:
+              name: payment-central-relay-job-config
           env:
             - name: JAVA_TOOL_OPTIONS
               value: "{{ .Values.jvmOpts }}"
             - name: SPRING_PROFILES_ACTIVE
               value: "{{ .Values.spring.profile }}"
-            - name: SPRING_DATA_REDIS_URL
-              value: "{{ .Values.redis.url }}"
-            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-              value: "{{ .Values.kafka.bootstrapServers }}"
-            - name: CENTRAL_DB_URL
-              valueFrom: { configMapKeyRef: { name: payment-central-relay-job-config, key: CENTRAL_DB_URL } }
             - name: CENTRAL_DB_PAYMENT_CENTRAL_RELAY_USERNAME
               valueFrom:
                 secretKeyRef:

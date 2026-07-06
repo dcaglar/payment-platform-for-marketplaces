@@ -9,10 +9,6 @@ resources:
   limits: {memory: "3Gi"}
 jvmOpts: "-XX:+UseG1GC -XX:MaxRAMPercentage=60"
 # Required defaults for the linter
-redis:
-  url: "redis://redis-master:6379"
-kafka:
-  bootstrapServers: "kafka.payment.svc.cluster.local:9092"
 keda:
   enabled: false
   minReplicaCount: 1

@@ -20,6 +20,10 @@ presets:
   kubeletMetrics:
     enabled: false
 
+# Explicitly tell Helm to create a Kubernetes Service even though we are running as a DaemonSet
+service:
+  enabled: true
+
 config:
   exporters:
     otlp/jaeger:

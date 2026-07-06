@@ -113,7 +113,7 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   name: edge-cell-config
-                  key: KEYCLOAK_ISSUER_URL
+                  key: MANAGEMENT_OTLP_TRACING_ENDPOINT
             - name: POSTGRES_DB
               valueFrom: {configMapKeyRef: {name: edge-cell-config, key: EDGE_DB_NAME}}
           startupProbe:
