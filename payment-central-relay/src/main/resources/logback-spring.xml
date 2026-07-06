@@ -27,7 +27,7 @@
                     <loggerName/>
                     <message/>
                     <!-- Export your MDC keys (e.g. traceId, userId) up to top level -->
-                    <mdc includes="trace_id,span_id,trace_flags,traceId,eventId,parentEventId,aggregateId,eventType,
+                    <mdc includes="eventId,parentEventId,aggregateId,eventType,
     retryCount,retryBackoffMillis,retryReason,retryErrorMessage"/>
                     <stackTrace/>
                     <globalCustomFields>{"app":"payment-central-relay"}</globalCustomFields>

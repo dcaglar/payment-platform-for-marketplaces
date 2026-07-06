@@ -19,7 +19,6 @@ class OutboxEventEventFactory(
 
         // 3. Create standardized envelope
         val envelope = EventEnvelopeFactory.envelopeFor(
-            traceId = EventLogContext.getTraceId(),
             data = event,
             aggregateId = event.publicPaymentIntentId,
             parentEventId = EventLogContext.getEventId())
@@ -29,7 +28,6 @@ class OutboxEventEventFactory(
             partitionKey = partitionKey,
             eventType = envelope.eventType,
             aggregateId = envelope.aggregateId,
-            traceId = envelope.traceId,
             eventId = envelope.eventId,
             parentEventId = envelope.parentEventId,
             payload = serializationPort.toJson(envelope),

@@ -11,7 +11,6 @@ class OutboxEventTest {
     private val testPartitionKey = "pk-100"
     private val testEventType = "PaymentOrderCreated"
     private val testAggregateId = "paymentorder-123"
-    private val testTraceId = "trace-abc-123"
     private val testEventId = "event-xyz-789"
     private val testParentEventId = "parent-id-000"
     private val testPayload = """{"paymentOrderId":"123","amount":10000}"""
@@ -23,7 +22,6 @@ class OutboxEventTest {
         partitionKey = testPartitionKey,
         eventType = testEventType,
         aggregateId = testAggregateId,
-        traceId = testTraceId,
         eventId = testEventId,
         parentEventId = testParentEventId,
         payload = testPayload
@@ -37,7 +35,6 @@ class OutboxEventTest {
         assertEquals(testPartitionKey, outboxEvent.partitionKey)
         assertEquals(testEventType, outboxEvent.eventType)
         assertEquals(testAggregateId, outboxEvent.aggregateId)
-        assertEquals(testTraceId, outboxEvent.traceId)
         assertEquals(testEventId, outboxEvent.eventId)
         assertEquals(testParentEventId, outboxEvent.parentEventId)
         assertEquals(testPayload, outboxEvent.payload)
@@ -94,7 +91,6 @@ class OutboxEventTest {
             partitionKey = testPartitionKey,
             eventType = testEventType,
             aggregateId = testAggregateId,
-            traceId = testTraceId,
             eventId = testEventId,
             parentEventId = testParentEventId,
             payload = testPayload,
@@ -106,7 +102,6 @@ class OutboxEventTest {
         assertEquals(testOeid, outboxEvent.oeid)
         assertEquals(testPartitionKey, outboxEvent.partitionKey)
         assertEquals(OutboxEvent.Status.PROCESSING, outboxEvent.status)
-        assertEquals(testTraceId, outboxEvent.traceId)
     }
 
     @Test
@@ -130,7 +125,6 @@ class OutboxEventTest {
                 partitionKey = testPartitionKey,
                 eventType = type,
                 aggregateId = testAggregateId,
-                traceId = testTraceId,
                 eventId = testEventId,
                 parentEventId = testParentEventId,
                 payload = testPayload
@@ -143,11 +137,6 @@ class OutboxEventTest {
     fun `should preserve immutability of non-status fields`() {
         val outboxEvent = createDefaultEvent()
         val originalOeid = outboxEvent.oeid
-        val originalTraceId = outboxEvent.traceId
-
-        outboxEvent.markAsProcessing()
-
         assertEquals(originalOeid, outboxEvent.oeid)
-        assertEquals(originalTraceId, outboxEvent.traceId)
     }
 }

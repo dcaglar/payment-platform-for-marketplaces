@@ -9,7 +9,6 @@ object EventEnvelopeFactory {
     fun <T : Event> envelopeFor(
         data: T,
         aggregateId: String,
-        traceId: String,
         parentEventId: String? = null,
         timestamp: Instant = Utc.nowInstant()
     ): EventEnvelope<T> {
@@ -22,7 +21,6 @@ object EventEnvelopeFactory {
             aggregateId = aggregateId,
             data = data,
             timestamp = timestamp,
-            traceId = traceId,
             parentEventId = resolvedParent
         )
     }
@@ -34,7 +32,6 @@ object EventEnvelopeFactory {
     fun <T : Event> envelopeWithRandomId(
         data: T,
         aggregateId: String,
-        traceId: String,
         parentEventId: String? = null,
         timestamp: Instant = Utc.nowInstant()
     ): EventEnvelope<T> {
@@ -47,7 +44,6 @@ object EventEnvelopeFactory {
             aggregateId = aggregateId,
             data = data,
             timestamp = timestamp,
-            traceId = traceId,
             parentEventId = resolvedParent
         )
     }

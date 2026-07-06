@@ -72,7 +72,6 @@ class PaymentEventPublisher(
             key,
             anyEnvelope
         ).apply {
-            headers().addString("traceId", envelope.traceId)
             headers().addString("eventId", envelope.eventId)
             headers().addString("eventType", envelope.eventType)
             envelope.parentEventId?.let { headers().addString("parentEventId", it) }

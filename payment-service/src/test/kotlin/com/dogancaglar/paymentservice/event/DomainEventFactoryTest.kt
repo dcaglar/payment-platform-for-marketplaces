@@ -14,10 +14,8 @@ import java.util.UUID
 class DomainEventFactoryTest {
 
     @Test
-    fun `should create EventEnvelope with generated eventId and traceid from mdc`() {
+    fun `should create EventEnvelope with generated eventId`() {
         // given
-        val traceIdFromMDC = "test-traceid"
-        MDC.put(GenericLogFields.TRACE_ID, traceIdFromMDC)
         try {
             val now = Utc.nowInstant()
             val event = CaptureRequested.from(
@@ -37,13 +35,11 @@ class DomainEventFactoryTest {
             // when
             val envelope: EventEnvelope<CaptureRequested> = EventEnvelopeFactory.envelopeFor(
                 data = event,
-                aggregateId = event.publicPaymentIntentId,
-                traceId = traceIdFromMDC
+                aggregateId = event.publicPaymentIntentId
             )
 
             // then
             Assertions.assertThat(envelope.eventId).isNotNull
-            Assertions.assertThat(envelope.traceId).isEqualTo(traceIdFromMDC)
             Assertions.assertThat(envelope.eventType).isEqualTo("capture_requested")
         } finally {
             MDC.clear()
@@ -51,36 +47,7 @@ class DomainEventFactoryTest {
     }
 
     @Test
-    fun `should generate new traceId when not present in MDC`() {
-        // when
-        assertThrows<IllegalStateException> {
-            val now = Utc.nowInstant()
-            val event = CaptureRequested.from(
-                paymentIntent = com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent.createNew(
-                    paymentIntentId = com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId(1001L),
-                    buyerId = com.dogancaglar.paymentservice.domain.model.vo.BuyerId("buyer_1"),
-                    orderId = com.dogancaglar.paymentservice.domain.model.vo.OrderId("order_1"),
-                    processingModel = com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel.DIRECT_MERCHANT,
-                    merchantAccount = "m_1",
-                    totalAmount = com.dogancaglar.paymentservice.domain.model.common.Amount.of(1000L, com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")),
-                    splits = listOf(com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit.of(com.dogancaglar.paymentservice.domain.model.ledger.AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, "m_1", com.dogancaglar.paymentservice.domain.model.common.Amount.of(1000L, com.dogancaglar.paymentservice.domain.model.common.Currency("EUR"))))
-                ),
-                captureAmount = com.dogancaglar.paymentservice.domain.model.common.Amount.of(1000L, com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")),
-                timestamp = now
-            )
-            
-            EventEnvelopeFactory.envelopeFor(
-                data = event,
-                aggregateId = event.publicPaymentIntentId,
-                traceId = MDC.get(GenericLogFields.TRACE_ID) ?: throw IllegalStateException("TraceId missing")
-            )
-        }
-    }
-
-    @Test
-    fun `should generate unique eventId and same traceid each time`() {
-        val traceIdFromMDC = "test-traceid"
-        MDC.put(GenericLogFields.TRACE_ID, traceIdFromMDC)
+    fun `should generate unique eventId each time`() {
         try {
             val now = Utc.nowInstant()
             val event1 = CaptureRequested.from(
@@ -98,8 +65,7 @@ class DomainEventFactoryTest {
             )
             val envelope1 = EventEnvelopeFactory.envelopeFor(
                 data = event1,
-                aggregateId = event1.publicPaymentIntentId,
-                traceId = traceIdFromMDC
+                aggregateId = event1.publicPaymentIntentId
             )
             
             val event2 = CaptureRequested.from(
@@ -117,11 +83,9 @@ class DomainEventFactoryTest {
             )
             val envelope2 = EventEnvelopeFactory.envelopeFor(
                 data = event2,
-                aggregateId = event2.publicPaymentIntentId,
-                traceId = traceIdFromMDC
+                aggregateId = event2.publicPaymentIntentId
             )
             
-            Assertions.assertThat(envelope1.traceId).isEqualTo(envelope2.traceId)
             Assertions.assertThat(envelope1.eventId).isNotEqualTo(envelope2.eventId)
 
         } finally {
@@ -131,9 +95,6 @@ class DomainEventFactoryTest {
 
     @Test
     fun `envelopeFor should create EventEnvelope with correct fields`() {
-
-        val traceIdFromMDC = "test-traceid"
-        MDC.put(GenericLogFields.TRACE_ID, traceIdFromMDC)
         try {
             val now = Utc.nowInstant()
             val event = CaptureRequested.from(
@@ -152,11 +113,9 @@ class DomainEventFactoryTest {
 
             val envelope = EventEnvelopeFactory.envelopeFor(
                 data = event,
-                aggregateId = event.publicPaymentIntentId,
-                traceId = traceIdFromMDC
+                aggregateId = event.publicPaymentIntentId
             )
 
-            Assertions.assertThat(envelope.traceId).isNotBlank
             Assertions.assertThat(envelope.eventId).isNotNull
             Assertions.assertThat(envelope.eventType).isEqualTo("capture_requested")
             Assertions.assertThat(envelope.aggregateId).isEqualTo(event.publicPaymentIntentId)
@@ -168,8 +127,6 @@ class DomainEventFactoryTest {
 
     @Test
     fun `should set parentEventId when provided`() {
-        val traceIdFromMDC = "test-traceid"
-        MDC.put(GenericLogFields.TRACE_ID, traceIdFromMDC)
         try {
             val parentId = UUID.randomUUID().toString()
             val now = Utc.nowInstant()
@@ -190,11 +147,9 @@ class DomainEventFactoryTest {
             val envelope = EventEnvelopeFactory.envelopeFor(
                 data = event,
                 aggregateId = event.publicPaymentIntentId,
-                traceId = traceIdFromMDC,
                 parentEventId = parentId
             )
             Assertions.assertThat(envelope.parentEventId).isEqualTo(parentId)
-            Assertions.assertThat(envelope.traceId).isEqualTo(traceIdFromMDC)
         } finally {
             MDC.clear()
         }

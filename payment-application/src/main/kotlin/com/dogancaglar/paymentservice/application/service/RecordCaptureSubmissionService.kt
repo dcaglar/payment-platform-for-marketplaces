@@ -34,7 +34,7 @@ open class RecordCaptureSubmissionService(
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    override fun recordSubmission(event: CaptureSubmitted, traceId: String, parentEventId: String) {
+    override fun recordSubmission(event: CaptureSubmitted, parentEventId: String) {
         val paymentIntentId = PaymentIntentId(event.paymentIntentId.toLongOrNull() ?: 0L)
         val payment = paymentRepository.findByPaymentIntentId(paymentIntentId)
             ?: throw IllegalStateException("Payment context aggregate absent for paymentIntentId=${event.paymentIntentId}")

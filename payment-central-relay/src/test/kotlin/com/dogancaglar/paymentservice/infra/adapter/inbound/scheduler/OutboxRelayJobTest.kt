@@ -60,7 +60,6 @@ class OutboxRelayJobTest {
             partitionKey = "pk-$oeid",
             eventType = eventType,
             aggregateId = aggregateId,
-            traceId = "trace-$oeid",
             eventId = "evt-$oeid",
             parentEventId = "parent-$oeid",
             payload = "{\"data\":\"test\"}",

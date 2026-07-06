@@ -91,7 +91,9 @@ class KafkaTypedConsumerFactoryConfig(
     @Bean("dlqKafkaTemplate")
     fun dlqKafkaTemplate(
         @Qualifier("dlqProducerFactory") pf: ProducerFactory<String, ByteArray>
-    ) = KafkaTemplate(pf)
+    ) = KafkaTemplate(pf).apply {
+        setObservationEnabled(true)
+    }
 
     @Bean
     fun errorHandler(
@@ -203,6 +205,7 @@ class KafkaTypedConsumerFactoryConfig(
             )
             containerProperties.pollTimeout = 1000           // block up to 1s waiting for data
             containerProperties.isMicrometerEnabled = true
+            containerProperties.isObservationEnabled = true
             containerProperties.idleBetweenPolls = 250 // nap 250ms after an empty poll
             @Suppress("UNCHECKED_CAST")
             setRecordInterceptor(interceptor as RecordInterceptor<String, EventEnvelope<T>>)
@@ -370,7 +373,6 @@ class HeaderMdcInterceptor : RecordInterceptor<String, EventEnvelope<*>> {
         fun h(k: String) = record.headers().lastHeader(k)?.value()?.let { String(it) }
         val env = record.value()
 
-        MDC.put(GenericLogFields.TRACE_ID, h("traceId") ?: env?.traceId)
         MDC.put(GenericLogFields.EVENT_ID, h("eventId") ?: env?.eventId?.toString())
         MDC.put(GenericLogFields.PARENT_EVENT_ID, h("parentEventId") ?: env?.parentEventId?.toString())
         MDC.put(GenericLogFields.AGGREGATE_ID, env?.aggregateId ?: record.key())

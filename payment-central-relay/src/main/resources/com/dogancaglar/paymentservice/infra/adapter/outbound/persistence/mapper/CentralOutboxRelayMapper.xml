@@ -7,7 +7,6 @@
         <result property="partitionKey" column="partition_key"/>
         <result property="eventType" column="event_type"/>
         <result property="aggregateId" column="aggregate_id"/>
-        <result property="traceId" column="trace_id"/>
         <result property="eventId" column="event_id"/>
         <result property="parentEventId" column="parent_event_id"/>
         <result property="payload" column="payload"/>

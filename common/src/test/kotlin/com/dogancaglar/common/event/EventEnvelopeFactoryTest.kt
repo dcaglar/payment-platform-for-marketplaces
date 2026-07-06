@@ -27,14 +27,12 @@ class EventEnvelopeFactoryTest {
 
         val env = EventEnvelopeFactory.envelopeFor(
             data = evt,
-            aggregateId = "agg-1",
-            traceId = "trace-123"
+            aggregateId = "agg-1"
         )
 
         assertEquals("fixed-id", env.eventId)
         assertEquals("test_event", env.eventType)
         assertEquals("agg-1", env.aggregateId)
-        assertEquals("trace-123", env.traceId)
         assertEquals("fixed-id", env.parentEventId)
     }
 
@@ -44,7 +42,6 @@ class EventEnvelopeFactoryTest {
         val env = EventEnvelopeFactory.envelopeFor(
             data = evt,
             aggregateId = "agg-1",
-            traceId = "T",
             parentEventId = "parent-xyz"
         )
 
@@ -59,7 +56,6 @@ class EventEnvelopeFactoryTest {
         val env = EventEnvelopeFactory.envelopeFor(
             data = evt,
             aggregateId = "agg-1",
-            traceId = "T",
             timestamp = t
         )
 
@@ -73,14 +69,12 @@ class EventEnvelopeFactoryTest {
 
         val e1 = EventEnvelopeFactory.envelopeWithRandomId(
             data = evt,
-            aggregateId = "agg-1",
-            traceId = "T"
+            aggregateId = "agg-1"
         )
 
         val e2 = EventEnvelopeFactory.envelopeWithRandomId(
             data = evt,
-            aggregateId = "agg-1",
-            traceId = "T"
+            aggregateId = "agg-1"
         )
 
         assertNotEquals(e1.eventId, e2.eventId)
@@ -94,8 +88,7 @@ class EventEnvelopeFactoryTest {
 
         val env = EventEnvelopeFactory.envelopeWithRandomId(
             data = evt,
-            aggregateId = "a",
-            traceId = "T"
+            aggregateId = "a"
         )
 
         assertEquals(env.eventId, env.parentEventId)

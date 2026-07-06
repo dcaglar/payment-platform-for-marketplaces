@@ -81,7 +81,12 @@ class KafkaProducerConfig(
 
 
     @Bean("rawEventKafkaTemplate")
-    fun rawEventKafkaTemplate(@Qualifier("rawBatchProducerFactory")rbpf: DefaultKafkaProducerFactory<String,String>) = KafkaTemplate(rbpf)
+    fun rawEventKafkaTemplate(
+        @Qualifier("rawBatchProducerFactory") rbpf: DefaultKafkaProducerFactory<String, String>
+    ): KafkaTemplate<String, String> =
+        KafkaTemplate(rbpf).apply {
+            setObservationEnabled(true)
+        }
 
 
     @Bean("rawEventPublisher")

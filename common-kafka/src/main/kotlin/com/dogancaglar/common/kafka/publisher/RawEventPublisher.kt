@@ -31,7 +31,6 @@ class RawEventPublisher(
 
         // 4. Build record
         val record = ProducerRecord(metadata.topic, outboxEvent.partitionKey, outboxEvent.payload).apply {
-            headers().addString("traceId", outboxEvent.traceId)
             headers().addString("eventId", outboxEvent.eventId)
             headers().addString("eventType", outboxEvent.eventType)
             outboxEvent.parentEventId?.let { headers().addString("parentEventId", outboxEvent.parentEventId) }

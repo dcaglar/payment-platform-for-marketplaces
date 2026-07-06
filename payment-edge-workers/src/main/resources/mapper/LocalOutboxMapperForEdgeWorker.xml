@@ -10,7 +10,6 @@
         <result property="partitionKey" column="partition_key"/>
         <result property="eventType" column="event_type"/>
         <result property="aggregateId" column="aggregate_id"/>
-        <result property="traceId" column="trace_id"/>
         <result property="eventId" column="event_id"/>
         <result property="parentEventId" column="parent_event_id"/>
         <result property="payload" column="payload"/>
@@ -25,7 +24,7 @@
     </resultMap>
 
     <select id="findByStatus" resultMap="OutboxEventResultMap">
-        SELECT oeid, partition_key, event_type, aggregate_id, trace_id, event_id, parent_event_id, payload, status, created_at, updated_at, claimed_at, claimed_by
+        SELECT oeid, partition_key, event_type, aggregate_id, event_id, parent_event_id, payload, status, created_at, updated_at, claimed_at, claimed_by
         FROM outbox_event
         WHERE status = #{status}
     </select>
@@ -51,7 +50,7 @@
         LIMIT #{batchSize}
         FOR UPDATE SKIP LOCKED
         )
-        RETURNING oeid, partition_key, event_type, aggregate_id, trace_id, event_id, parent_event_id, payload, status, created_at, updated_at, claimed_at, claimed_by
+        RETURNING oeid, partition_key, event_type, aggregate_id, event_id, parent_event_id, payload, status, created_at, updated_at, claimed_at, claimed_by
         )
         SELECT * FROM claimed
     </select>

@@ -37,7 +37,6 @@ class CaptureRetryQueueAdapter(
             val envelope = EventEnvelopeFactory.envelopeFor(
                 data = event,
                 aggregateId = event.publicPaymentIntentId,
-                traceId = EventLogContext.getTraceId(),
                 parentEventId = EventLogContext.getEventId()
             )
             val json = serializationPort.toJson(envelope)

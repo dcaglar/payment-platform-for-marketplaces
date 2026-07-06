@@ -25,7 +25,6 @@ class CentralOutboxForwarderAdapter(
                     it.partitionKey,
                     it.eventType,
                     it.aggregateId,
-                    it.traceId,
                     it.eventId,
                     it.parentEventId,
                     it.payload
