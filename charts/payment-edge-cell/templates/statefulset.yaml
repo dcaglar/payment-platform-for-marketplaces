@@ -109,11 +109,13 @@ spec:
               value: "{{ .Values.spring.profile | default "local" }}"
             - name: SPRING_DATA_REDIS_URL
               value: "{{ .Values.redis.url | default "redis://localhost:6379" }}"
-            - name: KEYCLOAK_ISSUER_URL
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
               valueFrom:
                 configMapKeyRef:
                   name: edge-cell-config
                   key: KEYCLOAK_ISSUER_URL
+            - name: POSTGRES_DB
+              valueFrom: {configMapKeyRef: {name: edge-cell-config, key: EDGE_DB_NAME}}
           startupProbe:
             httpGet: {path: /actuator/health/liveness, port: management}
             initialDelaySeconds: 10

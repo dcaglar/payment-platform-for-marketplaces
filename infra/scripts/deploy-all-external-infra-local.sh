@@ -6,6 +6,7 @@ trap 'echo "❌ Local external infra deployment failed on line $LINENO. Command:
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$REPO_ROOT"
+echo "DIR is $REPO_ROOT $SCRIPT_DIR"
 
 echo "🛡️  Checking and setting kubectl context to orbstack..."
 kubectl config set-context orbstack
@@ -14,81 +15,73 @@ CURRENT_CONTEXT=$(kubectl config current-context || echo "none")
 
 if [[ "$CURRENT_CONTEXT" != "orbstack" ]]; then
   echo "❌ Current context is '$CURRENT_CONTEXT'. Refusing to deploy to the wrong cluster!"
-  echo "Run: first kubectl config set-context orbstack , then kubectl config use-context orbstack, and re-run the script again"
   exit 1
 fi
 
-echo "🚀 Deploying all external infrastructure locally in a serialized manner..."
+echo "🚀 Deploying all external infrastructure locally..."
 
-# External dependencies (no local chart folder). Values files ALWAYS exist in infra/helm-values/
-# Format: RELEASE_NAME|REPO_NAME|REPO_URL|CHART_NAME|NAMESPACE|EXTRA_ARGS
-# NOTE: RELEASE_NAME is intentionally aligned with the helm-values file prefix (e.g. nginx-ingress-controller -> nginx-ingress-controller-values-local.yaml)
-RELEASES=(
-  "keycloak|bitnami|https://charts.bitnami.com/bitnami|bitnami/keycloak|payment|--version 20.0.0 --set global.imageRegistry=docker.io --set image.registry=docker.io --set image.repository=bitnamilegacy/keycloak --set image.tag=23.0.7 --set postgresql.enabled=true --set postgresql.image.registry=docker.io --set postgresql.image.repository=bitnamilegacy/postgresql --set postgresql.image.tag=16.4.0-debian-12-r0"
-  "kafka|bitnami|https://charts.bitnami.com/bitnami|bitnami/kafka|payment|--version 32.3.14"
-#  "prometheus-kafka-exporter|prometheus-community|https://prometheus-community.github.io/helm-charts|prometheus-community/prometheus-kafka-exporter|payment|null"
-#  "prometheus-postgres-exporter|prometheus-community|https://prometheus-community.github.io/helm-charts|prometheus-community/prometheus-postgres-exporter|payment|null"
- "redis|bitnami|https://charts.bitnami.com/bitnami|bitnami/redis|payment|null"
-  "keda|kedacore|https://kedacore.github.io/charts|kedacore/keda|keda|null"
-  "ingress-nginx|ingress-nginx|https://kubernetes.github.io/ingress-nginx|ingress-nginx/ingress-nginx|ingress-controller|null"
-)
+echo "========================================================"
+echo "📦 1. Deploying Keycloak"
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update bitnami
+helm upgrade --install keycloak bitnami/keycloak \
+  -n payment --create-namespace \
+  -f "$REPO_ROOT/infra/helm-values/keycloak-values-local.yaml" \
+  --version 20.0.0 \
+  --set global.imageRegistry=docker.io \
+  --set image.registry=docker.io \
+  --set image.repository=bitnamilegacy/keycloak \
+  --set image.tag=23.0.7 \
+  --set postgresql.enabled=true \
+  --set postgresql.image.registry=docker.io \
+  --set postgresql.image.repository=bitnamilegacy/postgresql \
+  --set postgresql.image.tag=16.4.0-debian-12-r0
 
-ADDED_REPOS=""
+echo "========================================================"
+echo "📦 2. Deploying Kafka"
+helm upgrade --install kafka bitnami/kafka \
+  -n payment --create-namespace \
+  -f "$REPO_ROOT/infra/helm-values/kafka-values-local.yaml" \
+  --version 32.3.14
 
-log_success() {
-  echo "✅ SUCCESS: Manifests for '$1' successfully accepted by Kubernetes API."
-}
+echo "========================================================"
+echo "📦 3. Deploying Redis"
+helm upgrade --install redis bitnami/redis \
+  -n payment --create-namespace \
+  -f "$REPO_ROOT/infra/helm-values/redis-values-local.yaml"
 
-log_error() {
-  echo "❌ ERROR: Failed to submit manifests for '$1'."
-  echo "Details: $2"
-}
 
-for RELEASE_INFO in "${RELEASES[@]}"; do
-  IFS='|' read -r RELEASE_NAME REPO_NAME REPO_URL CHART NAMESPACE EXTRA_ARGS <<< "$RELEASE_INFO"
 
-  echo "========================================================"
-  echo "📦 Preparing deployment for: $RELEASE_NAME"
+INGRESS_CONTROLLER_VALUES_FILE="$REPO_ROOT/infra/helm-values/ingress-nginx-values-local.yaml"
 
-  if [ "$EXTRA_ARGS" == "null" ]; then EXTRA_ARGS=""; fi
+echo "======================================================="
+echo "📦 4. Deploying Ingress Nginx"
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update ingress-nginx
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  -n ingress-controller --create-namespace \
+  -f $INGRESS_CONTROLLER_VALUES_FILE
 
-  # Dynamically resolve values file based on Release Name convention
-  VALUES_FILE="$REPO_ROOT/infra/helm-values/${RELEASE_NAME}-values-local.yaml"
-  HELM_ARGS=""
-  
-  if [ -f "$VALUES_FILE" ]; then
-    HELM_ARGS="-f $VALUES_FILE"
-    echo "📄 Using values file: $VALUES_FILE"
-  else
-    echo "⚠️  WARNING: Expected values file $VALUES_FILE does not exist. Proceeding without it (this is normal for charts like Keda)."
-  fi
 
-  if [[ ! " $ADDED_REPOS " =~ " $REPO_NAME " ]]; then
-    echo "🔄 Adding/updating helm repo: $REPO_NAME ($REPO_URL)"
-    helm repo add "$REPO_NAME" "$REPO_URL"
-    helm repo update "$REPO_NAME"
-    ADDED_REPOS="$ADDED_REPOS $REPO_NAME"
-  fi
 
-  echo "🚀 Executing helm upgrade --install for $RELEASE_NAME in namespace $NAMESPACE"
-  
-  # Execute helm upgrade --install and gracefully catch "already exists" edge cases
-  if ! err=$(helm upgrade --install "$RELEASE_NAME" "$CHART" \
-    -n "$NAMESPACE" --create-namespace \
-    $HELM_ARGS \
-    $EXTRA_ARGS 2>&1); then
-    
-    if echo "$err" | grep -qi "already exists"; then
-      echo "⚠️  WARNING: Release $RELEASE_NAME already exists or encountered a non-fatal collision. Continuing..."
-    else
-      log_error "$RELEASE_NAME" "$err"
-      exit 1
-    fi
-  else
-    log_success "$RELEASE_NAME"
-  fi
 
-done
+  JAEGER_VALUES_FILE="$REPO_ROOT/infra/helm-values/jaeger-values-local.yaml"
+  helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+  helm repo update jaegertracing
+  helm upgrade --install jaeger jaegertracing/jaeger \
+    -n payment --create-namespace \
+    -f "$JAEGER_VALUES_FILE"
+
+
+
+
+
+  OTEL_VALUES_FILE="$REPO_ROOT/infra/helm-values/opentelemetry-collector-values-local.yaml"
+  helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+  helm repo update open-telemetry
+  helm upgrade --install my-opentelemetry-collector open-telemetry/opentelemetry-collector \
+    -n payment \
+    -f "$OTEL_VALUES_FILE"
 
 echo "========================================================"
 echo "✅ All local external infrastructure components deployed sequentially."

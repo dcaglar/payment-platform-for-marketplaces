@@ -105,34 +105,10 @@ Tokens are intentionally scoped to those roles so you can exercise each endpoint
 
 ```bash
 IDEMPOTENCY_KEY=$(printf '%08x-%04x-7%03x-8%03x-%04x%08x' $((RANDOM*RANDOM)) $((RANDOM)) $((RANDOM%4096)) $((RANDOM%4096)) $((RANDOM)) $((RANDOM*RANDOM)))
-API_BASE_URL=$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-echo "Using Idempotency-Key=$(IDEMPOTENCY_KEY) base url used :${API_BASE_URL}" \
-curl -i -X POST "http://${API_BASE_URL}/api/v1/payments" \  
+API_BASE_URL=$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "Using Idempotency-Key=${IDEMPOTENCY_KEY} base url used :${API_BASE_URL}"
+curl -i -X POST "http://${API_BASE_URL}/api/v1/payments" \
    -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $(cat ./keycloak/output/jwt/payment-service.token)" \
-  -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
-  -d '{
-    "orderId": "ORDER-1450",
-    "buyerId": "BUYER-1450",
-    "merchantAccount": "MARKETPLACE-5",
-    "processingModel": "MARKETPLACE",
-    "totalAmount": { "quantity": 3000, "currency": "EUR" },
-    "splits": [
-      { "type": "BalanceAccount", "account": "SELLER-5-1", "amount": { "quantity": 1400, "currency": "EUR" }},
-      { "type": "Commission", "amount": { "quantity": 100, "currency": "EUR" }},
-      { "type": "BalanceAccount", "account": "SELLER-5-2", "amount": { "quantity": 1400, "currency": "EUR" }},
-      { "type": "Commission", "amount": { "quantity": 100, "currency": "EUR" }}
-    ]
-  }'
-  
-  
-  
-IDEMPOTENCY_KEY=$(printf '%08x-%04x-7%03x-8%03x-%04x%08x' $((RANDOM*RANDOM)) $((RANDOM)) $((RANDOM%4096)) $((RANDOM%4096)) $((RANDOM)) $((RANDOM*RANDOM)))
-API_ENDPOINT="http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/payments"
-echo "Using Idempotency-Key=${IDEMPOTENCY_KEY}"
-echo "Using base url: http://${API_ENDPOINT}"
-curl -i -X POST "${API_ENDPOINT}" \
-  -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(cat ./keycloak/output/jwt/payment-service.token)" \
   -H "Idempotency-Key: ${IDEMPOTENCY_KEY}" \
   -d '{
@@ -147,7 +123,7 @@ curl -i -X POST "${API_ENDPOINT}" \
       { "type": "BalanceAccount", "account": "SELLER-5-2", "amount": { "quantity": 1400, "currency": "EUR" }},
       { "type": "Commission", "amount": { "quantity": 100, "currency": "EUR" }}
     ]
-  }'  
+  }'
 ```
 
 **Expected Response (200 OK):**
@@ -166,8 +142,9 @@ curl -i -X POST "${API_ENDPOINT}" \
 > **Note**: In production, payment details are collected by Stripe Payment Element (browser → Stripe). The authorize endpoint doesn't require payment method details - it uses the stored PaymentIntent ID. For testing with curl, you can send an empty body or omit paymentMethod:
 
 ```bash
-AUTHORIZATION_ENDPOINT="http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/payments/pi_AsQbmxVCAAA/authorize"
-curl -i -X POST "$AUTHORIZATION_ENDPOINT" \
+AUTHORIZATION_ENDPOINT="http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/payments/pi_AsYhFHsCAAA/authorize"
+echo "Using auth url used :${AUTHORIZATION_ENDPOINT}"
+curl -i -X POST "${AUTHORIZATION_ENDPOINT}" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(cat ./keycloak/output/jwt/payment-service.token)" \
   -d '{}'

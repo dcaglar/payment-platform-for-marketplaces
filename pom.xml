@@ -63,6 +63,7 @@ It declares that this module is:
         <mockito.kotlin.version>5.2.1</mockito.kotlin.version>
         <mockk.version>1.13.8</mockk.version>
         <container.test.version>1.21.4</container.test.version>
+        <opentelemetry.autoinstrument.version>2.29</opentelemetry.autoinstrument.version>
         <mybatis.spring.starter.version>3.0.3</mybatis.spring.starter.version>
         <skipUnitTests>false</skipUnitTests>
     </properties>
@@ -126,7 +127,18 @@ It declares that this module is:
                 <version>${mybatis.spring.starter.version}</version>
             </dependency>
 
-            <!-- Kotlin dependencies (keep versions here for consistent management) -->
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-instrumentation-bom</artifactId>
+                <version>${opentelemetry.instrumentation.version}</version>
+                <type>bom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- mavenBom("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.29.0")
+Kotlin dependencies (keep versions here for consistent management) -->
+
+
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-stdlib-jdk8</artifactId>

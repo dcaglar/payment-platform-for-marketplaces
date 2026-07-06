@@ -1,5 +1,4 @@
 
-# nginx-ingress-controller-values-azure.yaml
 controller:
   metrics:
     enabled: true
@@ -37,15 +36,7 @@ controller:
           memory: 32Mi
         limits:
           memory: 64Mi
-
-  # ── Cell Routing: Lua snippet support ──────────────────────────────────────
-  # configuration-snippet is rated "Critical" by ingress-nginx ≥ v1.9.0.
-  # This cluster is single-tenant (we own all Ingress objects), so the risk is
-  # accepted. Without these two flags the annotation is silently dropped.
   allowSnippetAnnotations: true
-
   config:
-    # Unlocks "Critical"-rated annotations (configuration-snippet is one of them).
     annotations-risk-level: "Critical"
-    # 1 MB shared dict for the Snowflake cell-routing Lua block.
     lua-shared-dicts: "cell_routing: 1m"

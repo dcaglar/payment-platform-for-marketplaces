@@ -1,5 +1,4 @@
 
-# nginx-ingress-controller-values-local.yaml
 controller:
   metrics:
     enabled: true

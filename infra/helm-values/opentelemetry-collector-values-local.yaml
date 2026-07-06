@@ -1,0 +1,32 @@
+mode: daemonset
+image:
+  repository: otel/opentelemetry-collector-contrib
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 456Mi
+  requests:
+    cpu: 150m
+    memory: 128Mi
+
+presets:
+  logsCollection:
+    enabled: true
+  kubernetesAttributes:
+    enabled: true
+  hostMetrics:
+    enabled: false
+  kubeletMetrics:
+    enabled: false
+
+config:
+  exporters:
+    otlp/jaeger:
+      endpoint: "jaeger.payment.svc.cluster.local:4317"
+      tls:
+        insecure: true
+  service:
+    pipelines:
+      traces:
+        exporters: [debug, otlp/jaeger]
