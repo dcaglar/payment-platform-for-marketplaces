@@ -74,45 +74,6 @@ sealed class Tx {
     }
 
     // -------------------------------------------------------------------------
-    // 3. InternalTransferTx — Virtual Balance Re-allocation / Split Matrix
-    // -------------------------------------------------------------------------
-    data class InternalTransferTx(
-        override val txId: TxId,
-        override val paymentId: PaymentId,
-        override val paymentIntentId: PaymentIntentId,
-        val parentCaptureTxId: TxId,
-        val sourceAccount: String,
-        val targetAccount: String,
-        override val amount: Amount,
-        override val status: TxStatus = TxStatus.SUCCESS,
-        override val createdAt: Instant = Instant.now(),
-        override val txType: JournalType
-    ) : Tx() {
-
-
-        fun markAsSuccess(): InternalTransferTx {
-            require(status == TxStatus.PENDING) {
-                "Can only mark SUCCESS from PENDING (current=$status)"
-            }
-            return copy(status = TxStatus.SUCCESS)
-        }
-
-        private fun copy(
-            status: TxStatus
-        ): InternalTransferTx = InternalTransferTx(
-            txId = txId,
-            paymentId = paymentId,
-            paymentIntentId = paymentIntentId,
-            parentCaptureTxId = parentCaptureTxId,
-            sourceAccount = sourceAccount,
-            targetAccount = targetAccount,
-            amount = amount,
-            status = status,
-            txType = txType
-        )
-
-    }
-
     // -------------------------------------------------------------------------
     // 4. PspFeeTx — Explicit Processing Cost Assessments
     // -------------------------------------------------------------------------
@@ -217,28 +178,6 @@ sealed class Tx {
             acquirerReference = acquirerReference,
             amount = amount,
             status = status
-        )
-
-        fun createInternalTransferTx(
-            txId: TxId,
-            paymentId: PaymentId,
-            paymentIntentId: PaymentIntentId,
-            parentCaptureTxId: TxId,
-            sourceAccount: String,
-            targetAccount: String,
-            amount: Amount,
-            txType: JournalType,
-            status: TxStatus = TxStatus.SUCCESS,
-        ): InternalTransferTx = InternalTransferTx(
-            txId = txId,
-            paymentId = paymentId,
-            paymentIntentId = paymentIntentId,
-            parentCaptureTxId = parentCaptureTxId,
-            sourceAccount = sourceAccount,
-            targetAccount = targetAccount,
-            amount = amount,
-            txType =  txType,
-            status = status,
         )
 
         fun createPspFeeTx(

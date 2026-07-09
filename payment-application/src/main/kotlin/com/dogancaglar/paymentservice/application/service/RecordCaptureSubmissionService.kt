@@ -28,7 +28,6 @@ open class RecordCaptureSubmissionService(
     private val paymentTxPort: PaymentTxPort,
     private val idGeneratorPort: IdGeneratorPort,
     private val outboxEventFactoryPort: OutboxEventFactoryPort,
-    private val serializationPort: SerializationPort,
     private val pspSimulationRulesPort: PspSimulationRulesPort
 ) : RecordCaptureSubmissionUseCase {
 

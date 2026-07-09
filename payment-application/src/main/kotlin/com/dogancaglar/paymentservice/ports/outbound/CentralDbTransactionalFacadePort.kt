@@ -16,7 +16,6 @@ interface CentralDbTransactionalFacadePort {
 
     fun recordInternalTransferOperationInLedger(
         internalTransfer: com.dogancaglar.paymentservice.domain.model.payment.InternalTransfer,
-        tx: Tx,
         journalEntries: List<JournalEntry> = emptyList(),
         outboxEvents: List<OutboxEvent> = emptyList()
     )

@@ -1,34 +1,49 @@
 package com.dogancaglar.paymentservice.config
 
+import io.opentelemetry.context.Context
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import java.util.concurrent.ThreadPoolExecutor
+import kotlin.use
 
 @Configuration
 class ConsumerThreadPoolConfig {
 
+
+
     @Bean("pspExecutionPool")
-    fun pspExecutionPool(): ThreadPoolTaskExecutor =
-        ThreadPoolTaskExecutor().apply {
-            corePoolSize = 50
-            maxPoolSize = 500
-            queueCapacity = 1000
-            setThreadNamePrefix("psp-")
-            initialize()
+    fun pspExecutionPool(): ThreadPoolTaskExecutor {
+        val pspExecutor = ThreadPoolTaskExecutor()
+        pspExecutor.corePoolSize = 50
+        pspExecutor.maxPoolSize = 500
+        pspExecutor.queueCapacity = 1000
+        pspExecutor.setThreadNamePrefix("psp-")
+        pspExecutor.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
+        return  pspExecutor
+    }
 
     @Bean("resilientExecutor")
-    fun resilientExecutor(): ThreadPoolTaskExecutor =
-        ThreadPoolTaskExecutor().apply {
-            corePoolSize = 32
-            maxPoolSize = 32
-            queueCapacity = 500
-            setThreadNamePrefix("resilient-callback-")
-            setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
-            initialize()
+    fun resilientExecutor(): ThreadPoolTaskExecutor {
+
+        val resilientExecutor = ThreadPoolTaskExecutor()
+        resilientExecutor.corePoolSize = 32
+        resilientExecutor.maxPoolSize = 32
+        resilientExecutor.queueCapacity = 500
+        resilientExecutor.setThreadNamePrefix("consumers-resilient-callback-")
+        resilientExecutor.setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
+
+        resilientExecutor.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
+
+        return resilientExecutor
+    }
 
     @Bean("taskScheduler")
     fun defaultSpringScheduler(): ThreadPoolTaskScheduler =
@@ -36,6 +51,10 @@ class ConsumerThreadPoolConfig {
             poolSize = 2
             setThreadNamePrefix("payment-consumers-spring-scheduled-")
             setWaitForTasksToCompleteOnShutdown(true)
+            setTaskDecorator { runnable ->
+                val currentContext = Context.current()
+                Runnable { currentContext.makeCurrent().use { runnable.run() } }
+            }
             initialize()
         }
 
@@ -45,6 +64,10 @@ class ConsumerThreadPoolConfig {
             poolSize = 1
             setThreadNamePrefix("retry-dispatcher-")
             setWaitForTasksToCompleteOnShutdown(true)
+            setTaskDecorator { runnable ->
+                val currentContext = Context.current()
+                Runnable { currentContext.makeCurrent().use { runnable.run() } }
+            }
             initialize()
         }
 }

@@ -23,4 +23,8 @@ class LocalOutboxWriterAdapter(
         }
         return events
     }
+
+    override fun hasPendingEvents(): Boolean {
+        return localOutboxWriterMapper.checkPendingEventsExist()
+    }
 }

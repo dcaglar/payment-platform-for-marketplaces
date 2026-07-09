@@ -192,17 +192,33 @@ config:
   KEYCLOAK_ISSUER_URL: "http://keycloak:8080/realms/ecommerce-platform"
   EDGE_DB_URL: "jdbc:postgresql://localhost:5432/edge-db?options=-c%20timezone=UTC"
   EDGE_DB_NAME: "edge-db"
-  
-  # --- OpenTelemetry / Micrometer Tracing Configuration ---
-  # Target OTel Collector endpoint for spans
-  MANAGEMENT_OTLP_TRACING_ENDPOINT: "http://my-opentelemetry-collector.payment.svc.cluster.local:4318/v1/traces"
-  
-  # Sample 100% of traces for local visualization (default is 0.1 / 10%)
-  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
-  
-  # Enable explicit tracing for Kafka producers/consumers
-  SPRING_KAFKA_LISTENER_OBSERVATION_ENABLED: "true"
-  SPRING_KAFKA_TEMPLATE_OBSERVATION_ENABLED: "true"
-  
-  # Enable explicit tracing for Redis (Lettuce client) commands
-  SPRING_DATA_REDIS_LETTUCE_OBSERVATION_ENABLED: "true"
+  SPRING_DATA_REDIS_URL: "redis://redis-master.payment.svc.cluster.local:6379"
+
+
+  # -OTEL start Tracing Configuration , do not use both micrometer and OTEL Starter.
+  # ✅ OTel exporter endpoint
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://my-opentelemetry-collector.payment.svc.cluster.local:4318"
+  # ✅ OTel sampling
+  OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
+  OTEL_TRACES_SAMPLER_ARG: "0.5"
+  OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "true"
+  OTEL_INSTRUMENTATION_SPRING_WEBMVC_ENABLED: "true"
+  OTEL_INSTRUMENTATION_LOGBACK_APPENDER_ENABLED: "true"
+  OTEL_INSTRUMENTATION_LOGBACK_MDC_ENABLED: "true"
+  OTEL_INSTRUMENTATION_JDBC_ENABLED: "true"
+  OTEL_INSTRUMENTATION_KAFKA_ENABLED: "false"
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "false"
+
+
+#
+#  # --- OpenTelemetry / Micrometer Tracing Configuration ---
+#  # Target OTel Collector endpoint for spans
+#  MANAGEMENT_OTLP_TRACING_ENDPOINT: "http://my-opentelemetry-collector.payment.svc.cluster.local:4318/v1/traces"
+#  # Sample 100% of traces for local visualization (default is 0.1 / 10%)
+#  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+#  # Enable explicit tracing for Kafka producers/consumers
+#  SPRING_KAFKA_LISTENER_OBSERVATION_ENABLED: "true"
+#  SPRING_KAFKA_TEMPLATE_OBSERVATION_ENABLED: "true"
+#
+#  # Enable explicit tracing for Redis (Lettuce client) commands
+#  SPRING_DATA_REDIS_LETTUCE_OBSERVATION_ENABLED: "true"

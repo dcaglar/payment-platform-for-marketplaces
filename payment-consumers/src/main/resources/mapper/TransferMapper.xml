@@ -1,16 +1,30 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-
+<!--
+    val transferId: InternalTransferId,
+    val paymentId: PaymentId,
+    val paymentIntentId: PaymentIntentId,
+    val merchantAccountId: String,
+    val amount: Amount,
+    val targetAccount: String,
+    val sourceAccount: String,
+    val transferType: String,
+    val status: InternalTransferStatus,
+    val createdAt: LocalDateTime,
+    val updatedAt: LocalDateTime
+-->
 <mapper namespace="com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.TransferMapper">
 
     <resultMap id="TransferResultMap" type="com.dogancaglar.common.db.entity.TransferEntity">
-        <id property="transferId" column="transfer_id"/>
-        <result property="sourceTransactionId" column="source_transaction_id"/>
+        <id property="transferId"      column="transfer_id"/>
+        <id  property="paymentId"           column="payment_id"/>
+        <result property="paymentIntentId"   column="payment_intent_id"/>
+        <result property="merchantAccountId" column="merchant_account_id"/>
         <result property="amountValue" column="amount_value"/>
         <result property="currency" column="currency"/>
-        <result property="targetAccount" column="target_account"/>
         <result property="sourceAccount" column="source_account"/>
+        <result property="targetAccount" column="target_account"/>
         <result property="transferType" column="transfer_type"/>
         <result property="status" column="status"/>
         <result property="createdAt" column="created_at"/>
@@ -19,25 +33,25 @@
 
     <insert id="insert" parameterType="com.dogancaglar.common.db.entity.TransferEntity">
         INSERT INTO transfers (
-            transfer_id, source_transaction_id, amount_value, currency,
-            target_account, source_account, transfer_type,
+            transfer_id, payment_id,payment_intent_id,merchant_account_id,amount_value, currency,
+             source_account, target_account, transfer_type,
             status, created_at, updated_at
         ) VALUES (
-            #{transferId}, #{sourceTransactionId}, #{amountValue}, #{currency},
-            #{targetAccount}, #{sourceAccount}, #{transferType},
+            #{transferId},#{paymentId},#{paymentIntentId},#{merchantAccountId}, #{amountValue}, #{currency},
+            #{sourceAccount},#{targetAccount}, #{transferType},
             #{status}, #{createdAt}, #{updatedAt}
         )
     </insert>
 
     <insert id="upsert" parameterType="com.dogancaglar.common.db.entity.TransferEntity">
         INSERT INTO transfers (
-            transfer_id, source_transaction_id, amount_value, currency,
-            target_account, source_account, transfer_type,
-            status, created_at, updated_at
+        transfer_id, payment_id,payment_intent_id,merchant_account_id,amount_value, currency,
+        source_account, target_account, transfer_type,
+        status, created_at, updated_at
         ) VALUES (
-            #{transferId}, #{sourceTransactionId}, #{amountValue}, #{currency},
-            #{targetAccount}, #{sourceAccount}, #{transferType},
-            #{status}, #{createdAt}, #{updatedAt}
+        #{transferId},#{paymentId},#{paymentIntentId},#{merchantAccountId}, #{amountValue}, #{currency},
+        #{sourceAccount},#{targetAccount}, #{transferType},
+        #{status}, #{createdAt}, #{updatedAt}
         )
         ON CONFLICT (transfer_id) DO UPDATE SET
             status = EXCLUDED.status,

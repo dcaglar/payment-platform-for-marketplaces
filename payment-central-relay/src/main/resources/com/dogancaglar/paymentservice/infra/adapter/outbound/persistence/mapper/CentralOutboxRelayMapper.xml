@@ -31,13 +31,13 @@
         FROM outbox_event
         WHERE status = 'NEW'
         AND created_at &lt;= #{tSafe, typeHandler=com.dogancaglar.common.db.typehandler.InstantTypeHandler}
-        ORDER BY created_at
+        ORDER BY oeid ASC
         LIMIT #{batchSize}
         FOR UPDATE SKIP LOCKED
         )
         RETURNING *
         )
-        SELECT * FROM claimed
+        SELECT * FROM claimed ORDER BY oeid ASC
     </select>
 
 

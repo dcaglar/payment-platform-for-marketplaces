@@ -21,10 +21,12 @@ object LedgerDomainEventEntityMapper {
     fun toLedgerEntryEventData(journal: JournalEntry): JournalEntryEventData {
         return JournalEntryEventData.create(
             journalEntryId = journal.id,
+            globalJournalEntryId = journal.globalJournalEntryId,
             journalType = journal.journalType,
             journalName = journal.name,
             paymentId = journal.paymentId.value,
-            txId = journal.txId.value,
+            txId = journal.txId?.value,
+            reason = journal.reason,
             createdAt = Utc.nowInstant(), // or a passed-in timestamp
             postings = journal.postings.map { toPostingEventData(it) }
         )
@@ -36,11 +38,13 @@ object LedgerDomainEventEntityMapper {
 
         return JournalEntry.rehytrate(
             id = ledgerEntryEvent.journalEntryId,
+            globalJournalEntryId = ledgerEntryEvent.globalJournalEntryId,
             txType = ledgerEntryEvent.journalType,
             name = ledgerEntryEvent.journalName ?: "Ledger Entry",
             paymentId = PaymentId(ledgerEntryEvent.paymentId),
-            txId = TxId(ledgerEntryEvent.txId),
-            postings = postingsDomain
+            txId = ledgerEntryEvent.txId?.let(::TxId),
+            postings = postingsDomain,
+            reason =  ledgerEntryEvent.reason
         )
     }
 

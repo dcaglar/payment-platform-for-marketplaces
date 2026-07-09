@@ -1,0 +1,138 @@
+Trace Name	Services
+Spans
+Duration
+Start Time
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+1.2ms
+July 8 2026, 19:40:56.175
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+289μs
+July 8 2026, 19:40:56.173
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+743μs
+July 8 2026, 19:40:55.169
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+437μs
+July 8 2026, 19:40:55.163
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+799μs
+July 8 2026, 19:40:54.155
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+160μs
+July 8 2026, 19:40:54.147
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+1.6ms
+July 8 2026, 19:40:53.133
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+518μs
+July 8 2026, 19:40:53.100
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+190μs
+July 8 2026, 19:40:52.051
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+119μs
+July 8 2026, 19:40:52.050
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+11.2ms
+Trace Name	Services
+Spans
+Duration
+Start Time
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+1.2ms
+July 8 2026, 19:40:56.175
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+289μs
+July 8 2026, 19:40:56.173
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+743μs
+July 8 2026, 19:40:55.169
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+437μs
+July 8 2026, 19:40:55.163
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+799μs
+July 8 2026, 19:40:54.155
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+160μs
+July 8 2026, 19:40:54.147
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+1.6ms
+July 8 2026, 19:40:53.133
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+518μs
+July 8 2026, 19:40:53.100
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+190μs
+July 8 2026, 19:40:52.051
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+119μs
+July 8 2026, 19:40:52.050
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+11.2ms

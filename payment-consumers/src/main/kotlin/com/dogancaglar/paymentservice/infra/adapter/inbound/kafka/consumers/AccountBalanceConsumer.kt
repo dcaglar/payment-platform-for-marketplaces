@@ -54,7 +54,7 @@ class AccountBalanceConsumer(
             .flatMap { it.value().data.ledgerEntries }
             .map {
                 logger.debug(
-                    "🎬 Processing  journal ${it.journalType.name} with journal entry id ${it.journalEntryId}  tx id ${it.txId} ")
+                    "🎬 Processing  journal ${it.journalType.name} with journal entry id ${it.journalEntryId}  global journal entry id ${it.globalJournalEntryId} ")
                 LedgerDomainEventEntityMapper.toDomain(it) }
         // idempotenct update Process batch with idempotency check
         accountBalanceService.updateAccountBalancesBatch(allLedgerEntriesDomain)

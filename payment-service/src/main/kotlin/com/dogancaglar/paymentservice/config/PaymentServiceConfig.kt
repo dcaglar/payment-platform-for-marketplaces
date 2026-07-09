@@ -107,7 +107,7 @@ class PaymentServiceConfig(val serializationPort: SerializationPort) {
 
 
     @Bean
-    fun outboxEventFactoryPort(serializationPort: SerializationPort): OutboxEventFactoryPort{
-        return OutboxEventEventFactory(serializationPort)
+    fun outboxEventFactoryPort(serializationPort: SerializationPort, idGeneratorPort: IdGeneratorPort): OutboxEventFactoryPort{
+        return OutboxEventEventFactory(serializationPort, idGeneratorPort)
     }
 }

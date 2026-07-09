@@ -204,7 +204,6 @@ class PaymentIntentTest {
     @Test
     fun `rehydrate preserves pspReference and clientSecret`() {
         val pspRef = "pi_stripe_123"
-        val clientSecret = "pi_stripe_123_secret_abc"
         val now = Utc.nowLocalDateTime()
         
         val intent = PaymentIntent.rehydrate(

@@ -117,6 +117,36 @@ helm secrets upgrade --install payment-consumers charts/payment-consumers \
 -f charts/payment-consumers/local/values.yaml \
 -f secrets://central-db-sops-secrets.yaml
 ```
+
+
+```bash
+helm dependency update charts/payment-edge-workers
+helm secrets upgrade --install payment-edge-workers charts/payment-edge-workers \
+-n payment --create-namespace \
+-f charts/payment-edge-workers/values.yaml \
+-f charts/payment-edge-workers/local/values.yaml \
+-f secrets://central-db-sops-secrets.yaml \
+-f secrets://edge-cell-sops-secrets.yaml
+```
+
+
+```bash
+helm dependency update charts/payment-edge-workers
+helm secrets upgrade --install payment-edge-workers charts/payment-edge-workers \
+-n payment --create-namespace \
+-f charts/payment-edge-workers/values.yaml \
+-f charts/payment-edge-workers/local/values.yaml \
+-f secrets://central-db-sops-secrets.yaml \
+-f secrets://edge-cell-sops-secrets.yaml
+```
+
+
+helm dependency update charts/payment-consumers
+helm secrets upgrade --install payment-consumers charts/payment-consumers \
+-n payment --create-namespace \
+-f charts/payment-consumers/values.yaml \
+-f charts/payment-consumers/local/values.yaml \
+-f secrets://central-db-sops-secrets.yaml
 # Force the Pod to Restart (If necessary)
    When Helm runs, it updates the ConfigMap. However, Kubernetes does not automatically restart a pod just because a ConfigMap changed (unless you use a special checksum annotation in your Helm template).
 

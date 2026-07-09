@@ -37,4 +37,11 @@
             #{event.claimedBy})
         </foreach>
     </insert>
+
+    <select id="checkPendingEventsExist" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM outbox_event
+            WHERE status IN ('NEW', 'PROCESSING')
+        )
+    </select>
 </mapper>

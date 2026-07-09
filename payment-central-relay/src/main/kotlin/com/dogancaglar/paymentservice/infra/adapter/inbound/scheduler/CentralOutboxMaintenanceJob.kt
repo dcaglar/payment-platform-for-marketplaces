@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.stereotype.Component
 import java.time.temporal.ChronoUnit
+import io.opentelemetry.context.Context
 
 
 import com.dogancaglar.common.db.partitioning.AbstractOutboxPartitionCreator
@@ -82,6 +83,10 @@ class CentralOutboxPartitionCreatorConfig {
         val scheduler = ThreadPoolTaskScheduler()
         scheduler.poolSize = 1
         scheduler.setThreadNamePrefix("central-outbox-maintenance-pool-")
+        scheduler.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
+        }
         scheduler.initialize()
         return scheduler
     }

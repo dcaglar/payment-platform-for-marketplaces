@@ -85,7 +85,7 @@ class KafkaProducerConfig(
         @Qualifier("rawBatchProducerFactory") rbpf: DefaultKafkaProducerFactory<String, String>
     ): KafkaTemplate<String, String> =
         KafkaTemplate(rbpf).apply {
-            setObservationEnabled(true)
+            setObservationEnabled(false)
         }
 
 

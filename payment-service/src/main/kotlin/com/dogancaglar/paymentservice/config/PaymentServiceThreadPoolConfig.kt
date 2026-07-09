@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import java.util.concurrent.ThreadPoolExecutor
+import io.opentelemetry.context.Context
 
 @Configuration
 class PaymentServiceThreadPoolConfig(private val meterRegistry: MeterRegistry) {
@@ -19,6 +20,10 @@ class PaymentServiceThreadPoolConfig(private val meterRegistry: MeterRegistry) {
         scheduler.poolSize = poolSize
         scheduler.setThreadNamePrefix("outbox-dispatcher-pool-")
         scheduler.setWaitForTasksToCompleteOnShutdown(true)
+        scheduler.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
+        }
         // Metrics with a unique tag!
         meterRegistry.gauge(
             "scheduler_outbox_active_threads",
@@ -49,6 +54,10 @@ class PaymentServiceThreadPoolConfig(private val meterRegistry: MeterRegistry) {
             queueCapacity = 50
             setThreadNamePrefix("po-psp-")
             setRejectedExecutionHandler(ThreadPoolExecutor.DiscardPolicy())
+            setTaskDecorator { runnable ->
+                val currentContext = Context.current()
+                Runnable { currentContext.makeCurrent().use { runnable.run() } }
+            }
             initialize()
         }
 
@@ -60,6 +69,10 @@ class PaymentServiceThreadPoolConfig(private val meterRegistry: MeterRegistry) {
             queueCapacity = 50
             setThreadNamePrefix("po-psp-")
             setRejectedExecutionHandler(ThreadPoolExecutor.DiscardPolicy())
+            setTaskDecorator { runnable ->
+                val currentContext = Context.current()
+                Runnable { currentContext.makeCurrent().use { runnable.run() } }
+            }
             initialize()
         }
 
@@ -68,6 +81,10 @@ class PaymentServiceThreadPoolConfig(private val meterRegistry: MeterRegistry) {
         val scheduler = ThreadPoolTaskScheduler()
         scheduler.poolSize = 2
         scheduler.setThreadNamePrefix("outbox-mainenance-pool-")
+        scheduler.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
+        }
         scheduler.initialize()
         return scheduler
     }
@@ -80,6 +97,10 @@ class PaymentServiceThreadPoolConfig(private val meterRegistry: MeterRegistry) {
             queueCapacity = 500
             setThreadNamePrefix("resilient-callback-")
             setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
+            setTaskDecorator { runnable ->
+                val currentContext = Context.current()
+                Runnable { currentContext.makeCurrent().use { runnable.run() } }
+            }
             initialize()
         }
 
@@ -89,6 +110,10 @@ class PaymentServiceThreadPoolConfig(private val meterRegistry: MeterRegistry) {
             poolSize = 2
             setThreadNamePrefix("payment-service-spring-scheduled-")
             setWaitForTasksToCompleteOnShutdown(true)
+            setTaskDecorator { runnable ->
+                val currentContext = Context.current()
+                Runnable { currentContext.makeCurrent().use { runnable.run() } }
+            }
             initialize()
         }
 }

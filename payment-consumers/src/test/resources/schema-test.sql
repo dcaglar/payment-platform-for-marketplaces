@@ -39,7 +39,7 @@ CREATE TABLE payments (
     splits_json JSONB NOT NULL,
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (now() AT TIME ZONE 'UTC'),
     updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (now() AT TIME ZONE 'UTC'),
-    CONSTRAINT chk_payments_status_valid CHECK (status IN ('AUTHORIZED', 'SENT_FOR_SETTLE', 'CAPTURED', 'PARTIALLY_CAPTURED', 'VOIDED', 'PARTIALLY_REFUNDED', 'REFUNDED')),
+    CONSTRAINT chk_payments_status_valid CHECK (status IN ('AUTHORIZED', 'SENT_FOR_SETTLE', 'CAPTURED', 'PARTIALLY_CAPTURED', 'VOIDED', 'PARTIALLY_REFUNDED','SETTLED' 'REFUNDED')),
     CONSTRAINT chk_payments_processing_model CHECK (processing_model IN ('DIRECT_MERCHANT', 'MARKETPLACE')),
     CONSTRAINT chk_payments_currency_3 CHECK (currency ~ '^[A-Z]{3}$'),
     CONSTRAINT chk_payments_total_positive CHECK (total_amount_value > 0),

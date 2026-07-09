@@ -1,0 +1,100 @@
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+2.7ms
+July 8 2026, 19:41:50.218
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+465μs
+July 8 2026, 19:41:50.214
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+246μs
+July 8 2026, 19:41:49.206
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+197μs
+July 8 2026, 19:41:49.205
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+248μs
+July 8 2026, 19:41:48.201
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+177μs
+July 8 2026, 19:41:48.201
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+1.2ms
+July 8 2026, 19:41:47.197
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+4.1ms
+July 8 2026, 19:41:47.187
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+294μs
+July 8 2026, 19:41:46.181
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+186μs
+July 8 2026, 19:41:46.178
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+2.6ms
+July 8 2026, 19:41:45.147
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+11.7ms
+July 8 2026, 19:41:45.086
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+6.4ms
+July 8 2026, 19:41:44.040
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1
+1.3ms
+July 8 2026, 19:41:44.036
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+82.0ms
+July 8 2026, 19:41:43.880
+
+payment-central-relay: UPDATE central-db.outbox_event
+payment-central-relay (1)
+1
+9.9ms
+July 8 2026, 19:41:42.998
+
+payment-central-relay: SELECT central-db.edge_watermarks
+payment-central-relay (1)
+1

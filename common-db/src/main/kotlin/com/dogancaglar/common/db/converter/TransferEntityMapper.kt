@@ -22,13 +22,12 @@ object TransferEntityMapper {
         }
         return InternalTransfer.rehydrate(
             transferId          = InternalTransferId(entity.transferId),
-            sourceTransactionId = TxId(entity.sourceTransactionId),
             paymentId = PaymentId(entity.paymentId),
             paymentIntentId = PaymentIntentId(entity.paymentIntentId),
             merchantAccountId = entity.merchantAccountId,
             amount              = amount,
-            targetAccount       = entity.targetAccount,
             sourceAccount       = entity.sourceAccount,
+            targetAccount       = entity.targetAccount,
             transferType        = entity.transferType,
             status              = InternalTransferStatus.valueOf(entity.status),
             createdAt           = entity.createdAt,
@@ -39,14 +38,13 @@ object TransferEntityMapper {
     fun toEntity(domain: InternalTransfer): TransferEntity {
         return TransferEntity(
             transferId          = domain.transferId.value,
-            sourceTransactionId = domain.sourceTransactionId.value,
             paymentIntentId = domain.paymentIntentId.value,
             paymentId =domain.paymentId.value,
             merchantAccountId = domain.merchantAccountId,
             amountValue         = domain.amount.quantity,
             currency            = domain.amount.currency.currencyCode,
-            targetAccount       = domain.targetAccount,
             sourceAccount       = domain.sourceAccount,
+            targetAccount       = domain.targetAccount,
             transferType        = domain.transferType,
             status              = domain.status.name,
             createdAt           = domain.createdAt,

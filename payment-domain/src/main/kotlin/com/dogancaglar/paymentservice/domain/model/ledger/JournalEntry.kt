@@ -22,11 +22,13 @@ import com.dogancaglar.paymentservice.domain.model.vo.TxId
  */
 class JournalEntry private constructor(
     val id: String,
+    val globalJournalEntryId:Long,
     val journalType: JournalType,
     val name: String,
     val paymentId: PaymentId, // 🛡️ Strict Domain Primitive
-    val txId: TxId,           // 🛡️ Strict Domain Primitive
-    val postings: List<Posting>
+    val txId: TxId?,           // 🛡️  Light Domain Primitive
+    val postings: List<Posting>,
+    val reason: String?=""
 ) {
 
     init {
@@ -38,6 +40,7 @@ class JournalEntry private constructor(
         require(totalDebit == totalCredit) {
             "Unbalanced JournalEntry [$id]: debits=$totalDebit, credits=$totalCredit"
         }
+        require(globalJournalEntryId >0)
         val duplicates = postings
             .groupingBy { it.account.accountCode }
             .eachCount()
@@ -59,15 +62,18 @@ class JournalEntry private constructor(
         // =====================================================================
 
         fun authHold(
+            globalJournalEntryId : Long,
             paymentId: PaymentId,
             txId: TxId, // <-- Added! (This is the ID of the AuthorizationTx)
             journalIdentifier: String,
             authorizedAmount: Amount,
             authReceivable: Account,
-            authLiability: Account
+            authLiability: Account,
+            reason : String?="Auth Hold"
         ): List<JournalEntry> = listOf(
             JournalEntry(
                 id        = "AUTH:$journalIdentifier",
+                globalJournalEntryId = globalJournalEntryId,
                 journalType    = JournalType.AUTHORIZATION,
                 name      = "AuthorizationTx Hold",
                 paymentId = paymentId,
@@ -75,7 +81,8 @@ class JournalEntry private constructor(
                 postings  = listOf(
                     Posting.Debit.create(authReceivable, authorizedAmount),
                     Posting.Credit.create(authLiability, authorizedAmount)
-                )
+                ),
+                reason = reason
             )
         )
 
@@ -87,6 +94,7 @@ class JournalEntry private constructor(
         // =====================================================================
 
         fun captureGrossAsset(
+            globalJournalEntryId: Long,
             paymentId: PaymentId,
             txId: TxId,
             journalIdentifier: String,
@@ -94,10 +102,12 @@ class JournalEntry private constructor(
             authReceivable: Account,
             authLiability: Account,
             merchantGrossPool: Account,
-            pspReceivable: Account
+            pspReceivable: Account,
+            reason : String?="CaptureConfirmation"
         ): List<JournalEntry> = listOf(
             JournalEntry(
                 id             = "CAPTURE:$journalIdentifier",
+                globalJournalEntryId = globalJournalEntryId,
                 journalType    = JournalType.CAPTURE,
                 name           = "Gross Asset Capture Pool on ${merchantGrossPool.accountCode}",
                 paymentId      = paymentId,
@@ -107,47 +117,35 @@ class JournalEntry private constructor(
                     Posting.Credit.create(authReceivable, capturedAmount),
                     Posting.Debit.create(pspReceivable, capturedAmount),
                     Posting.Credit.create(merchantGrossPool, capturedAmount)
-                )
+                ),
+                reason =reason
             )
         )
 
-        // =====================================================================
-        // INTERNAL_TRANSFER — Sub-Seller Split Distribution
-        // =====================================================================
 
 
 
-        /**
-         * internalTransfer
-         *
-         * Generates a single INTERNAL_TRANSFER JournalEntry that redistributes
-         * funds from the source account to a target account.
-         * Used by decoupled GrossCaptureAllocationConsumer
-         * MERCHANT_GROSS_CAPTURE_SUSPENSE -> MARKETPLACE_DIRECT_REVENUE_BALANCE_ACCOUNT (if it is a direct payment no seller involved no split)
-          MERCHANT_GROSS_CAPTURE_SUSPENSE -> MARKETPLACE_SELLER_BALANCE_ACCOUNT (if it is a  market place and account type  is balance accoiunt in split
-         *MERCHANT_GROSS_CAPTURE_SUSPENSE -> MARKETPLACE_COMMISSION_REVENUE_BALANCE_ACCOUNT (if it is a  market place and account type  is balance accoiunt in split
-         * by moving to seller's balance account, marketpplaceplatform's commission revenue account or
-         * if it is direct payment, then move to  MARKETPLACE_DIRECT_REVENUE_BALANCE_ACCOUNT
-         * i believe this is till nmot real money ?
-         */
         fun internalTransfer(
+            globalJournalEntryId: Long,
             paymentId: PaymentId,
-            txId: TxId,
             journalIdentifier: String,
             amount: Amount,
             sourceAccount: Account,
-            targetAccount: Account
+            targetAccount: Account,
+            allocationReason: String?="INTERNAL_TRANSFER" // 🎯 e.g., "MARKETPLACE_SELLER_SPLIT" or "PLATFORM_COMMISSION_FEE"
         ): List<JournalEntry> = listOf(
             JournalEntry(
-                id        = "INTERNAL_TRANSFER:${journalIdentifier}",
-                journalType    = JournalType.INTERNAL_TRANSFER,
-                name      = "Transfer from ${sourceAccount.accountCode} — to  ${targetAccount.accountCode}",
-                paymentId = paymentId,
-                txId      = txId,
-                postings  = listOf(
+                id          = "INTERNAL_TRANSFER:${journalIdentifier}",
+                globalJournalEntryId = globalJournalEntryId,
+                journalType = JournalType.INTERNAL_TRANSFER,
+                name        = "Internal Transfer between virtual accounts",
+                paymentId   = paymentId,
+                txId        = null,             // 🔴 Cleanly null. No external proof required.
+                postings    = listOf(
                     Posting.Debit.create(sourceAccount, amount),
                     Posting.Credit.create(targetAccount, amount)
-                )
+                ),
+                reason      = allocationReason, // 🟢 Directly states the business purpose
             )
         )
 
@@ -170,6 +168,7 @@ class JournalEntry private constructor(
          * Called by: PspResultConsumer, processing a PaymentRefunded webhook event.
          */
         fun refund(
+            globalJournalEntryId: Long,
             paymentId: PaymentId,
             txId: TxId,
             journalIdentifier: String,
@@ -177,10 +176,12 @@ class JournalEntry private constructor(
             authReceivable: Account,
             authLiability: Account,
             merchantGrossPool: Account,
-            pspReceivable: Account
+            pspReceivable: Account,
+            reason : String?="REFUNDCONFIRMATION"
         ): List<JournalEntry> = listOf(
             JournalEntry(
                 id             = "REFUND:$journalIdentifier",
+                globalJournalEntryId = globalJournalEntryId,
                 journalType    = JournalType.REFUND,
                 name           = "Payment Refund",
                 paymentId      = paymentId,
@@ -190,7 +191,8 @@ class JournalEntry private constructor(
                     Posting.Credit.create(pspReceivable, refundedAmount),
                     Posting.Debit.create(authLiability, refundedAmount),
                     Posting.Credit.create(authReceivable, refundedAmount)
-                )
+                ),
+                reason = reason
             )
         )
 
@@ -206,6 +208,7 @@ class JournalEntry private constructor(
          * while isolating the exact processing expense levied by the network for this payment.
          */
         fun settlementLineItem(
+            globalJournalEntryId: Long,
             paymentId: PaymentId,             // 🎯 The true, original Payment identifier
             settlementTxId: TxId,            // The fresh unique ID for this settlement event
             journalIdentifier: String,       // e.g., "ADYEN_SDR_LINE_998124"
@@ -214,12 +217,14 @@ class JournalEntry private constructor(
             pspFeeAmount: Amount,            // Exact fees taken out (e.g., €60)
             platformCash: Account,           // PLATFORM_CASH.GLOBAL.EUR
             pspReceivable: Account,          // PSP_RECEIVABLES.GLOBAL.EUR
-            pspFeeExpense: Account           // {PSP_FEE_EXPENSE}.GLOBAL.EUR
+            pspFeeExpense: Account ,          // {PSP_FEE_EXPENSE}.GLOBAL.EUR
+            reason : String?="CaptureClearedMoneyisInOurBank"
         ): List<JournalEntry> {
 
             return listOf(
                 JournalEntry(
                     id             = "SETTLE:$journalIdentifier",
+                    globalJournalEntryId = globalJournalEntryId,
                     journalType    = JournalType.SETTLEMENT,
                     name           = "Acquirer Network Line-Item Reconciled Settlement",
                     paymentId      = paymentId,   // 🟢 No longer a blind sentinel! Absolute audit trail.
@@ -228,7 +233,8 @@ class JournalEntry private constructor(
                         Posting.Debit.create(platformCash, netCashAmount),    // Physical vault asset increase 🟢
                         Posting.Debit.create(pspFeeExpense, pspFeeAmount),   // Direct operational fee expense 🟢
                         Posting.Credit.create(pspReceivable, grossAmount)    // Reconciles outstanding gateway IOU to zero 🔴
-                    )
+                    ),
+                    reason =reason
                 )
             )
         }
@@ -263,12 +269,13 @@ class JournalEntry private constructor(
          * @param merchantGrossPool Must be AccountType.MERCHANT_GROSS_CAPTURE_SUSPENSE or MARKETPLACE_COMMISSION_REVENUE_BALANCE_ACCOUNT
          */
         fun commissionFeeRegistered(
+            globalJournalEntryId: Long,
             paymentId: PaymentId,
-            txId: TxId,
             journalIdentifier: String,
             commissionFee: Amount,
             commissionEscrowAccount: Account, // ◄ PLATFORM_COMMISSION_ESCROW.MARKETPLACE-1.EUR
-            merchantGrossPool: Account       // ◄ MARKETPLACE_COMMISSION_REVENUE_BALANCE_ACCOUNT.MARKETPLACE-1.EUR
+            merchantGrossPool: Account ,      // ◄ MARKETPLACE_COMMISSION_REVENUE_BALANCE_ACCOUNT.MARKETPLACE-1.EUR
+            reason : String?="CommFeeRegistered"
         ): List<JournalEntry> {
             require(commissionEscrowAccount.type == AccountType.PLATFORM_COMMISSION_ESCROW) {
                 "Target must be a tenant escrow account: ${commissionEscrowAccount.accountCode}"
@@ -278,14 +285,16 @@ class JournalEntry private constructor(
             return listOf(
                 JournalEntry(
                     id             = "MOR_DC_COMMISSION:$journalIdentifier",
+                    globalJournalEntryId = globalJournalEntryId,
                     journalType    = JournalType.COMMISSION_FEE,
                     name           = "Mor-DC Platform Escrow Fee Charge — Tenant Isolated",
                     paymentId      = paymentId,
-                    txId           = txId,
+                    txId           = null,
                     postings       = listOf(
                         Posting.Debit.create(merchantGrossPool, commissionFee),       // Reduces the merchant's folder 🔴
                         Posting.Credit.create(commissionEscrowAccount, commissionFee)   // Increases the merchant's specific escrow lock 🟢
-                    )
+                    ),
+                    reason = reason
                 )
             )
         }
@@ -303,11 +312,13 @@ class JournalEntry private constructor(
          * @param platformOperationalRevenue Must be AccountType.PLATFORM_OPERATIONAL_REVENUE for GLOBAL
          */
         fun recognizePlatformRevenue(
-            txId: TxId,
+            globalJournalEntryId: Long,
             recognitionIdentifier: String,
             maturedFeeAmount: Amount,
             commissionEscrowAccount: Account,   // ◄ PLATFORM_COMMISSION_ESCROW.MARKETPLACE-1.EUR
-            platformOperationalRevenue: Account // ◄ PLATFORM_OPERATIONAL_REVENUE.GLOBAL.EUR
+            platformOperationalRevenue: Account ,// ◄ PLATFORM_OPERATIONAL_REVENUE.GLOBAL.EUR
+            reason : String?="MovedFromEscrowToMorRevenue"
+
         ): List<JournalEntry> {
             require(commissionEscrowAccount.type == AccountType.PLATFORM_COMMISSION_ESCROW) {
                 "Source must be a tenant escrow account: ${commissionEscrowAccount.accountCode}"
@@ -319,14 +330,16 @@ class JournalEntry private constructor(
             return listOf(
                 JournalEntry(
                     id             = "REV_REC:$recognitionIdentifier",
-                    journalType    = JournalType.INTERNAL_TRANSFER,
+                    globalJournalEntryId = globalJournalEntryId,
+                    journalType    = JournalType.REVENUE_RECOGNITION,
                     name           = "Platform Fee Release — Tenant: ${commissionEscrowAccount.accountCode}",
                     paymentId      = PaymentId(0L), // System batch level
-                    txId           = txId,
+                    txId           = null,
                     postings       = listOf(
                         Posting.Debit.create(commissionEscrowAccount, maturedFeeAmount),   // Frees the specific tenant hold 🔴
                         Posting.Credit.create(platformOperationalRevenue, maturedFeeAmount) // Adds to Mor-DC's aggregate profit 🟢
-                    )
+                    ),
+                    reason
                 )
             )
         }
@@ -340,15 +353,18 @@ class JournalEntry private constructor(
         // 7. PAYOUT (Clearing Liabilities & Pushing Cash to External Bank Accounts)
         // =====================================================================
         fun payout(
+            globalJournalEntryId: Long,
             paymentId: PaymentId,
             txId: TxId,
             journalIdentifier: String,
             payoutAmount: Amount,
             sourceBalanceAccount: Account,
-            platformCash: Account
+            platformCash: Account,
+            reason : String?="PayOutToMerchant"
         ): List<JournalEntry> = listOf(
             JournalEntry(
                 id             = "PAYOUT:$journalIdentifier",
+                globalJournalEntryId = globalJournalEntryId,
                 journalType    = JournalType.PAYOUT,
                 name           = "Outbound Wire Transfer to Merchant/Seller External Bank",
                 paymentId      = paymentId,
@@ -356,7 +372,8 @@ class JournalEntry private constructor(
                 postings       = listOf(
                     Posting.Debit.create(sourceBalanceAccount, payoutAmount),
                     Posting.Credit.create(platformCash, payoutAmount)
-                )
+                ),
+                reason      = reason, // 🟢 Directly states the business purpose
             )
         )
 
@@ -373,18 +390,22 @@ class JournalEntry private constructor(
          */
         fun rehytrate(
             id: String,
+            globalJournalEntryId: Long,
             txType: JournalType,
             name: String,
             paymentId: PaymentId,
-            txId: TxId,
-            postings: List<Posting>
+            txId: TxId?,
+            postings: List<Posting>,
+            reason: String?
         ): JournalEntry = JournalEntry(
             id            = id,
+            globalJournalEntryId = globalJournalEntryId,
             journalType        = txType,
             name          = name,
             paymentId     = paymentId,
             txId          = txId,
-            postings      = postings
+            postings      = postings,
+            reason = reason
         )
     }
 }

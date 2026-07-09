@@ -69,7 +69,7 @@ class KafkaTypedConsumerFactoryConfig(
     fun defaultKafkaConsumerFactory(): DefaultKafkaConsumerFactory<String, EventEnvelope<*>> {
         val configs = bootKafkaProps.buildConsumerProperties().toMutableMap()
         return DefaultKafkaConsumerFactory<String, EventEnvelope<*>>(configs).apply {
-            addListener(MicrometerConsumerListener(meterRegistry))
+           // addListener(MicrometerConsumerListener(meterRegistry))
         }
     }
 
@@ -92,7 +92,7 @@ class KafkaTypedConsumerFactoryConfig(
     fun dlqKafkaTemplate(
         @Qualifier("dlqProducerFactory") pf: ProducerFactory<String, ByteArray>
     ) = KafkaTemplate(pf).apply {
-        setObservationEnabled(true)
+        setObservationEnabled(false)
     }
 
     @Bean
@@ -204,8 +204,8 @@ class KafkaTypedConsumerFactoryConfig(
                 mapOf(CLIENT_ID_CONFIG to clientId)
             )
             containerProperties.pollTimeout = 1000           // block up to 1s waiting for data
-            containerProperties.isMicrometerEnabled = true
-            containerProperties.isObservationEnabled = true
+            containerProperties.isMicrometerEnabled = false
+            containerProperties.isObservationEnabled = false
             containerProperties.idleBetweenPolls = 250 // nap 250ms after an empty poll
             @Suppress("UNCHECKED_CAST")
             setRecordInterceptor(interceptor as RecordInterceptor<String, EventEnvelope<T>>)

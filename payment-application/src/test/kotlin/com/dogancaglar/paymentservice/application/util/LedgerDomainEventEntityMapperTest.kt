@@ -30,11 +30,13 @@ class LedgerDomainEventEntityMapperTest {
 
         return JournalEntry.JournalFactory.rehytrate(
             id = "journal-123",
+            globalJournalEntryId = 100L,
             txType = JournalType.CAPTURE,
             name = "capture",
             paymentId = PaymentId(555L),
             txId = TxId(666L),
-            postings = listOf(debitPosting, creditPosting)
+            postings = listOf(debitPosting, creditPosting),
+            reason = "TestReason"
         )
     }
 
@@ -61,7 +63,9 @@ class LedgerDomainEventEntityMapperTest {
             paymentId = 555L,
             txId = 666L,
             createdAt = fixedInstant.plusSeconds(2400),
-            postings = listOf(debitEvent, creditEvent)
+            postings = listOf(debitEvent, creditEvent),
+            globalJournalEntryId = 200L,
+            reason = "Test reason"
         )
     }
 
@@ -107,7 +111,7 @@ class LedgerDomainEventEntityMapperTest {
     fun `toDomain recreates journal entry with postings`() {
         val eventData = sampleJournalEntryEventData()
 
-        val domain = LedgerDomainEventEntityMapper.toDomain(eventData)
+        val domain = toDomain(eventData)
 
         assertEquals(eventData.journalEntryId, domain.id)
         assertEquals(eventData.journalType, domain.journalType)

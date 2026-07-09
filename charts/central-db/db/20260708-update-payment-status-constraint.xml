@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+
+    <changeSet id="update-payment-status-constraint-settled" author="dogancaglar">
+        <!-- Safely drop and recreate the constraint to include the full correct domain statuses -->
+        <sql>
+            ALTER TABLE payments DROP CONSTRAINT IF EXISTS chk_payments_status_valid;
+            ALTER TABLE payments ADD CONSTRAINT chk_payments_status_valid
+                CHECK (status IN (
+                    'AUTHORIZED',
+                    'SENT_FOR_SETTLE',
+                    'CAPTURED',
+                    'PARTIALLY_CAPTURED',
+                    'VOIDED',
+                    'PARTIALLY_REFUNDED',
+                    'SETTLED',
+                    'REFUNDED'
+                ));
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

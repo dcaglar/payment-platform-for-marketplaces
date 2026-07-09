@@ -7,4 +7,5 @@ import org.apache.ibatis.annotations.Mapper
 interface LocalOutboxWriterMapper {
     fun insertOutboxEvent(event: OutboxEventEntity ): Int
     fun insertAllOutboxEvents(events: List<OutboxEventEntity>): Int
+    fun checkPendingEventsExist(): Boolean
 }

@@ -108,6 +108,7 @@
                         'PARTIALLY_CAPTURED',
                         'VOIDED',
                         'PARTIALLY_REFUNDED',
+                        'SETTLED',
                         'REFUNDED'
                     ));
         </sql>

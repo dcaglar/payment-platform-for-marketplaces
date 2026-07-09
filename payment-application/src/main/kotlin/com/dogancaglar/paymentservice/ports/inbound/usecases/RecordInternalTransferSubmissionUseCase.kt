@@ -12,10 +12,10 @@ interface RecordInternalTransferSubmissionUseCase {
         paymentId: PaymentId,
         paymentIntentId: PaymentIntentId,
         paymentMerchantAccountId:String,
-        captureTxId: TxId,
         sourceAccount: String,
         targetAccount: String,
+        transferAmount : Amount,
         journalType: JournalType,
-        transferAmount : Amount
+        reason:String
     )
 }

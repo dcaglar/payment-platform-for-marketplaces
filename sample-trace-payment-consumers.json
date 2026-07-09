@@ -1,0 +1,900 @@
+{
+  "data": [
+    {
+      "traceID": "12859791137859f0f12aed15f3b31144",
+      "spans": [
+        {
+          "traceID": "12859791137859f0f12aed15f3b31144",
+          "spanID": "6727b30d463862f6",
+          "operationName": "SELECT central-db.account_directory",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "12859791137859f0f12aed15f3b31144",
+              "spanID": "89b0156fb1ae5395"
+            }
+          ],
+          "startTime": 1783529481938680,
+          "duration": 401,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://central-db-postgresql:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "central-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "SELECT"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "account_directory"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "SELECT account_code, account_type AS type, master_account_code, currency, category, country, status FROM account_directory WHERE account_code = ?"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "central-db-postgresql"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "12859791137859f0f12aed15f3b31144",
+          "spanID": "d48166704ffd1666",
+          "operationName": "SELECT central-db.account_directory",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "12859791137859f0f12aed15f3b31144",
+              "spanID": "89b0156fb1ae5395"
+            }
+          ],
+          "startTime": 1783529481940219,
+          "duration": 519,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://central-db-postgresql:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "central-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "SELECT"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "account_directory"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "SELECT account_code, account_type AS type, master_account_code, currency, category, country, status FROM account_directory WHERE account_code = ?"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "central-db-postgresql"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "12859791137859f0f12aed15f3b31144",
+          "spanID": "9417f6f03cd2aba8",
+          "operationName": "SELECT central-db.payments",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "12859791137859f0f12aed15f3b31144",
+              "spanID": "89b0156fb1ae5395"
+            }
+          ],
+          "startTime": 1783529481942297,
+          "duration": 1247,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://central-db-postgresql:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "central-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "SELECT"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "payments"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "SELECT payment_id, payment_intent_id, buyer_id, merchant_account, processing_model, total_amount_value, currency, captured_amount_value, refunded_amount_value, status, splits_json::text AS splits_json, created_at, updated_at FROM payments WHERE payment_intent_id = ?"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "central-db-postgresql"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "12859791137859f0f12aed15f3b31144",
+          "spanID": "48484a05f37716a0",
+          "operationName": "SELECT central-db.transfers",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "12859791137859f0f12aed15f3b31144",
+              "spanID": "89b0156fb1ae5395"
+            }
+          ],
+          "startTime": 1783529481946864,
+          "duration": 408,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://central-db-postgresql:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "central-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "SELECT"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "transfers"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "SELECT * FROM transfers WHERE transfer_id = ?"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "central-db-postgresql"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "12859791137859f0f12aed15f3b31144",
+          "spanID": "4baa25393e8aacd5",
+          "operationName": "INSERT central-db.transfers",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "12859791137859f0f12aed15f3b31144",
+              "spanID": "89b0156fb1ae5395"
+            }
+          ],
+          "startTime": 1783529481951235,
+          "duration": 471,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://central-db-postgresql:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "central-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "INSERT"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "transfers"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "INSERT INTO transfers ( transfer_id, payment_id,payment_intent_id,merchant_account_id,amount_value, currency, source_account, target_account, transfer_type, status, created_at, updated_at ) VALUES ( ?,?,?,?, ?, ?, ?,?, ?, ?, ?, ? ) ON CONFLICT (transfer_id) DO UPDATE SET status = EXCLUDED.status, updated_at = EXCLUDED.updated_at"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "central-db-postgresql"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "12859791137859f0f12aed15f3b31144",
+          "spanID": "5f08bb616b1825b0",
+          "operationName": "INSERT central-db.journal_entries",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "12859791137859f0f12aed15f3b31144",
+              "spanID": "89b0156fb1ae5395"
+            }
+          ],
+          "startTime": 1783529481952167,
+          "duration": 442,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://central-db-postgresql:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "central-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "INSERT"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "journal_entries"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "INSERT INTO journal_entries (id, global_journal_entry_id, journal_type, name, payment_id, tx_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "central-db-postgresql"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "12859791137859f0f12aed15f3b31144",
+          "spanID": "810667b71b2f51ca",
+          "operationName": "INSERT central-db.postings",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "12859791137859f0f12aed15f3b31144",
+              "spanID": "89b0156fb1ae5395"
+            }
+          ],
+          "startTime": 1783529481953289,
+          "duration": 412,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://central-db-postgresql:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "central-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "INSERT"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "postings"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "INSERT INTO postings (journal_id, account_code, account_type, amount, direction, currency, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (journal_id, account_code) DO NOTHING"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "central-db-postgresql"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "12859791137859f0f12aed15f3b31144",
+          "spanID": "78706620abad9231",
+          "operationName": "INSERT central-db.postings",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "12859791137859f0f12aed15f3b31144",
+              "spanID": "89b0156fb1ae5395"
+            }
+          ],
+          "startTime": 1783529481954230,
+          "duration": 279,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://central-db-postgresql:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "central-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "INSERT"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "postings"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "INSERT INTO postings (journal_id, account_code, account_type, amount, direction, currency, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (journal_id, account_code) DO NOTHING"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "central-db-postgresql"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "12859791137859f0f12aed15f3b31144",
+          "spanID": "7c51e8fe783ca422",
+          "operationName": "INSERT central-db.outbox_event",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "12859791137859f0f12aed15f3b31144",
+              "spanID": "89b0156fb1ae5395"
+            }
+          ],
+          "startTime": 1783529481955381,
+          "duration": 365,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://central-db-postgresql:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "central-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "INSERT"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "outbox_event"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "INSERT INTO outbox_event ( oeid, partition_key, event_type, aggregate_id, event_id, parent_event_id, payload, status, created_at, updated_at, claimed_at, claimed_by ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "central-db-postgresql"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "12859791137859f0f12aed15f3b31144",
+          "spanID": "89b0156fb1ae5395",
+          "operationName": "payment.psp.results process",
+          "references": [],
+          "startTime": 1783529481936392,
+          "duration": 25118,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.spring-kafka-2.7"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "messaging.client_id",
+              "type": "string",
+              "value": "psp-result-consumer-0"
+            },
+            {
+              "key": "messaging.destination.name",
+              "type": "string",
+              "value": "payment.psp.results"
+            },
+            {
+              "key": "messaging.destination.partition.id",
+              "type": "string",
+              "value": "0"
+            },
+            {
+              "key": "messaging.kafka.consumer.group",
+              "type": "string",
+              "value": "payment.psp.result.consumer"
+            },
+            {
+              "key": "messaging.kafka.message.key",
+              "type": "string",
+              "value": "200654969060327424"
+            },
+            {
+              "key": "messaging.kafka.message.offset",
+              "type": "int64",
+              "value": 16
+            },
+            {
+              "key": "messaging.message.body.size",
+              "type": "int64",
+              "value": 714
+            },
+            {
+              "key": "messaging.operation",
+              "type": "string",
+              "value": "process"
+            },
+            {
+              "key": "messaging.system",
+              "type": "string",
+              "value": "kafka"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "consumer"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "payment-consumers",
+          "tags": [
+            {
+              "key": "container.id",
+              "type": "string",
+              "value": "882eb0e573794979170c3143228bb1697fab6fd989c06e9c0559d5db4251f3c8"
+            },
+            {
+              "key": "host.arch",
+              "type": "string",
+              "value": "aarch64"
+            },
+            {
+              "key": "host.name",
+              "type": "string",
+              "value": "payment-consumers-0"
+            },
+            {
+              "key": "k8s.cluster.uid",
+              "type": "string",
+              "value": "29a583cb-1af7-46aa-a365-c57b0d94c747"
+            },
+            {
+              "key": "k8s.namespace.name",
+              "type": "string",
+              "value": "payment"
+            },
+            {
+              "key": "k8s.node.name",
+              "type": "string",
+              "value": "orbstack"
+            },
+            {
+              "key": "k8s.pod.name",
+              "type": "string",
+              "value": "payment-consumers-0"
+            },
+            {
+              "key": "k8s.pod.start_time",
+              "type": "string",
+              "value": "2026-07-08T16:46:31Z"
+            },
+            {
+              "key": "k8s.pod.uid",
+              "type": "string",
+              "value": "80c2de30-eaea-4e01-b65a-5ee5a9ef468c"
+            },
+            {
+              "key": "k8s.statefulset.name",
+              "type": "string",
+              "value": "payment-consumers"
+            },
+            {
+              "key": "k8s.statefulset.uid",
+              "type": "string",
+              "value": "b8891902-43a5-4e76-97d5-0af0da55c416"
+            },
+            {
+              "key": "os.description",
+              "type": "string",
+              "value": "Linux 7.0.11-orbstack-00360-gc9bc4d96ac70"
+            },
+            {
+              "key": "os.type",
+              "type": "string",
+              "value": "linux"
+            },
+            {
+              "key": "os.version",
+              "type": "string",
+              "value": "7.0.11-orbstack-00360-gc9bc4d96ac70"
+            },
+            {
+              "key": "process.command_args",
+              "type": "string",
+              "value": "[\"/opt/java/openjdk/bin/java\",\"-jar\",\"app.jar\"]"
+            },
+            {
+              "key": "process.executable.path",
+              "type": "string",
+              "value": "/opt/java/openjdk/bin/java"
+            },
+            {
+              "key": "process.pid",
+              "type": "int64",
+              "value": 1
+            },
+            {
+              "key": "process.runtime.description",
+              "type": "string",
+              "value": "Eclipse Adoptium OpenJDK 64-Bit Server VM 21.0.11+10-LTS"
+            },
+            {
+              "key": "process.runtime.name",
+              "type": "string",
+              "value": "OpenJDK Runtime Environment"
+            },
+            {
+              "key": "process.runtime.version",
+              "type": "string",
+              "value": "21.0.11+10-LTS"
+            },
+            {
+              "key": "service.instance.id",
+              "type": "string",
+              "value": "48db2a1d-515f-4fdd-8f69-f7a46a6c86ef"
+            },
+            {
+              "key": "service.namespace",
+              "type": "string",
+              "value": "payment"
+            },
+            {
+              "key": "service.version",
+              "type": "string",
+              "value": "1.0.0-SNAPSHOT"
+            },
+            {
+              "key": "telemetry.distro.name",
+              "type": "string",
+              "value": "opentelemetry-spring-boot-starter"
+            },
+            {
+              "key": "telemetry.distro.version",
+              "type": "string",
+              "value": "2.29.0"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "java"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "opentelemetry"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.63.0"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    }
+  ],
+  "total": 0,
+  "limit": 0,
+  "offset": 0,
+  "errors": null
+}

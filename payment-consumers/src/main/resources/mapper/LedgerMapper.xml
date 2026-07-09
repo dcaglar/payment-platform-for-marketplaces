@@ -8,6 +8,7 @@
     <resultMap id="JournalEntryResultMap"
                type="com.dogancaglar.common.db.entity.JournalEntryEntity">
         <id property="id" column="id"/>
+        <result property="globalJournalEntryId" column="global_journal_entry_id"/>
         <result property="journalType" column="journal_type"/>
         <result property="name" column="name"/>
         <result property="paymentId" column="payment_id"/>
@@ -30,8 +31,8 @@
     </resultMap>
 
     <insert id="insertJournalEntry" parameterType="com.dogancaglar.common.db.entity.JournalEntryEntity">
-        INSERT INTO journal_entries (id, journal_type, name, payment_id, tx_id, created_at)
-        VALUES (#{id}, #{journalType}, #{name}, #{paymentId}, #{txId}, #{createdAt})
+        INSERT INTO journal_entries (id, global_journal_entry_id, journal_type, name, payment_id, tx_id, created_at)
+        VALUES (#{id}, #{globalJournalEntryId}, #{journalType}, #{name}, #{paymentId}, #{txId}, #{createdAt})
         ON CONFLICT (id) DO NOTHING
     </insert>
 
@@ -42,7 +43,7 @@
     </insert>
 
     <select id="findByJournalId" resultMap="JournalEntryResultMap">
-        SELECT id, journal_type, name, payment_id, tx_id, created_at
+        SELECT id, global_journal_entry_id, journal_type, name, payment_id, tx_id, created_at
         FROM journal_entries
         WHERE id = #{journalId}
     </select>

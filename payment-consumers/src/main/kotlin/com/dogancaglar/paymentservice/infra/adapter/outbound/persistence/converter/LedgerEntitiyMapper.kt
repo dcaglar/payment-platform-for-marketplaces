@@ -11,10 +11,11 @@ internal object LedgerEntitiyMapper {
     fun toJournalEntryEntity(entry: JournalEntry): JournalEntryEntity =
         JournalEntryEntity(
             id = entry.id,
+            globalJournalEntryId = entry.globalJournalEntryId,
             journalType = entry.journalType.name,
             name = entry.name,
             paymentId = entry.paymentId.value, // 🛡️ Native Long mapping
-            txId = entry.txId.value,           // 🛡️ Native Long mapping
+            txId = entry.txId?.value,           // 🛡️ Native Long mapping
             createdAt = Utc.nowInstant(),
         )
 

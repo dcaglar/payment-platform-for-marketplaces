@@ -1,4 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+ val transferId: Long,
+    val paymentId  : Long,
+    val paymentIntentId:Long,
+    val merchantAccountId:String,
+    val amountValue: Long,
+    val currency: String,
+    val sourceAccount: String,
+    val targetAccount: String,
+    val transferType: String,
+    val status: String,
+    val createdAt: LocalDateTime,
+    val updatedAt: LocalDateTime
+-->
 <databaseChangeLog
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
@@ -10,7 +24,13 @@
             <column name="transfer_id" type="BIGINT">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="source_transaction_id" type="BIGINT">
+            <column name="payment_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payment_intent_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="merchant_account_id" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
             <column name="amount_value" type="BIGINT">

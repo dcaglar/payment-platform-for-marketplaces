@@ -25,7 +25,6 @@ class RecordInternalTransferSubmissionService(
     private val centralDbTransactionalFacadePort: CentralDbTransactionalFacadePort,
     private val idGeneratorPort: IdGeneratorPort,
     private  val outboxEventFactoryPort: OutboxEventFactoryPort,
-    private val serializationPort: SerializationPort
 ) : RecordInternalTransferSubmissionUseCase {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -34,11 +33,11 @@ class RecordInternalTransferSubmissionService(
         paymentId: PaymentId,
         paymentIntentId: PaymentIntentId,
         paymentMerchantAccountId:String,
-        captureTxId: TxId,
         sourceAccount: String,
         targetAccount: String,
+        transferAmount : Amount,
         journalType: JournalType,
-        transferAmount : Amount
+        reason:String
     ) {
         val transferId = InternalTransferId(idGeneratorPort.generateId()) // using same generator for simplicity
 
@@ -48,31 +47,17 @@ class RecordInternalTransferSubmissionService(
             paymentIntentId = paymentIntentId,
             paymentId = paymentId,
             merchantAccountId = paymentMerchantAccountId,
-            sourceTransactionId = captureTxId,
             amount = transferAmount,
             sourceAccount = sourceAccount,
             targetAccount = targetAccount,
             transferType =journalType.name
         ).markSentForTransfer()
 
-        // 2. Create InternalTransferTx PENDING
-        val txId = TxId(idGeneratorPort.generateId())
-        val internalTransferTx = Tx.createInternalTransferTx(
-            txId = txId,
-            paymentId = paymentId,
-            paymentIntentId = paymentIntentId,
-            parentCaptureTxId = captureTxId,
-            amount = transferAmount,
-            sourceAccount = sourceAccount,
-            targetAccount = targetAccount,
-            txType = journalType,
-            status = TxStatus.PENDING
-        )
+
 
         // 3. Create EventEnvelope for Outbox
         val command = InternalTransferCommand.from(
             transfer = internalTransfer,
-            txId = txId.value,
             paymentIntentId = paymentIntentId.value.toString(),
             publicPaymentIntentId = paymentIntentId.toPublicPaymentIntentId(),
             journalType = journalType.name,
@@ -81,9 +66,9 @@ class RecordInternalTransferSubmissionService(
         val outboxEvent = outboxEventFactoryPort.create(command)
         // 4. Atomically persist
         logger.debug("Persisting InternalTransfer and Tx for paymentIntentId=$paymentIntentId, transferId=${transferId.value}")
+            //  notice transfertx s not vreated, because internal transfer do not refer to external trransaction
         centralDbTransactionalFacadePort.recordInternalTransferOperationInLedger(
             internalTransfer = internalTransfer,
-            tx = internalTransferTx,
             outboxEvents = listOf(outboxEvent),
             journalEntries = emptyList()
         )

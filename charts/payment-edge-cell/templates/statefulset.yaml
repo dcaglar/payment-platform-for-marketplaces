@@ -107,13 +107,6 @@ spec:
               value: "{{ .Values.paymentService.jvmOpts }}"
             - name: SPRING_PROFILES_ACTIVE
               value: "{{ .Values.spring.profile | default "local" }}"
-            - name: SPRING_DATA_REDIS_URL
-              value: "{{ .Values.redis.url | default "redis://localhost:6379" }}"
-            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
-              valueFrom:
-                configMapKeyRef:
-                  name: edge-cell-config
-                  key: MANAGEMENT_OTLP_TRACING_ENDPOINT
             - name: POSTGRES_DB
               valueFrom: {configMapKeyRef: {name: edge-cell-config, key: EDGE_DB_NAME}}
           startupProbe:

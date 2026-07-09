@@ -12,29 +12,35 @@ import java.time.Instant
  */
 data class JournalEntryEventData private constructor(
     val journalEntryId: String, // e.g., "AUTH:paymentorder-123"
+    val globalJournalEntryId: Long,
     val journalType: JournalType,
     val journalName: String?,
     val paymentId: Long,
-    val txId: Long,
+    val txId: Long?,
+    val reason : String?,
     val createdAt: Instant,
     val postings: List<PostingEventData>
 ) {
     companion object {
         fun create(
             journalEntryId: String,
+            globalJournalEntryId: Long,
             journalType: JournalType,
             journalName: String?,
             paymentId: Long,
-            txId: Long,
+            txId: Long?,
+            reason: String?,
             createdAt: Instant,
             postings: List<PostingEventData>
         ): JournalEntryEventData {
             return JournalEntryEventData(
                 journalEntryId = journalEntryId,
+                globalJournalEntryId = globalJournalEntryId,
                 journalType = journalType,
                 journalName = journalName,
                 paymentId = paymentId,
                 txId = txId,
+                reason = reason,
                 createdAt = createdAt,
                 postings = postings
             )

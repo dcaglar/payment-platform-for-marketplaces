@@ -77,23 +77,6 @@ object PaymentTxEntityMapper {
              settledAmountValue = domain.grossAmount.quantity,
              createdAt          = domain.createdAt
          )
-
-        is Tx.InternalTransferTx -> PaymentTxEntity(
-            txId              = domain.txId.value,
-            txType            = domain.txType.name,
-            paymentId         = domain.paymentId.value,
-            paymentIntentId   = domain.paymentIntentId.value,
-            parentTxId        = domain.parentCaptureTxId.value,
-            acquirerReference = "",
-            amountValue       = domain.amount.quantity,
-            amountCurrency    = domain.amount.currency.currencyCode,
-            status            = domain.status.name,
-            settleStatus      = null,
-            acquirerBatchRef  = null,
-            settledAmountValue = null,
-            createdAt         = domain.createdAt
-        )
-
         is Tx.PayoutTx -> PaymentTxEntity(
             txId              = domain.txId.value,
             txType            = domain.txType.name,
@@ -201,21 +184,6 @@ object PaymentTxEntityMapper {
                 settleStatus           = entity.settleStatus?.let { SettleStatus.valueOf(it) } ?: SettleStatus.UNMATCHED,
                 status                 = status,
                 createdAt              = createdAt
-            )
-
-            "INTERNAL_TRANSFER", "COMMISSION_FEE", "REVENUE_RECOGNITION", "ADJUSTMENT" -> Tx.InternalTransferTx(
-                txId              = TxId(entity.txId),
-                paymentId         = PaymentId(entity.paymentId),
-                paymentIntentId   = paymentIntentId,
-                parentCaptureTxId = TxId(requireNotNull(entity.parentTxId) {
-                    "${entity.txType} row txId=${entity.txId} is missing parentTxId"
-                }),
-                sourceAccount     = "",
-                targetAccount     = "",
-                amount            = amount,
-                txType            = com.dogancaglar.paymentservice.domain.model.ledger.JournalType.valueOf(entity.txType),
-                status            = status,
-                createdAt         = createdAt
             )
 
             "PAYOUT" -> Tx.PayoutTx(

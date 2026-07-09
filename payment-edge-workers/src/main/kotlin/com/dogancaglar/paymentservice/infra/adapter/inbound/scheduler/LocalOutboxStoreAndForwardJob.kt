@@ -1,12 +1,8 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.scheduler
 
 import com.dogancaglar.common.time.Utc
-import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
-import com.dogancaglar.paymentservice.ports.outbound.CentralOutboxForwarderPort
-import com.dogancaglar.paymentservice.ports.outbound.LocalOutboxStoreAndForwardPort
+import io.opentelemetry.instrumentation.annotations.WithSpan
 
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Timer
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
@@ -17,41 +13,30 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 /**
- * LocalOutboxStoreAndForwardJob - The Edge Local Forwarder Job.
- * Created from scratch as a forwarder to replace the original OutboxDispatcherJob's dispatcher role.
+ * LocalOutboxStoreAndForwardJob - The Edge Local Forwarder Scheduler.
  * 
- * Instead of publishing directly to Kafka, this job polls the local edge database,
- * extracts the aggregate ID (sellerId) to ensure order-preserving key-grouping,
- * forwards batches to the Central DB staging queue (modification_processor_queue),
- * and updates the edge watermark.
+ * Handles timers, thread pools, and graceful shutdown lifecycle for edge-to-central event forwarding.
+ * Delegates actual transactional work to the injected LocalOutboxDispatchWorker.
  */
 @Service
 @DependsOn("localOutboxMaintenanceJob")
 class LocalOutboxStoreAndForwardJob(
-    @param:Qualifier("localOutboxStoreAndForwardPort") private val localOutboxStoreAndForwardPort: LocalOutboxStoreAndForwardPort,
-    private val centralOutboxRepository: CentralOutboxForwarderPort,
+    private val dispatchWorker: LocalOutboxDispatchWorker,
     @param:Qualifier("outboxJobTaskScheduler") private val taskScheduler: ThreadPoolTaskScheduler,
     @param:Value("\${outbox-dispatcher.thread-count:2}") private val threadCount: Int,
-    @param:Value("\${outbox-dispatcher.batch-size:250}") private val batchSize: Int,
-    @param:Value("\${app.instance-id}") private val appInstanceId: String,
-    private val meterRegistry: MeterRegistry
+    @param:Value("\${app.instance-id}") private val appInstanceId: String
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    init {
-        io.micrometer.core.instrument.Gauge.builder("local_outbox_backlog_size", this) {
-            localOutboxStoreAndForwardPort.countNew().toDouble()
-        }.register(meterRegistry)
-    }
-
+    @WithSpan("myScheduledMethod")
     @Scheduled(initialDelay = 30000, fixedDelay = 500)
     fun dispatchBatches() {
-        if(centralOutboxRepository.isSchemaReady()) {
+        if (dispatchWorker.isSchemaReady()) {
             repeat(threadCount) { workerIdx ->
                 val delayMs = 500L * workerIdx
                 taskScheduler.schedule(
                     {
-                        dispatchBatchWorker()
+                        dispatchWorker.dispatchBatchWorker()
                     },
                     Utc.nowInstant().plusMillis(delayMs)
                 )
@@ -59,126 +44,54 @@ class LocalOutboxStoreAndForwardJob(
         } else {
             logger.warn("FATAL ERROR, CENTRAL TABLE NOT PRESENT, SHUTTING DOWN")
         }
-
     }
 
     @Scheduled(initialDelay = 30000, fixedDelay = 120000)
-    @Transactional(transactionManager = "outboxTxManager", timeout = 5)
     fun reclaimStuck() {
-        val reclaimed = localOutboxStoreAndForwardPort
-            .reclaimStuck(60 * 10)
+        val reclaimed = dispatchWorker.reclaimStuck()
         if (reclaimed > 0) {
             logger.warn("Reclaimer reset {} stuck outbox events to NEW", reclaimed)
         }
     }
 
-    @Transactional(transactionManager = "outboxTxManager", timeout = 2)
-    fun claimBatch(batchSize: Int, workerId: String): List<OutboxEvent> {
-        return localOutboxStoreAndForwardPort.findEligible(batchSize, workerId)
-    }
-
-    @Transactional(transactionManager = "centralTxManager", timeout = 5)
-    fun forwardBatch(events: List<OutboxEvent>): Boolean {
-        if (events.isEmpty()) return true
-
-        return try {
-            // Push standard OutboxEvents to central staging database
-            centralOutboxRepository.insertBatch(appInstanceId, events)
-
-            // Update the Edge Watermark progress
-            val maxOriginatedAt = events.maxOf { Utc.toInstant(it.createdAt) }
-            centralOutboxRepository.updateWatermark(appInstanceId, maxOriginatedAt)
-
-            true
-        } catch (t: Throwable) {
-            logger.warn(
-                "⚠️ Batch forward failed; will unclaim {} rows.",
-                events.size, t
-            )
-            false
-        }
-    }
-
-    @Transactional(transactionManager = "outboxTxManager", timeout = 5)
-    fun persistResults(succeeded: List<OutboxEvent>) {
-        if (succeeded.isNotEmpty()) {
-            localOutboxStoreAndForwardPort.markDispatched(succeeded)
-        }
-    }
-
-    @Transactional(transactionManager = "outboxTxManager", timeout = 2)
-    fun unclaimFailedNow(workerId: String, failed: List<OutboxEvent>) {
-        if (failed.isEmpty()) return
-        val adapter = localOutboxStoreAndForwardPort
-        val n = adapter.unclaimFailed(workerId, failed.map { it.oeid })
-        if (n > 0) {
-            logger.warn("Unclaimed {} failed outbox rows for worker={}", n, workerId)
-        }
-    }
-
-    fun dispatchBatchWorker() {
-        val sample = Timer.start(meterRegistry)
-        val threadName = Thread.currentThread().name
-        val workerId = "$appInstanceId:$threadName"
-
-        try {
-            val events = claimBatch(batchSize, workerId)
-            if (events.isEmpty()) {
-                centralOutboxRepository.updateWatermark(appInstanceId, Utc.nowInstant())
-                sample.stop(meterRegistry.timer("outbox_dispatcher_duration"))
-                return
-            }
-
-            val success = forwardBatch(events)
-            if (success) {
-                persistResults(events.map { it.markAsSent() })
-                logger.info("Forwarded ok={} on {}", events.size, threadName)
-                meterRegistry.counter("outbox_dispatched_total").increment(events.size.toDouble())
-            } else {
-                try {
-                    unclaimFailedNow(workerId, events)
-                } catch (t: Throwable) {
-                    logger.warn("Unclaim failed for {} rows (worker={}) – will rely on reclaimer",
-                        events.size, workerId, t)
-                }
-                logger.info("Forwarded failed={} on {}", events.size, threadName)
-                meterRegistry.counter("outbox_dispatch_failed_total").increment(events.size.toDouble())
-            }
-        } catch (t: Throwable) {
-            meterRegistry.counter("outbox_dispatch_failed_total").increment()
-            throw t
-        } finally {
-            sample.stop(meterRegistry.timer("outbox_dispatcher_duration"))
-        }
-    }
-
     @jakarta.annotation.PreDestroy
     fun onShutdown() {
-        logger.info("Graceful shutdown initiated. Flushing remaining local outbox events to Central DB...")
+        logger.info("Step 1: Graceful shutdown initiated. We will block termination until the local outbox is completely empty.")
+        
+        // Forcefully reclaim any events that were CLAIMED by threads that just got interrupted
+        val reclaimed = dispatchWorker.reclaimAll()
+        if (reclaimed > 0) {
+            logger.info("Step 2: Rescued {} abandoned events. (Active threads were killed, so we instantly reset their events back to 'NEW')", reclaimed)
+        } else {
+            logger.info("Step 2: No abandoned events needed rescue.")
+        }
+
+        logger.info("Step 3: Beginning the final drain loop. We will wait for 3 consecutive seconds of silence to ensure no last-minute events are missed.")
         var flushCount = 0
         var emptyCycles = 0
         while (emptyCycles < 3) {
             val workerId = "$appInstanceId:shutdown-flush"
-            val events = claimBatch(batchSize, workerId)
-            if (events.isEmpty()) {
+            val processed = dispatchWorker.flushBatch(workerId)
+
+            if (processed == 0) {
                 emptyCycles++
+                logger.info("   -> Empty cycle {}/3: No new events found in the local outbox.", emptyCycles)
                 Thread.sleep(1000)
-                continue
-            }
-            emptyCycles = 0
-            val success = forwardBatch(events)
-            if (success) {
-                persistResults(events.map { it.markAsSent() })
-                flushCount += events.size
+            } else if (processed > 0) {
+                logger.info("   -> Sent {} events! Resetting empty cycle countdown back to 0.", processed)
+                emptyCycles = 0
+                flushCount += processed
             } else {
-                logger.warn("Shutdown flush failed. Will retry.")
-                unclaimFailedNow(workerId, events)
+                // processed == -1 means flush failed and it unclaimed
+                logger.warn("   -> Batch forward failed during drain. Backing off 2 seconds before retry.")
                 Thread.sleep(2000)
             }
         }
-        logger.info("Shutdown flush complete. Flushed {} events. Deleting watermark for node: {}", flushCount, appInstanceId)
+
+        logger.info("Step 4: Drain complete! We saw 3 full seconds of silence. Successfully forwarded a total of {} final events.", flushCount)
         try {
-            centralOutboxRepository.deleteWatermark(appInstanceId)
+            dispatchWorker.deleteWatermark(appInstanceId)
+            logger.info("Step 5: Deleted worker watermark for {}. Pod is now safely cleared to terminate.", appInstanceId)
         } catch (t: Throwable) {
             logger.error("Failed to delete watermark during shutdown!", t)
         }
