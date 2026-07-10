@@ -87,7 +87,6 @@ class CentralOutboxPartitionCreatorConfig {
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
-        scheduler.initialize()
         return scheduler
     }
 }

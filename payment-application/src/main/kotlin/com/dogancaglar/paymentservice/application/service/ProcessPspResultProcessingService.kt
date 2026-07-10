@@ -116,7 +116,8 @@ open class ProcessPspResultProcessingService(
 
         // 5. Emit an OutboxEvent containing the raw JournalEntries
         val now = Utc.nowInstant()
-        val deterministicBatchId = "AUTH:${txIdValue}:${JournalType.AUTHORIZATION}:${txIdValue}"
+
+        val deterministicBatchId = "${transaction.txType.name}:${event.publicPaymentIntentId}:${transaction.txId.value}"
         val ledgerEvent = JournalEntriesRecorded.from(
             cmd = event,
             batchId = deterministicBatchId,
@@ -178,7 +179,7 @@ open class ProcessPspResultProcessingService(
         // Emit an OutboxEvent containing the raw JournalEntries
         // This decouples marketplace split logic from basic capture processing
         val now = Utc.nowInstant()
-        val deterministicBatchId = "CAPTURE:${captureTx.txId.value}:${JournalType.CAPTURE}:${updatedTx.status}"
+        val deterministicBatchId = "${captureTx.txType.name}:${event.publicPaymentIntentId}:${captureTx.txId.value}:${captureTx.status.name}"
         val ledgerEvent = JournalEntriesRecorded.from(
             cmd = event,
             batchId = deterministicBatchId,
@@ -215,7 +216,7 @@ open class ProcessPspResultProcessingService(
 
         val updatedTransfer = transfer.markTransferred()
 
-
+        val publicTransferId = PublicIdFactory.publicInternalTransferId(transferId.value)
         val journalIdentifier = "${event.publicPaymentIntentId}-${event.sourceAccount}+${event.targetAccount}"
 
         //  Polymorphic invocation selects exact journal factory profile structures cleanly!
@@ -251,7 +252,7 @@ open class ProcessPspResultProcessingService(
                 }
             }
         val now = Utc.nowInstant()
-        val deterministicBatchId ="INT_TRF:${paymentIntentId}:${event.sourceAccount}:${event.targetAccount}:SUCCESS"
+        val deterministicBatchId =  "${JournalType.INTERNAL_TRANSFER}:${event.publicPaymentIntentId}:${publicTransferId}:${event.sourceAccount}:${event.targetAccount}"
         val ledgerEvent = JournalEntriesRecorded.from(
             cmd = event,
             batchId = deterministicBatchId ,
@@ -331,7 +332,7 @@ open class ProcessPspResultProcessingService(
         )
 
         val now = Utc.nowInstant()
-        val deterministicBatchId ="SETTLE:${settlementTxId}:${JournalType.SETTLEMENT}:SUCCESS"
+        val deterministicBatchId = "${settlementTxRecord.txType.name}:${event.publicPaymentIntentId}:${settlementTxRecord.txId.value}:${settlementTxRecord.status.name}"
         val ledgerEvent = JournalEntriesRecorded.from(
             cmd = event,
             batchId = deterministicBatchId,

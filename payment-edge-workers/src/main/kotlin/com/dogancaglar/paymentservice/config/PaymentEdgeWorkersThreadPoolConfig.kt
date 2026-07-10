@@ -46,6 +46,30 @@ class PaymentEdgeWorkersThreadPoolConfig(private val meterRegistry: MeterRegistr
         return scheduler
     }
 
+
+    @Bean("resilientExecutor")
+    fun resilientExecutor(): ThreadPoolTaskExecutor {
+
+        val resilientExecutor = ThreadPoolTaskExecutor()
+        resilientExecutor.corePoolSize = 32
+        resilientExecutor.maxPoolSize = 32
+        resilientExecutor.queueCapacity = 500
+        resilientExecutor.setThreadNamePrefix("edge-worker-resilient-callback-")
+        resilientExecutor.setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
+/*
+public ExecutorService wrapExecutor(ExecutorService executor) {
+  return Context.taskWrapping(executor);
+}
+ */
+        Context.taskWrapping {  }
+        resilientExecutor.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
+        }
+
+        return resilientExecutor
+    }
+
     @Bean
     fun outboxEventPartitionMaintenanceScheduler(): ThreadPoolTaskScheduler {
         val scheduler = ThreadPoolTaskScheduler()
@@ -55,22 +79,23 @@ class PaymentEdgeWorkersThreadPoolConfig(private val meterRegistry: MeterRegistr
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
-        scheduler.initialize()
+
         return scheduler
     }
 
 
 
     @Bean("taskScheduler")
-    fun defaultSpringScheduler(): ThreadPoolTaskScheduler =
-        ThreadPoolTaskScheduler().apply {
-            poolSize = 2
-            setThreadNamePrefix("payment-service-spring-scheduled-")
-            setWaitForTasksToCompleteOnShutdown(true)
-            setTaskDecorator { runnable ->
-                val currentContext = Context.current()
-                Runnable { currentContext.makeCurrent().use { runnable.run() } }
-            }
-            initialize()
+    fun defaultSpringScheduler(): ThreadPoolTaskScheduler {
+        val scheduler = ThreadPoolTaskScheduler()
+        scheduler.poolSize = 2
+        scheduler.setThreadNamePrefix("payment-service-spring-scheduled-")
+        scheduler.setWaitForTasksToCompleteOnShutdown(true)
+        scheduler.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
+
+        return scheduler
+    }
 }

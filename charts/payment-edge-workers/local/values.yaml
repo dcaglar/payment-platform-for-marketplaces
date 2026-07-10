@@ -31,15 +31,26 @@ redis:
   url: redis://redis-master:6379
 kafka:
   bootstrapServers: kafka.payment.svc.cluster.local:9092
-
 config:
   KEYCLOAK_ISSUER_URL: "http://keycloak:8080/realms/ecommerce-platform"
   CENTRAL_DB_URL: "jdbc:postgresql://central-db-postgresql:5432/central-db?options=-c%20timezone=UTC"
   EDGE_DB_NAME: "edge-db"
   CENTRAL_DB_NAME: "central-db"
   # -OTEL start Tracing Configuration , do not use both micrometer and OTEL Starter.
+
+
+
   # ✅ OTel exporter endpoint
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://my-opentelemetry-collector.payment.svc.cluster.local:4318"
+
+
+  OTEL_SERVICE_NAME: "payment-edge-workers"
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "https://eu.i.posthog.com/i/v1/traces"
+  OTEL_EXPORTER_OTLP_TRACES_HEADERS: "Authorization=Bearer phc_ABquVAfZ7ZA3uYgMtd39p83633a5KBRAwTPkSFHTvWYc"
+
+
+
+
   # ✅ OTel sampling
   OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
   OTEL_TRACES_SAMPLER_ARG: "0.5"

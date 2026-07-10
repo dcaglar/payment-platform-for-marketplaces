@@ -46,28 +46,30 @@ class ConsumerThreadPoolConfig {
     }
 
     @Bean("taskScheduler")
-    fun defaultSpringScheduler(): ThreadPoolTaskScheduler =
-        ThreadPoolTaskScheduler().apply {
-            poolSize = 2
-            setThreadNamePrefix("payment-consumers-spring-scheduled-")
-            setWaitForTasksToCompleteOnShutdown(true)
-            setTaskDecorator { runnable ->
-                val currentContext = Context.current()
-                Runnable { currentContext.makeCurrent().use { runnable.run() } }
-            }
-            initialize()
+    fun defaultSpringScheduler(): ThreadPoolTaskScheduler {
+        val scheduler = ThreadPoolTaskScheduler()
+        scheduler.poolSize = 2
+        scheduler.setThreadNamePrefix("payment-consumers-spring-scheduled-")
+        scheduler.setWaitForTasksToCompleteOnShutdown(true)
+        scheduler.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
 
+        return scheduler
+    }
+
     @Bean("retryDispatcherSpringScheduler")
-    fun retryDispatcherScheduler(): ThreadPoolTaskScheduler =
-        ThreadPoolTaskScheduler().apply {
-            poolSize = 1
-            setThreadNamePrefix("retry-dispatcher-")
-            setWaitForTasksToCompleteOnShutdown(true)
-            setTaskDecorator { runnable ->
-                val currentContext = Context.current()
-                Runnable { currentContext.makeCurrent().use { runnable.run() } }
-            }
-            initialize()
+    fun retryDispatcherScheduler(): ThreadPoolTaskScheduler {
+        val scheduler = ThreadPoolTaskScheduler()
+        scheduler.poolSize = 1
+        scheduler.setThreadNamePrefix("retry-dispatcher-")
+        scheduler.setWaitForTasksToCompleteOnShutdown(true)
+        scheduler.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
+
+        return scheduler
+    }
 }

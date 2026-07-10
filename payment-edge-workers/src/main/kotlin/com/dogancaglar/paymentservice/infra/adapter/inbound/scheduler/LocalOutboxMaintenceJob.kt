@@ -107,7 +107,7 @@ class AsyncConfig {
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
-        initialize()
+
     }
 
     @Bean("partitionRemovalExecutor")
@@ -119,6 +119,6 @@ class AsyncConfig {
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
-        initialize()
+
     }
 }

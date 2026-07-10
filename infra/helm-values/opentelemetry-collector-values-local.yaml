@@ -24,13 +24,22 @@ presets:
 service:
   enabled: true
 
+
+
+
 config:
+  processors:
+    batch: {}
+
   exporters:
-    otlp/jaeger:
-      endpoint: "jaeger.payment.svc.cluster.local:4317"
-      tls:
-        insecure: true
+    otlphttp/posthog:
+      traces_endpoint: "https://eu.i.posthog.com/i/v1/traces"
+      headers:
+        Authorization: "Bearer phc_ABquVAfZ7ZA3uYgMtd39p83633a5KBRAwTPkSFHTvWYc"
+
   service:
     pipelines:
       traces:
-        exporters: [debug, otlp/jaeger]
+        receivers: [otlp]
+        processors: [batch]
+        exporters: [otlphttp/posthog]

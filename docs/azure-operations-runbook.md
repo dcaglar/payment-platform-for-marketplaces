@@ -109,6 +109,20 @@ kubectl port-forward -n payment svc/kafka 9092:9092
 ```
 
 ###  fastest way to apply a values.yaml change directly to Kubernetes without waiting for a full script redeploy or building any images is to run a targeted helm upgrade, followed by a rollout restart (if needed).
+
+
+```bash
+helm dependency update charts/payment-edge-cell
+helm secrets upgrade --install payment-edge-cell charts/payment-edge-cell \
+-n payment --create-namespace \
+-f charts/payment-edge-cell/values.yaml \
+-f charts/payment-edge-cell/local/values.yaml \
+-f secrets://edge-cell-sops-secrets.yaml
+```
+
+
+
+
 ```bash
 helm dependency update charts/payment-consumers
 helm secrets upgrade --install payment-consumers charts/payment-consumers \
@@ -131,13 +145,12 @@ helm secrets upgrade --install payment-edge-workers charts/payment-edge-workers 
 
 
 ```bash
-helm dependency update charts/payment-edge-workers
-helm secrets upgrade --install payment-edge-workers charts/payment-edge-workers \
+helm dependency update charts/payment-central-relay
+helm secrets upgrade --install payment-central-relay charts/payment-central-relay \
 -n payment --create-namespace \
--f charts/payment-edge-workers/values.yaml \
--f charts/payment-edge-workers/local/values.yaml \
--f secrets://central-db-sops-secrets.yaml \
--f secrets://edge-cell-sops-secrets.yaml
+-f charts/payment-central-relay/values.yaml \
+-f charts/payment-central-relay/local/values.yaml \
+-f secrets://central-db-sops-secrets.yaml
 ```
 
 

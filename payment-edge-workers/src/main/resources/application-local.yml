@@ -45,9 +45,9 @@ spring:
           max-wait: 5000ms
 
 outbox-dispatcher:
-  thread-count: 2
+  thread-count: 4
   batch-size: 100
-  pool-size: 1
+  pool-size: 4
 
 db:
   outbox:

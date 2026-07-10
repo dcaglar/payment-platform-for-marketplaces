@@ -83,6 +83,8 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
     -n payment \
     -f "$OTEL_VALUES_FILE"
 
+
+
 echo "========================================================"
 echo "✅ All local external infrastructure components deployed sequentially."
 echo "Check progress via: kubectl get pods -A"

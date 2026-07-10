@@ -8,7 +8,7 @@ import com.dogancaglar.common.logging.GenericLogFields
 import com.dogancaglar.common.kafka.serde.EventEnvelopeKafkaSerializer
 import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.kafka.metadata.CONSUMER_GROUPS
-import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.observation.ObservationRegistry
 import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -55,7 +55,6 @@ import java.io.StringWriter
 @Configuration
 class KafkaTypedConsumerFactoryConfig(
     private val bootKafkaProps: KafkaProperties,
-    private val meterRegistry: MeterRegistry,
     @Value("\${app.kafka.concurrency.journal-entries:3}") private val journalEntriesConcurrency: Int,
     @Value("\${app.kafka.concurrency.capture-commands:3}") private val captureCommandsConcurrency: Int,
     @Value("\${app.kafka.concurrency.capture-submitted:3}") private val captureSubmittedConcurrency: Int
@@ -65,12 +64,11 @@ class KafkaTypedConsumerFactoryConfig(
         private const val HDR_VALUE_BYTES = "springDeserializerExceptionValue"
     }
 
-    @Bean("custom-kafka-consumer-factory-for-micrometer")
+    @Bean("custom-kafka-consumer-factory")
     fun defaultKafkaConsumerFactory(): DefaultKafkaConsumerFactory<String, EventEnvelope<*>> {
         val configs = bootKafkaProps.buildConsumerProperties().toMutableMap()
-        return DefaultKafkaConsumerFactory<String, EventEnvelope<*>>(configs).apply {
-           // addListener(MicrometerConsumerListener(meterRegistry))
-        }
+        return DefaultKafkaConsumerFactory<String, EventEnvelope<*>>(configs)
+
     }
 
     @Bean("dlqProducerFactory")
@@ -84,15 +82,16 @@ class KafkaTypedConsumerFactoryConfig(
             ByteArraySerializer::class.java
 
         val factory = DefaultKafkaProducerFactory<String, ByteArray>(cfg)
-        factory.addListener(MicrometerProducerListener<String, ByteArray>(meterRegistry))
         return factory
     }
 
     @Bean("dlqKafkaTemplate")
     fun dlqKafkaTemplate(
-        @Qualifier("dlqProducerFactory") pf: ProducerFactory<String, ByteArray>
+        @Qualifier("dlqProducerFactory") pf: ProducerFactory<String, ByteArray>,
+        registry: ObservationRegistry
     ) = KafkaTemplate(pf).apply {
-        setObservationEnabled(false)
+        setObservationEnabled(true)
+        setObservationRegistry(registry)
     }
 
     @Bean
@@ -134,12 +133,6 @@ class KafkaTypedConsumerFactoryConfig(
                 valueBytes,
                 headers
             )
-            
-            meterRegistry.counter(
-                "kafka_consumer_error_total",
-                "client_id", rec.headers().lastHeader(CLIENT_ID_CONFIG)?.value()?.let { String(it) } ?: "unknown",
-                "topic", rec.topic()
-            ).increment()
 
             dlqTemplate.send(pr)
         }
@@ -231,7 +224,7 @@ class KafkaTypedConsumerFactoryConfig(
     @Bean(CONSUMER_GROUPS.PSP_RESULT_CONSUMER + "-factory")
     fun pspResultFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
-        @Qualifier("custom-kafka-consumer-factory-for-micrometer")
+        @Qualifier("custom-kafka-consumer-factory")
         customFactory: DefaultKafkaConsumerFactory<String, EventEnvelope<*>>,
         errorHandler: DefaultErrorHandler
     ): ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<Event>> {
@@ -248,7 +241,7 @@ class KafkaTypedConsumerFactoryConfig(
     @Bean(CONSUMER_GROUPS.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR + "-factory")
     fun marketPlaceSplitConsumerFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
-        @Qualifier("custom-kafka-consumer-factory-for-micrometer")
+        @Qualifier("custom-kafka-consumer-factory")
         customFactory: DefaultKafkaConsumerFactory<String, EventEnvelope<*>>,
         errorHandler: DefaultErrorHandler
     ): ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<Event>> {
@@ -266,7 +259,7 @@ class KafkaTypedConsumerFactoryConfig(
     @Bean(CONSUMER_GROUPS.SETTLEMENT_RECORD_SIMULATOR + "-factory")
     fun settlementSimulatorFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
-        @Qualifier("custom-kafka-consumer-factory-for-micrometer")
+        @Qualifier("custom-kafka-consumer-factory")
         customFactory: DefaultKafkaConsumerFactory<String, EventEnvelope<*>>,
         errorHandler: DefaultErrorHandler
     ): ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<Event>> {
@@ -285,7 +278,7 @@ class KafkaTypedConsumerFactoryConfig(
     @Bean(CONSUMER_GROUPS.ACCOUNT_BALANCE_CONSUMER + "-factory")
     fun journalEntriesRecordedFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
-        @Qualifier("custom-kafka-consumer-factory-for-micrometer")
+        @Qualifier("custom-kafka-consumer-factory")
         customFactory: DefaultKafkaConsumerFactory<String, EventEnvelope<*>>,
         errorHandler: DefaultErrorHandler
     ): ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<Event>> {
@@ -305,7 +298,7 @@ class KafkaTypedConsumerFactoryConfig(
     @Bean(CONSUMER_GROUPS.CAPTURE_COMMAND_EXECUTOR + "-factory")
     fun captureCommandsFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
-        @Qualifier("custom-kafka-consumer-factory-for-micrometer")
+        @Qualifier("custom-kafka-consumer-factory")
         customFactory: DefaultKafkaConsumerFactory<String, EventEnvelope<*>>,
         errorHandler: DefaultErrorHandler
     ): ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<Event>> {
@@ -322,7 +315,7 @@ class KafkaTypedConsumerFactoryConfig(
     @Bean(CONSUMER_GROUPS.CAPTURE_SUBMITTED_CONSUMER + "-factory")
     fun captureSubmittedAcksFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
-        @Qualifier("custom-kafka-consumer-factory-for-micrometer")
+        @Qualifier("custom-kafka-consumer-factory")
         customFactory: DefaultKafkaConsumerFactory<String, EventEnvelope<*>>,
         errorHandler: DefaultErrorHandler
     ): ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<Event>> {
