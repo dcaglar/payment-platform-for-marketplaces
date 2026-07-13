@@ -842,19 +842,21 @@ Kafka messages are consumed using Spring Kafka's `ErrorHandlingDeserializer` del
 
 ---
 
-## 🟦 Observability & Distributed Tracing (OpenTelemetry)
+## 🟦 Observability: Metrics, Tracing, and Exemplars (OpenTelemetry)
 
-To satisfy **NFR4 (Observability)** and provide deterministic debugging across our asynchronous, distributed components, the platform relies exclusively on **OpenTelemetry (OTel)** for distributed tracing.
+To satisfy **NFR4 (Observability)** and provide deterministic debugging across our asynchronous, distributed components, the platform relies exclusively on **OpenTelemetry (OTel)** for both distributed tracing and metrics generation.
 
 ### 1. The Instrumentation Strategy: `otel-spring-starter` vs. Alternatives
 A deliberate architectural decision was made regarding how OpenTelemetry is integrated into the Spring Boot ecosystem:
 * **NO Java Agent**: We explicitly **do not use** the OpenTelemetry Java Agent (`-javaagent:opentelemetry-javaagent.jar`). While the agent provides "magic" byte-code manipulation for auto-instrumentation, it obscures the trace lifecycle, can introduce classloader conflicts, and makes manual context propagation harder to reason about in our highly customized outbox workers.
-* **NO Micrometer Tracing**: We explicitly **do not rely** on Spring Boot 3's built-in Micrometer Tracing or its OTel bridges (`management.tracing.enabled=false`). Mixing Micrometer with OTel often leads to duplicate spans or context propagation conflicts.
+* **NO Micrometer**: We explicitly **do not rely** on Spring Boot 3's built-in Micrometer metrics, Micrometer Tracing, or its OTel bridges (`management.tracing.enabled=false`). Mixing Micrometer with OTel often leads to duplicate spans or context propagation conflicts. All custom Micrometer metrics have been fully deprecated and migrated to explicit OpenTelemetry metrics.
 * **YES to `otel-spring-starter`**: Instead, the platform integrates the official **OpenTelemetry Spring Boot Starter**. This provides clean, native, and explicit auto-instrumentation for standard Spring HTTP and Kafka flows directly within our application code boundary, giving us full control over the trace context.
 
-### 2. Lightweight Telemetry Infrastructure
-The local and remote infrastructure deploys an OpenTelemetry Collector alongside a Jaeger UI instance. All services push traces via OTLP (`OTEL_EXPORTER_OTLP_ENDPOINT`) directly to the collector, which buffers and forwards them to Jaeger. This completely replaces our historical approach of using bespoke `TraceFilter` components and manual MDC injection.
-
+### 2. Modern Telemetry Infrastructure (Push over Pull)
+The local and remote infrastructure (`local` and `azure` profiles) deploys a centralized **OpenTelemetry Collector**. 
+* **Metrics Push Strategy**: Instead of relying on Prometheus to scrape application endpoints (`/metrics`) via `ServiceMonitors`, applications push their OTel metrics directly to the OTel Collector. The collector then acts as an agent, securely pushing the metrics into Prometheus via the `remote_write` API.
+* **Tempo over Jaeger**: Jaeger has been removed. **Grafana Tempo** is the designated tracing backend. The OTel collector buffers incoming OTLP traces and forwards them directly to Tempo.
+* **Exemplars Integration**: The architecture leverages OTel Exemplars, allowing us to natively link high-cardinality trace IDs directly to aggregated metric points (e.g., latency histograms) inside Grafana dashboards.
 * **Custom Service Configuration**: OTel custom configuration (such as sampling rates, specific exporter settings, or service attributes) can be easily managed per-service via their respective Helm `values.yaml` files. This allows for tailored telemetry settings across both `local` and `azure` profiles.
 
 ### 3. Manual Context Propagation for the Outbox Pattern
