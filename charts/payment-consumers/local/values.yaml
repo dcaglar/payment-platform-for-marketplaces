@@ -45,25 +45,26 @@ config:
   # -OTEL start Tracing Configuration , do not use both micrometer and OTEL Starter.
   # ✅ OTel exporter endpoint
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://my-opentelemetry-collector.payment.svc.cluster.local:4318"
-
-
   OTEL_SERVICE_NAME: "payment-consumers"
-  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "https://eu.i.posthog.com/i/v1/traces"
-  OTEL_EXPORTER_OTLP_TRACES_HEADERS: "Authorization=Bearer phc_ABquVAfZ7ZA3uYgMtd39p83633a5KBRAwTPkSFHTvWYc"
-
   # ✅ OTel sampling
   OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
-  OTEL_TRACES_SAMPLER_ARG: "1.0"
+  OTEL_TRACES_SAMPLER_ARG: "0.1"
   OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "true"
-  OTEL_INSTRUMENTATION_SPRING_WEBMVC_ENABLED: "true"
+  OTEL_INSTRUMENTATION_SPRING_WEBMVC_ENABLED: "false"
   OTEL_INSTRUMENTATION_LOGBACK_APPENDER_ENABLED: "true"
   OTEL_INSTRUMENTATION_LOGBACK_MDC_ENABLED: "true"
-  OTEL_INSTRUMENTATION_JDBC_ENABLED: "true"
+  OTEL_INSTRUMENTATION_JDBC_ENABLED: "false"
   OTEL_INSTRUMENTATION_KAFKA_ENABLED: "true"
-
   OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "false"
-
-
+  OTEL_METRICS_EXPORTER: "otlp"
+  OTEL_METRIC_EXPORT_INTERVAL: "60000" # Push metrics every 15 seconds (default is 60s)
+  OTEL_EXPORTER_OTLP_TIMEOUT: "10000" # 10s timeout for metric push
+  # Explicitly enable all key metric instrumentation
+  OTEL_INSTRUMENTATION_JVM_ENABLED: "true"
+  OTEL_INSTRUMENTATION_SYSTEM_ENABLED: "true"
+  OTEL_INSTRUMENTATION_SPRING_BOOT_AUTOCONFIGURE_ENABLED: "true"
+  OTEL_INSTRUMENTATION_HTTP_CLIENT_ENABLED: "true"
+  OTEL_INSTRUMENTATION_REDIS_ENABLED: "true"
   #
   #  # --- OpenTelemetry / Micrometer Tracing Configuration ---
   #  # Target OTel Collector endpoint for spans
@@ -76,6 +77,3 @@ config:
   #
   #  # Enable explicit tracing for Redis (Lettuce client) commands
   #  SPRING_DATA_REDIS_LETTUCE_OBSERVATION_ENABLED: "true"
-
-
-

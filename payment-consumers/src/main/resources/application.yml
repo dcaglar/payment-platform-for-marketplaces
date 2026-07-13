@@ -52,72 +52,11 @@ management:
   endpoints:
     web:
       exposure:
-        include: "prometheus,metrics,health"
+        include: "health"
   endpoint:
     health:
       enabled: true
       show-details: always
-    prometheus:
-      enabled: true
-  metrics:
-    tags:
-      application: payment-consumers
-    enable:
-      all: true
-      hikaricp.connections: true
-      hikaricp.connections.acquire: true
-      process.cpu.usage: true
-      jvm.threads.live: true
-      jvm.memory.used: true
-      jvm.memory.max: true
-      jvm.gc.pause: true
-      kafka.consumer.fetch.manager.records.lag: true
-      kafka.consumer.fetch.manager.records.consumed: true
-      kafka.consumer.fetch.manager.fetch.latency: true
-      kafka.consumer.io.time: true
-      kafka.consumer.records.lag.max: true
-      redis_dirty_accounts_size: true
-      kafka.consumer.fetch.latency.avg: true
-      kafka.consumer.fetch.latency.max: true
-      kafka.producer.batch.size.avg: true
-      kafka.producer.batch.size.max: true
-      kafka.producer.request.latency.avg: true
-      kafka.producer.topic.record.send: true
-      kafka.producer.request.latency.max: true
-      kafka.producer.compression.rate.avg: true
-      kafka.producer.record.send.total: true
-      kafka.producer.record.error.total: true
-      kafka.producer.record.retry.total: true
-      kafka.producer.outgoing.byte.total: true
-      kafka.producer.io.wait.time.total: true
-      kafka.producer.bufferpool.wait.ratio: true
-      kafka.producer.bufferpool.wait.time.total: true
-      psp_calls_total: true
-      psp_call_latency: true
-      psp_queue_delay: true
-      psp_exec_duration: true
-      psp_refund_calls_total: true
-      redis_retry_zset_size: true
-      redis_retry_batch_size: true
-      redis_retry_events_total: true
-      redis_retry_dispatch_batch_seconds: true
-      redis_retry_dispatch_event_seconds: true
-      http.server.requests: true
-      tomcat.threads: true
-    distribution:
-      percentiles-histogram:
-        psp_call_latency: true
-        redis_retry_dispatch_batch_seconds: true
-        redis_retry_dispatch_event_seconds: true
-        http.server.requests: true
-      percentiles:
-        psp_call_latency: 0.5,0.95,0.99
-        redis_retry_dispatch_batch_seconds: 0.5,0.95,0.99
-        redis_retry_dispatch_event_seconds: 0.5,0.95,0.99
-        http.server.requests: 0.5,0.95,0.99
-    export:
-      prometheus:
-        enabled: true
 
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml

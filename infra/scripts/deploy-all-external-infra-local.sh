@@ -64,27 +64,6 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
 
 
 
-
-  JAEGER_VALUES_FILE="$REPO_ROOT/infra/helm-values/jaeger-values-local.yaml"
-  helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
-  helm repo update jaegertracing
-  helm upgrade --install jaeger jaegertracing/jaeger \
-    -n payment --create-namespace \
-    -f "$JAEGER_VALUES_FILE"
-
-
-
-
-
-  OTEL_VALUES_FILE="$REPO_ROOT/infra/helm-values/opentelemetry-collector-values-local.yaml"
-  helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-  helm repo update open-telemetry
-  helm upgrade --install my-opentelemetry-collector open-telemetry/opentelemetry-collector \
-    -n payment \
-    -f "$OTEL_VALUES_FILE"
-
-
-
 echo "========================================================"
 echo "✅ All local external infrastructure components deployed sequentially."
 echo "Check progress via: kubectl get pods -A"

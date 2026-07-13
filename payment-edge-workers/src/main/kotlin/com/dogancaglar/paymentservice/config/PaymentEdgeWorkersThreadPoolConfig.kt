@@ -1,7 +1,5 @@
 package com.dogancaglar.paymentservice.config
 
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Tag
 import io.opentelemetry.context.Context
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -11,7 +9,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import java.util.concurrent.ThreadPoolExecutor
 
 @Configuration
-class PaymentEdgeWorkersThreadPoolConfig(private val meterRegistry: MeterRegistry) {
+class PaymentEdgeWorkersThreadPoolConfig {
     @Bean("outboxJobTaskScheduler")
     fun outboxTaskScheduler(
         @Value("\${outbox-dispatcher.pool-size:2}") poolSize: Int,
@@ -24,25 +22,6 @@ class PaymentEdgeWorkersThreadPoolConfig(private val meterRegistry: MeterRegistr
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
-        // Metrics with a unique tag!
-      /*  meterRegistry.gauge(
-            "scheduler_outbox_active_threads",
-            listOf(Tag.of("name", "outbox-dispatch")),
-            scheduler
-        ) { it.activeCount.toDouble() }
-
-        meterRegistry.gauge(
-            "scheduler_outbox_pool_size_threads",
-            listOf(Tag.of("name", "outbox-dispatch")),
-            scheduler
-        ) { it.poolSize.toDouble() }
-
-        meterRegistry.gauge(
-            "scheduler_outbox_queue_size",
-            listOf(Tag.of("name", "outbox-dispatch")),
-            scheduler
-        ) { it.scheduledThreadPoolExecutor.queue.size.toDouble() }
-*/
         return scheduler
     }
 

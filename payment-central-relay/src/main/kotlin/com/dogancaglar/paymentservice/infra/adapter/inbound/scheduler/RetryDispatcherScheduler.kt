@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 class RetryDispatcherScheduler(
     private val retryQueue: CaptureRetryQueueAdapter,
     @param:Qualifier("batchPaymentEventPublisher") private val publisher: PaymentEventPublisher,
-    private val meterRegistry: MeterRegistry,
     @param:Qualifier("retryDispatcherSpringScheduler") private val scheduler: ThreadPoolTaskScheduler
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)

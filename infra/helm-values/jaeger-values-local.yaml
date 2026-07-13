@@ -1,4 +1,0 @@
-allInOne:
-  enabled: true
-provisionDataStore:
-  cassandra: false

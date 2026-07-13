@@ -12,21 +12,21 @@ const AUTHORIZE_ENDPOINT = `${BASE_URL}/api/v1/payments`;
 const SCENARIOS = {
      single: {
         executor: 'constant-arrival-rate',
-        rate: 1,
+        rate: 20,
         timeUnit: '1s',
-        duration: '10s',
+        duration: '20m',
         preAllocatedVUs: 2,
-        maxVUs: 10,
+        maxVUs: 20,
         tags: { test_type: 'single' },
     },
     // A. Smoke Test: Minimal load for validating that scripts and APIs work correctly
     smoke: {
         executor: 'constant-arrival-rate',
-        rate: 5,
+        rate: 60,
         timeUnit: '1s',
-        duration: '5m',
-        preAllocatedVUs: 10,
-        maxVUs: 40,
+        duration: '30m',
+        preAllocatedVUs: 30,
+        maxVUs: 300,
         tags: { test_type: 'smoke' },
     },
     // B. Average Load Test: Simulates expected day-to-day typical user traffic (RPS)

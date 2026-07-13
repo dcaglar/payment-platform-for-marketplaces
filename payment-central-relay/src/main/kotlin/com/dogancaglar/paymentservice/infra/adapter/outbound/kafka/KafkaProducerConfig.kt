@@ -4,7 +4,6 @@ import com.dogancaglar.common.event.metadata.EventMetaDataRegistry
 import com.dogancaglar.common.kafka.metadata.PaymentEventMetadataCatalog
 import com.dogancaglar.common.kafka.publisher.RawEventPublisher
 import com.dogancaglar.common.kafka.serde.EventEnvelopeKafkaSerializer
-import io.micrometer.core.instrument.MeterRegistry
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringSerializer
@@ -16,7 +15,6 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaAdmin
 import org.springframework.kafka.core.KafkaTemplate
-import org.springframework.kafka.core.MicrometerProducerListener
 
 /**
  * Configuration for shared Kafka producer infrastructure.
@@ -67,16 +65,14 @@ class KafkaProducerConfig(
         }
 
         @Bean("rawBatchProducerFactory")
-        fun rawBatchProducerFactory(mr: MeterRegistry): DefaultKafkaProducerFactory<String, String> {
+        fun rawBatchProducerFactory(): DefaultKafkaProducerFactory<String, String> {
             // Start with baseProps, but force the StringSerializer
             val props = baseProps().toMutableMap().apply {
                 put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java)
                 put(ProducerConfig.CLIENT_ID_CONFIG, "$appName-raw-producer-client")
             }
 
-            return DefaultKafkaProducerFactory<String, String>(props).apply {
-                addListener(MicrometerProducerListener(mr))
-            }
+            return DefaultKafkaProducerFactory<String, String>(props)
         }
 
 
@@ -92,8 +88,7 @@ class KafkaProducerConfig(
     @Bean("rawEventPublisher")
     fun rawEventPublisher(
         @Qualifier("rawEventKafkaTemplate") kt: KafkaTemplate<String, String>,
-        eventMetaDataRegistry: EventMetaDataRegistry,
-        mr: MeterRegistry
+        eventMetaDataRegistry: EventMetaDataRegistry
     ) = RawEventPublisher(kt, eventMetaDataRegistry)
 
     @Bean

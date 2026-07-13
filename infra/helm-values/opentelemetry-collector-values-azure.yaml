@@ -4,10 +4,10 @@ image:
 
 resources:
   limits:
-    memory: 1024Mi
+    memory: 512Mi
   requests:
     cpu: 100m
-    memory: 512Mi
+    memory: 256Mi
 
 extraEnvs:
   - name: CENTRAL_DB_MAINTENANCE_USERNAME
@@ -37,21 +37,22 @@ service:
 
 config:
   receivers:
+    postgresql:
+      endpoint: central-db-postgresql.payment.svc.cluster.local:5432
+      username: ${env:CENTRAL_DB_MAINTENANCE_USERNAME}
+      password: ${env:CENTRAL_DB_MAINTENANCE_PASSWORD}
+      databases:
+        - central-db
+      tls:
+        insecure: true
+      collection_interval: 10s
+    kafkametrics:
+      brokers: kafka.payment.svc.cluster.local:9092
+      collection_interval: 10s
     prometheus:
       config:
         scrape_configs:
-          - job_name: 'postgresql'
-            scrape_interval: 15s
-            static_configs:
-              - targets: 
-                - 'central-db-postgresql-metrics.payment.svc.cluster.local:9187'
-                - 'payment-edge-cell.payment.svc.cluster.local:9187'
-          - job_name: 'kafka'
-            scrape_interval: 15s
-            static_configs:
-              - targets: ['kafka-metrics.payment.svc.cluster.local:9308']
-          - job_name: 'ingress-nginx'
-            scrape_interval: 15s
+          - job_name: ingress-nginx
             static_configs:
               - targets: ['ingress-nginx-controller-metrics.ingress-controller.svc.cluster.local:10254']
 
@@ -88,6 +89,6 @@ config:
         processors: [memory_limiter, k8s_attributes, batch]
         exporters: [otlphttp/posthog, otlphttp/tempo]
       metrics:
-        receivers: [otlp, prometheus]
+        receivers: [otlp, postgresql, kafkametrics, prometheus]
         processors: [memory_limiter, k8s_attributes, batch]
         exporters: [prometheusremotewrite]

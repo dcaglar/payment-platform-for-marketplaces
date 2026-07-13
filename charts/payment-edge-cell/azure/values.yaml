@@ -7,11 +7,14 @@ keda:
   pollingInterval: 15
   cooldownPeriod: 120
   triggers:
-    - type: cpu
-      metricType: Utilization
+    - type: prometheus
       metadata:
-        value: "85"
-        containerName: "payment-service"
+        serverAddress: http://prometheus-stack-kube-prom-prometheus.monitoring.svc.cluster.local:9090
+        query: >
+          (sum(tomcat_threads_busy{k8s_namespace_name="payment", k8s_pod_name=~"payment-edge-cell-.*"}) 
+          / 
+          sum(tomcat_threads_config_max{k8s_namespace_name="payment", k8s_pod_name=~"payment-edge-cell-.*"})) * 100
+        threshold: '75'
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 60
@@ -46,7 +49,6 @@ ingress:
   appPort: 8080
   healthPath: "/healthz"
   healthPort: 9000
-
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
     # ── Snowflake Cell Router ─────────────────────────────────────────────────
@@ -126,12 +128,9 @@ ingress:
       if ($cell_target != "") {
         proxy_pass http://$cell_target;
       }
-
-
-
 config:
   KEYCLOAK_ISSUER_URL: "http://keycloak:8080/realms/ecommerce-platform"
   EDGE_DB_URL: "jdbc:postgresql://localhost:5432/edge-db?options=-c%20timezone=UTC"
   EDGE_DB_NAME: "edge-db"
 serviceMonitor:
-  enabled: true
+  enabled: false

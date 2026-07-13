@@ -21,8 +21,7 @@ import org.apache.kafka.common.header.Headers
 
 class PaymentEventPublisher(
     private val kafkaTemplate: KafkaTemplate<String, EventEnvelope<*>>,
-    private val eventMetaDataRegistry: EventMetaDataRegistry,
-    private val meterRegistry: MeterRegistry,
+    private val eventMetaDataRegistry: EventMetaDataRegistry
 ) : EventPublisherPort {
 
     private val logger = LoggerFactory.getLogger(javaClass)

@@ -53,13 +53,18 @@ fi
 
 echo "✅ kube-prometheus-stack successfully deployed to monitoring namespace."
 echo "========================================================"
+echo "▶️  Deploying Tempo"
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update grafana
+helm upgrade --install tempo grafana/tempo \
+  -n monitoring --create-namespace \
+  -f "$REPO_ROOT/infra/helm-values/tempo-values-local.yaml"
 
-# Note: Exporters (kafka-exporter, postgresql-exporter) are now natively handled by deploy-all-external-infra-local.sh!
-
-echo "🚀 Toggling ServiceMonitors to 'true' in application Helm values..."
+echo "========================================================"
+echo "🚀 Ensuring application ServiceMonitors are DISABLED (We use OpenTelemetry Push Model!)..."
 yq -i '.controller.metrics.serviceMonitor.enabled = true' "$REPO_ROOT/infra/helm-values/ingress-nginx-values-local.yaml" || true
-yq -i '.serviceMonitor.enabled = true' "$REPO_ROOT/charts/payment-edge-cell/local/values.yaml" || true
-yq -i '.serviceMonitor.enabled = true' "$REPO_ROOT/charts/payment-consumers/local/values.yaml" || true
-yq -i '.serviceMonitor.enabled = true' "$REPO_ROOT/charts/payment-central-relay/local/values.yaml" || true
-yq -i '.serviceMonitor.enabled = true' "$REPO_ROOT/charts/payment-edge-workers/values.yaml" || true
-echo "✅ Monitoring switched ON! Next time applications deploy, metrics will be enabled."
+yq -i '.serviceMonitor.enabled = false' "$REPO_ROOT/charts/payment-edge-cell/local/values.yaml" || true
+yq -i '.serviceMonitor.enabled = false' "$REPO_ROOT/charts/payment-consumers/local/values.yaml" || true
+yq -i '.serviceMonitor.enabled = false' "$REPO_ROOT/charts/payment-central-relay/local/values.yaml" || true
+yq -i '.serviceMonitor.enabled = false' "$REPO_ROOT/charts/payment-edge-workers/local/values.yaml" || true
+echo "✅ OpenTelemetry is active! Prometheus scraping (ServiceMonitors) is turned off for applications."

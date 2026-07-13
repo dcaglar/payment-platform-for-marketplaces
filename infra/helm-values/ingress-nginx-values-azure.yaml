@@ -6,7 +6,7 @@ controller:
       enabled: true
       namespace: ingress-controller
       additionalLabels:
-        release: prometheus-stack
+        release: ignore-me
   service:
     type: LoadBalancer
     annotations:

@@ -20,52 +20,11 @@ management:
     web:
       base-path: /actuator
       exposure:
-        include: "prometheus,metrics,health"
+        include: "health"
   endpoint:
     health:
       enabled: true
       show-details: always
-    prometheus:
-      enabled: true
-  metrics:
-    tags:
-      application: payment-central-relay
-    enable:
-      all: true
-      hikaricp.connections: true
-      hikaricp.connections.acquire: true
-      process.cpu.usage: true
-      jvm.threads.live: true
-      jvm.memory.used: true
-      jvm.memory.max: true
-      jvm.gc.pause: true
-      kafka.producer.batch.size.avg: true
-      kafka.producer.batch.size.max: true
-      kafka.producer.request.latency.avg: true
-      kafka.producer.topic.record.send: true
-      kafka.producer.request.latency.max: true
-      kafka.producer.compression.rate.avg: true
-      kafka.producer.record.send.total: true
-      kafka.producer.record.error.total: true
-      kafka.producer.record.retry.total: true
-      kafka.producer.outgoing.byte.total: true
-      kafka.producer.io.wait.time.total: true
-      kafka.producer.bufferpool.wait.ratio: true
-      kafka.producer.bufferpool.wait.time.total: true
-      central_outbox_backlog_size: true
-      redis_retry_batch_size: true
-      relay_published_total: true
-      relay_publish_failed_total: true
-      relay_poll_duration: true
-      maintenance_job_error_total: true
-    distribution:
-      percentiles-histogram:
-        relay_poll_duration: true
-      percentiles:
-        relay_poll_duration: 0.5,0.95,0.99
-
-
-      
   data:
     redis:
       timeout: 10s

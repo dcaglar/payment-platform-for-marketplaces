@@ -50,7 +50,7 @@ controller:
   # ✅ Resources for the Kafka container (fix OOMKills)
   resources:
     requests: { cpu: "300m", memory: "1000Mi" }
-    limits:   { memory: "1200Mi" }
+    limits:   { memory: "1000Mi" }
   extraEnv:
   overrideConfiguration:
     # Roles & listeners
@@ -102,9 +102,9 @@ networkPolicy:
 
 metrics:
   kafka:
-    enabled: false
+    enabled: true
 defaultInitContainers:
   prepareConfig:
     resources:
-      requests: {cpu: 50m, memory: 64Mi}
-      limits: {cpu: 200m, memory: 128Mi}
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {memory: 128Mi}

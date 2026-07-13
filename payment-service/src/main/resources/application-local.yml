@@ -38,13 +38,13 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
       leak-detection-threshold: 60000
-      connection-init-sql: "SET statement_timeout = '100ms'; SET lock_timeout = '50ms';"
+      connection-init-sql: "SET statement_timeout = '500ms'; SET lock_timeout = '250ms';"
       maximum-pool-size: 12
 
 outbox-dispatcher:
-  thread-count: 1
+  thread-count: 2
   batch-size: 300
-  pool-size: 1
+  pool-size: 2
 
 db:
   web:

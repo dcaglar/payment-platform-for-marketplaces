@@ -47,3 +47,152 @@ kafka:
   bootstrapServers: kafka.payment.svc.cluster.local:9092
 config:
   CENTRAL_DB_URL: "jdbc:postgresql://central-db-postgresql.payment.svc.cluster.local:5432/central-db?options=-c%20timezone=UTC"
+---
+redis:
+  url: redis://redis-master:6379
+kafka:
+  bootstrapServers: kafka.payment.svc.cluster.local:9092
+spring:
+  profile: local
+serviceMonitor:
+  enabled: false
+  labels:
+    release: prometheus-stack
+  path: /actuator/prometheus
+  interval: 30s
+  scrapeTimeout: 10s
+replicaCount: 1
+keda:
+  enabled: false
+resources:
+  requests: {cpu: 200m, memory: 700Mi}
+  limits: {cpu: 2000m, memory: 700Mi}
+config:
+  CENTRAL_DB_URL: "jdbc:postgresql://central-db-postgresql:5432/central-db?options=-c%20timezone=UTC"
+  SPRING_DATA_REDIS_URL: "redis://redis-master.payment.svc.cluster.local:6379"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka.payment.svc.cluster.local:9092"
+  # -OTEL start Tracing Configuration , do not use both micrometer and OTEL Starter.
+  # ✅ OTel exporter endpoint
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://my-opentelemetry-collector.payment.svc.cluster.local:4318"
+  OTEL_SERVICE_NAME: "payment-central-relay"
+  # ✅ OTel sampling
+  OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
+  OTEL_TRACES_SAMPLER_ARG: "1.0"
+  OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "true"
+  OTEL_INSTRUMENTATION_SPRING_WEBMVC_ENABLED: "true"
+  OTEL_INSTRUMENTATION_LOGBACK_APPENDER_ENABLED: "true"
+  OTEL_INSTRUMENTATION_LOGBACK_MDC_ENABLED: "true"
+  OTEL_INSTRUMENTATION_JDBC_ENABLED: "true"
+  OTEL_INSTRUMENTATION_KAFKA_ENABLED: "true"
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "false"
+  OTEL_METRICS_EXPORTER: "otlp"
+  OTEL_METRIC_EXPORT_INTERVAL: "15000" # Push metrics every 15 seconds (default is 60s)
+  OTEL_EXPORTER_OTLP_TIMEOUT: "10000" # 10s timeout for metric push
+  # Explicitly enable all key metric instrumentation
+  OTEL_INSTRUMENTATION_JVM_ENABLED: "true"
+  OTEL_INSTRUMENTATION_SYSTEM_ENABLED: "true"
+  OTEL_INSTRUMENTATION_SPRING_BOOT_AUTOCONFIGURE_ENABLED: "true"
+  OTEL_INSTRUMENTATION_HTTP_CLIENT_ENABLED: "true"
+  OTEL_INSTRUMENTATION_REDIS_ENABLED: "true"
+#
+#  # --- OpenTelemetry / Micrometer Tracing Configuration ---
+#  # Target OTel Collector endpoint for spans
+#  MANAGEMENT_OTLP_TRACING_ENDPOINT: "http://my-opentelemetry-collector.payment.svc.cluster.local:4318/v1/traces"
+#  # Sample 100% of traces for local visualization (default is 0.1 / 10%)
+#  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+#  # Enable explicit tracing for Kafka producers/consumers
+#  SPRING_KAFKA_LISTENER_OBSERVATION_ENABLED: "true"
+#  SPRING_KAFKA_TEMPLATE_OBSERVATION_ENABLED: "true"
+#
+#  # Enable explicit tracing for Redis (Lettuce client) commands
+#  SPRING_DATA_REDIS_LETTUCE_OBSERVATION_ENABLED: "true"
+---
+spring:
+  profile: local
+image:
+  repository: dcaglar1987/payment-central-relay
+  tag: latest
+resources: {}
+jvmOpts: >-
+  -XX:+UseG1GC -XX:+AlwaysActAsServerClassMachine -XX:+UseStringDeduplication -XX:MaxRAMPercentage=45 -XX:InitialRAMPercentage=45 -XX:MaxMetaspaceSize=128m -XX:MaxDirectMemorySize=128m -XX:ThreadStackSize=512 -XX:MaxGCPauseMillis=200 -XX:InitiatingHeapOccupancyPercent=30
+service:
+  type: ClusterIP
+  portName: http
+  port: 8080
+  managementPort: 9000
+serviceMonitor:
+  enabled: false
+---
+
+redis:
+  url: redis://redis-master:6379
+kafka:
+  bootstrapServers: kafka.payment.svc.cluster.local:9092
+spring:
+  profile: local
+serviceMonitor:
+  enabled: false
+  labels:
+    release: prometheus-stack
+  path: /actuator/prometheus
+  interval: 30s
+  scrapeTimeout: 10s
+replicaCount: 1
+keda:
+  enabled: false
+resources:
+  requests: {cpu: 200m, memory: 700Mi}
+  limits: {cpu: 2000m, memory: 700Mi}
+config:
+  CENTRAL_DB_URL: "jdbc:postgresql://central-db-postgresql:5432/central-db?options=-c%20timezone=UTC"
+  SPRING_DATA_REDIS_URL: "redis://redis-master.payment.svc.cluster.local:6379"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka.payment.svc.cluster.local:9092"
+  # -OTEL start Tracing Configuration , do not use both micrometer and OTEL Starter.
+  # ✅ OTel exporter endpoint
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://my-opentelemetry-collector.payment.svc.cluster.local:4318"
+  OTEL_SERVICE_NAME: "payment-central-relay"
+  # ✅ OTel sampling
+  OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
+  OTEL_TRACES_SAMPLER_ARG: "1.0"
+  OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "true"
+  OTEL_INSTRUMENTATION_SPRING_WEBMVC_ENABLED: "true"
+  OTEL_INSTRUMENTATION_LOGBACK_APPENDER_ENABLED: "true"
+  OTEL_INSTRUMENTATION_LOGBACK_MDC_ENABLED: "true"
+  OTEL_INSTRUMENTATION_JDBC_ENABLED: "true"
+  OTEL_INSTRUMENTATION_KAFKA_ENABLED: "true"
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "false"
+  OTEL_METRICS_EXPORTER: "otlp"
+  OTEL_METRIC_EXPORT_INTERVAL: "15000" # Push metrics every 15 seconds (default is 60s)
+  OTEL_EXPORTER_OTLP_TIMEOUT: "10000" # 10s timeout for metric push
+  # Explicitly enable all key metric instrumentation
+  OTEL_INSTRUMENTATION_JVM_ENABLED: "true"
+  OTEL_INSTRUMENTATION_SYSTEM_ENABLED: "true"
+  OTEL_INSTRUMENTATION_SPRING_BOOT_AUTOCONFIGURE_ENABLED: "true"
+  OTEL_INSTRUMENTATION_HTTP_CLIENT_ENABLED: "true"
+  OTEL_INSTRUMENTATION_REDIS_ENABLED: "true"
+#
+#  # --- OpenTelemetry / Micrometer Tracing Configuration ---
+#  # Target OTel Collector endpoint for spans
+#  MANAGEMENT_OTLP_TRACING_ENDPOINT: "http://my-opentelemetry-collector.payment.svc.cluster.local:4318/v1/traces"
+#  # Sample 100% of traces for local visualization (default is 0.1 / 10%)
+#  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+#  # Enable explicit tracing for Kafka producers/consumers
+#  SPRING_KAFKA_LISTENER_OBSERVATION_ENABLED: "true"
+#  SPRING_KAFKA_TEMPLATE_OBSERVATION_ENABLED: "true"
+#
+#  # Enable explicit tracing for Redis (Lettuce client) commands
+#  SPRING_DATA_REDIS_LETTUCE_OBSERVATION_ENABLED: "true"
+---
+spring:
+  profile: local
+image:
+  repository: dcaglar1987/payment-central-relay
+  tag: latest
+resources: {}
+jvmOpts: >-
+  -XX:+UseG1GC -XX:+AlwaysActAsServerClassMachine -XX:+UseStringDeduplication -XX:MaxRAMPercentage=45 -XX:InitialRAMPercentage=45 -XX:MaxMetaspaceSize=128m -XX:MaxDirectMemorySize=128m -XX:ThreadStackSize=512 -XX:MaxGCPauseMillis=200 -XX:InitiatingHeapOccupancyPercent=30
+service:
+  type: ClusterIP
+  portName: http
+  port: 8080
+  managementPort: 9000

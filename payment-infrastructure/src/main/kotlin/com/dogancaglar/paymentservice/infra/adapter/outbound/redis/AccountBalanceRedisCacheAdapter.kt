@@ -9,8 +9,7 @@ import org.springframework.stereotype.Component
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
-import io.micrometer.core.instrument.Gauge
-import io.micrometer.core.instrument.MeterRegistry
+import io.opentelemetry.api.OpenTelemetry
 
 /**
  * Redis adapter for account balance delta cache.
@@ -21,7 +20,7 @@ class AccountBalanceRedisCacheAdapter(
     private val redisTemplate: StringRedisTemplate,
     @Value("\${account-balance.delta-ttl-seconds:300}") // 5 minutes
     private val deltaTtlSeconds: Long,
-    meterRegistry: MeterRegistry
+    openTelemetry: OpenTelemetry
 ) : AccountBalanceCachePort {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -29,11 +28,11 @@ class AccountBalanceRedisCacheAdapter(
     private val dirtySet = "balances:dirty"
 
     init {
-        Gauge.builder("redis_dirty_accounts_size") {
-            redisTemplate.opsForSet().size(dirtySet)?.toDouble() ?: 0.0
-        }
-            .description("Number of accounts pending database snapshot flush")
-            .register(meterRegistry)
+        val meter = openTelemetry.meterBuilder("payment-infrastructure.redis.cache").build()
+        meter.gaugeBuilder("redis_dirty_accounts_size")
+            .setDescription("Number of accounts pending database snapshot flush")
+            .ofLongs()
+            .buildWithCallback { it.record(redisTemplate.opsForSet().size(dirtySet) ?: 0L) }
     }
 
     private val addDeltaScript = """

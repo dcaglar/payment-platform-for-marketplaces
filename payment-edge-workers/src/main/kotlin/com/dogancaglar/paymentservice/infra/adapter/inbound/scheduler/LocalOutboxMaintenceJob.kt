@@ -16,11 +16,18 @@ import java.time.temporal.ChronoUnit
 import io.opentelemetry.context.Context
 
 
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.api.common.AttributeKey
+import io.opentelemetry.api.common.Attributes
+
 @Component
 class LocalOutboxMaintenanceJob(
     @param:Qualifier("maintenanceJdbcTemplate") jdbcTemplate: JdbcTemplate,
-    private val meterRegistry: io.micrometer.core.instrument.MeterRegistry
+    private val openTelemetry: OpenTelemetry
 ) : AbstractOutboxPartitionCreator(jdbcTemplate) {
+
+    private val meter = openTelemetry.meterBuilder("payment-edge-workers.maintenance").build()
+    private val maintenanceErrorCounter = meter.counterBuilder("maintenance_job_error_total").build()
 
     @EventListener(ApplicationReadyEvent::class)
     @Scheduled(
@@ -38,7 +45,7 @@ class LocalOutboxMaintenanceJob(
             val durationMs = ChronoUnit.MILLIS.between(start, end)
             logger.debug("Partition check complete started at $start, ended at $end, duration: $durationMs ")
         } catch (t: Throwable) {
-            meterRegistry.counter("maintenance_job_error_total", "job", "LocalOutboxMaintenanceJob.ensureCurrentAndNext").increment()
+            maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.ensureCurrentAndNext"))
             throw t
         }
     }
@@ -75,7 +82,7 @@ class LocalOutboxMaintenanceJob(
             val durationMs = ChronoUnit.MILLIS.between(start, end)
             logger.debug("Partition prune complete started at $start, ended at $end, duration: $durationMs ")
         } catch (t: Throwable) {
-            meterRegistry.counter("maintenance_job_error_total", "job", "LocalOutboxMaintenanceJob.pruneOldPartitions").increment()
+            maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.pruneOldPartitions"))
             throw t
         }
     }
@@ -90,7 +97,7 @@ class LocalOutboxMaintenanceJob(
             val durationMs = ChronoUnit.MILLIS.between(start, end)
             logger.debug("Partition vacuum check complete started at $start, ended at $end, duration: $durationMs ")
         } catch (t: Throwable) {
-            meterRegistry.counter("maintenance_job_error_total", "job", "LocalOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows").increment()
+            maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows"))
             throw t
         }
     }

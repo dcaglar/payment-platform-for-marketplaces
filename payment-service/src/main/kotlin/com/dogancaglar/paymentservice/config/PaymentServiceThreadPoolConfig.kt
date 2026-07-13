@@ -1,7 +1,8 @@
 package com.dogancaglar.paymentservice.config
 
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Tag
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.api.common.AttributeKey
+import io.opentelemetry.api.common.Attributes
 import io.opentelemetry.context.Context
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -11,7 +12,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import java.util.concurrent.ThreadPoolExecutor
 
 @Configuration
-class PaymentServiceThreadPoolConfig(private val meterRegistry: MeterRegistry) {
+class PaymentServiceThreadPoolConfig(private val openTelemetry: OpenTelemetry) {
 
     @Bean("outboxJobTaskScheduler")
     fun outboxTaskScheduler(
@@ -26,24 +27,20 @@ class PaymentServiceThreadPoolConfig(private val meterRegistry: MeterRegistry) {
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
 
-        // Metrics with a unique tag!
-        meterRegistry.gauge(
-            "scheduler_outbox_active_threads",
-            listOf(Tag.of("name", "outbox-dispatch")),
-            scheduler
-        ) { it.activeCount.toDouble() }
+        val meter = openTelemetry.meterBuilder("payment-service.threadpool").build()
+        val attributes = Attributes.of(AttributeKey.stringKey("name"), "outbox-dispatch")
 
-        meterRegistry.gauge(
-            "scheduler_outbox_pool_size_threads",
-            listOf(Tag.of("name", "outbox-dispatch")),
-            scheduler
-        ) { it.poolSize.toDouble() }
+        meter.gaugeBuilder("scheduler_outbox_active_threads")
+            .ofLongs()
+            .buildWithCallback { it.record(scheduler.activeCount.toLong(), attributes) }
 
-        meterRegistry.gauge(
-            "scheduler_outbox_queue_size",
-            listOf(Tag.of("name", "outbox-dispatch")),
-            scheduler
-        ) { it.scheduledThreadPoolExecutor.queue.size.toDouble() }
+        meter.gaugeBuilder("scheduler_outbox_pool_size_threads")
+            .ofLongs()
+            .buildWithCallback { it.record(scheduler.poolSize.toLong(), attributes) }
+
+        meter.gaugeBuilder("scheduler_outbox_queue_size")
+            .ofLongs()
+            .buildWithCallback { it.record(scheduler.scheduledThreadPoolExecutor.queue.size.toLong(), attributes) }
 
         return scheduler
     }
@@ -58,15 +55,7 @@ class PaymentServiceThreadPoolConfig(private val meterRegistry: MeterRegistry) {
         executor.setRejectedExecutionHandler(ThreadPoolExecutor.DiscardPolicy())
         executor.setTaskDecorator { runnable ->
             val currentContext = Context.current()
-            val span = io.opentelemetry.api.trace.Span.fromContext(currentContext)
-            println("Submitting task. Tomcat trace ID: ${span.spanContext.traceId}")
-            Runnable { 
-                currentContext.makeCurrent().use { 
-                    val workerSpan = io.opentelemetry.api.trace.Span.current()
-                    println("Worker starting. Trace ID: ${workerSpan.spanContext.traceId}")
-                    runnable.run() 
-                } 
-            }
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
 
         return executor
@@ -113,11 +102,7 @@ class PaymentServiceThreadPoolConfig(private val meterRegistry: MeterRegistry) {
             val currentContext = Context.current()
 
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
-        }/*
-        scheduler.setTaskDecorator { runnable ->
-            val currentContext = Context.current()
-            Runnable { currentContext.makeCurrent().use { runnable.run() } }
-        }*/
+        }
 
         return executor
     }

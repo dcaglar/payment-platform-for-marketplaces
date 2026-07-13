@@ -1,0 +1,31 @@
+# Minimal Tempo configuration for OrbStack / Azure
+tempo:
+  retention: 720h
+  overrides:
+    defaults: null
+    ingestion_rate_limit_bytes: 15000000
+    ingestion_burst_size_bytes: 20000000
+    max_bytes_per_trace: 50000000
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Giqqq
+
+  # Enable search because Grafana TraceQL requires it for Exemplar lookups
+  search:
+    enabled: true
+
+# Use ephemeral emptyDir storage for traces instead of PersistentVolumeClaim
+persistence:
+  enabled: false
+
+# Configure OTLP ingestion
+traces:
+  otlp:
+    grpc:
+      enabled: true
+    http:
+      enabled: true

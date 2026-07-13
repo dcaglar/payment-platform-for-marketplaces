@@ -42,7 +42,7 @@ class AccountBalanceRedisCacheAdapterTest {
         every { redisTemplate.opsForSet() } returns setOperations
         every { redisTemplate.expire(any<String>(), any<Long>(), any<TimeUnit>()) } returns true
         
-        adapter = AccountBalanceRedisCacheAdapter(redisTemplate, ttlSeconds, io.micrometer.core.instrument.simple.SimpleMeterRegistry())
+        adapter = AccountBalanceRedisCacheAdapter(redisTemplate, ttlSeconds, io.opentelemetry.api.OpenTelemetry.noop())
     }
 
     @Test

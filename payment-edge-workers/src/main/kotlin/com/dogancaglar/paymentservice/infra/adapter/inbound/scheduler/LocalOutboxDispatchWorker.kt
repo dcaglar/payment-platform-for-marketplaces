@@ -4,8 +4,7 @@ import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.paymentservice.ports.outbound.CentralOutboxForwarderPort
 import com.dogancaglar.paymentservice.ports.outbound.LocalOutboxStoreAndForwardPort
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Timer
+import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.instrumentation.annotations.WithSpan
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
@@ -20,15 +19,20 @@ class LocalOutboxDispatchWorker(
     private val centralOutboxRepository: CentralOutboxForwarderPort,
     @param:Value("\${app.instance-id}") private val appInstanceId: String,
     @param:Value("\${outbox-dispatcher.batch-size:250}") private val batchSize: Int,
-    private val meterRegistry: MeterRegistry
+    private val openTelemetry: OpenTelemetry
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    private val meter = openTelemetry.meterBuilder("payment-edge-workers.local.outbox").build()
+    private val dispatcherDuration = meter.histogramBuilder("outbox_dispatcher_duration").setUnit("s").build()
+    private val dispatchedTotal = meter.counterBuilder("outbox_dispatched_total").build()
+    private val dispatchFailedTotal = meter.counterBuilder("outbox_dispatch_failed_total").build()
+
     @PostConstruct
     fun registerMetrics() {
-        io.micrometer.core.instrument.Gauge.builder("local_outbox_backlog_size", this) {
-            localOutboxStoreAndForwardPort.countNew().toDouble()
-        }.register(meterRegistry)
+        meter.gaugeBuilder("local_outbox_backlog_size")
+             .ofLongs()
+             .buildWithCallback { it.record(localOutboxStoreAndForwardPort.countNew().toLong()) }
     }
 
     fun isSchemaReady(): Boolean = centralOutboxRepository.isSchemaReady()
@@ -83,7 +87,7 @@ class LocalOutboxDispatchWorker(
 
     @WithSpan("outbox-dispatch-worker")
     fun dispatchBatchWorker() {
-        val sample = Timer.start(meterRegistry)
+        val startNs = System.nanoTime()
         val threadName = Thread.currentThread().name
         val workerId = "$appInstanceId:$threadName"
 
@@ -91,7 +95,7 @@ class LocalOutboxDispatchWorker(
             val events = claimBatch(batchSize, workerId)
             if (events.isEmpty()) {
                 centralOutboxRepository.updateWatermark(appInstanceId, Utc.nowInstant())
-                sample.stop(meterRegistry.timer("outbox_dispatcher_duration"))
+                dispatcherDuration.record((System.nanoTime() - startNs) / 1_000_000_000.0)
                 return
             }
 
@@ -99,7 +103,7 @@ class LocalOutboxDispatchWorker(
             if (success) {
                 persistResults(events.map { it.markAsSent() })
                 logger.info("Forwarded ok={} on {}", events.size, threadName)
-                meterRegistry.counter("outbox_dispatched_total").increment(events.size.toDouble())
+                dispatchedTotal.add(events.size.toLong())
             } else {
                 try {
                     unclaimFailedNow(workerId, events)
@@ -107,13 +111,13 @@ class LocalOutboxDispatchWorker(
                     logger.warn("Unclaim failed for {} rows (worker={}) – will rely on reclaimer", events.size, workerId, t)
                 }
                 logger.info("Forwarded failed={} on {}", events.size, threadName)
-                meterRegistry.counter("outbox_dispatch_failed_total").increment(events.size.toDouble())
+                dispatchFailedTotal.add(events.size.toLong())
             }
         } catch (t: Throwable) {
-            meterRegistry.counter("outbox_dispatch_failed_total").increment()
+            dispatchFailedTotal.add(1)
             throw t
         } finally {
-            sample.stop(meterRegistry.timer("outbox_dispatcher_duration"))
+            dispatcherDuration.record((System.nanoTime() - startNs) / 1_000_000_000.0)
         }
     }
 

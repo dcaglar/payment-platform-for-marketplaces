@@ -243,6 +243,12 @@ Kotlin dependencies (keep versions here for consistent management) -->
                 <version>${mybatis.spring.starter.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-hikaricp-3.0</artifactId>
+                <version>2.29.0-alpha</version>
+            </dependency>
+
         </dependencies>
 
     </dependencyManagement>
