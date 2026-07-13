@@ -82,6 +82,7 @@ class CreatePaymentIntentService(
     }
 
     //a callable
+
     private fun handleBackgroundPaymentIntentCreationSuccess(successfulPaymentIntent: PaymentIntent) {
         logger.debug("Background payment intent creation succesful for ${successfulPaymentIntent.paymentIntentId.value}, promooting to status created and psp reference from stripe:${successfulPaymentIntent.pspReferenceOrThrow()}")
         val startUpdate = System.currentTimeMillis()

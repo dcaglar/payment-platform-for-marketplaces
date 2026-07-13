@@ -43,49 +43,11 @@ management:
     web:
       base-path: /actuator
       exposure:
-        include: "prometheus,metrics,health"
+        include: "health"
   endpoint:
     health:
       enabled: true
       show-details: always
-    prometheus.enabled: true
-  metrics:
-    tags:
-      application: payment-service
-    enable:
-      all: true
-      tomcat.threads.current: true
-      tomcat.threads.busy: true
-      tomcat.threads.config.max: true
-      http.server.requests: true
-      redis_dirty_accounts_size: true
-      redis_retry_zset_size: true
-      tomcat.threads: true
-      hikaricp.connections: true
-      hikaricp.connections.acquire: true
-      kafka.producer.topic.record.send: true
-      process.cpu.usage: true
-      jvm.threads.live: true
-      jvm.memory.used: true
-      jvm.memory.max: true
-      jvm.gc.pause: true
-      outbox_dispatched_total: true
-      outbox_dispatch_failed_total: true
-      outbox_event_backlog: true
-      outbox_dispatcher_duration: true
-      psp_queue_delay: true
-      psp_exec_duration: true
-    binders:
-      tomcat:
-        enabled: true
-    distribution:
-      percentiles-histogram:
-        http.server.requests: true
-        outbox_dispatcher_duration: true
-      percentiles:
-        http.server.requests: 0.5,0.95,0.99
-        outbox_dispatcher_duration: 0.5,0.95,0.99
-    export.prometheus.enabled: true
 
 
 

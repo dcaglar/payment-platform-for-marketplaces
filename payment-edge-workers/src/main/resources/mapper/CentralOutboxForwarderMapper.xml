@@ -4,7 +4,7 @@
 
     <insert id="insertBatch" parameterType="java.util.List">
         INSERT INTO outbox_event (
-            oeid, partition_key, event_type, aggregate_id,trace_id,event_id,parent_event_id, payload, status, created_at, updated_at
+            oeid, partition_key, event_type, aggregate_id,event_id,parent_event_id, payload, status, created_at, updated_at
         ) VALUES
         <foreach collection="list" item="entry" separator=",">
             (
@@ -12,7 +12,6 @@
                 #{entry.partitionKey},
                 #{entry.eventType},
                 #{entry.aggregateId},
-                #{entry.traceId},
                 #{entry.eventId},
                 #{entry.parentEventId},
                 #{entry.payload},

@@ -9,38 +9,44 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.event.EventListener
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.scheduling.annotation.Async
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.stereotype.Component
 import java.time.temporal.ChronoUnit
+import io.opentelemetry.context.Context
 
+
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.api.common.AttributeKey
+import io.opentelemetry.api.common.Attributes
 
 @Component
 class LocalOutboxMaintenanceJob(
     @param:Qualifier("maintenanceJdbcTemplate") jdbcTemplate: JdbcTemplate,
-    @param:Qualifier("outboxEventPartitionMaintenanceScheduler") private val taskScheduler: ThreadPoolTaskScheduler,
-    private val meterRegistry: io.micrometer.core.instrument.MeterRegistry
+    private val openTelemetry: OpenTelemetry
 ) : AbstractOutboxPartitionCreator(jdbcTemplate) {
+
+    private val meter = openTelemetry.meterBuilder("payment-edge-workers.maintenance").build()
+    private val maintenanceErrorCounter = meter.counterBuilder("maintenance_job_error_total").build()
 
     @EventListener(ApplicationReadyEvent::class)
     @Scheduled(
         initialDelay = 0,
         fixedDelayString = "\${outbox-partition.fixed-delay:PT10M}"
     )
+    @Async("partitionCreationExecutor")
     fun ensureCurrentAndNextScheduled() {
-        taskScheduler.execute {
-            try {
-                waitForParentTable()
+        try {
+            waitForParentTable()
 
-                val start = Utc.nowLocalDateTime()
-                ensureCurrentAndNext()
-                val end = Utc.nowLocalDateTime()
-                val durationMs = ChronoUnit.MILLIS.between(start, end)
-                logger.debug("Partition check complete started at $start, ended at $end, duration: $durationMs ")
-            } catch (t: Throwable) {
-                meterRegistry.counter("maintenance_job_error_total", "job", "LocalOutboxMaintenanceJob.ensureCurrentAndNext").increment()
-                throw t
-            }
+            val start = Utc.nowLocalDateTime()
+            ensureCurrentAndNext()
+            val end = Utc.nowLocalDateTime()
+            val durationMs = ChronoUnit.MILLIS.between(start, end)
+            logger.debug("Partition check complete started at $start, ended at $end, duration: $durationMs ")
+        } catch (t: Throwable) {
+            maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.ensureCurrentAndNext"))
+            throw t
         }
     }
 
@@ -67,34 +73,32 @@ class LocalOutboxMaintenanceJob(
     }
 
     @Scheduled(initialDelay = 45000, fixedDelay = 21 * 60 * 1000)
+    @Async("partitionRemovalExecutor")
     fun pruneOldPartitionsScheduled() {
-        taskScheduler.execute {
-            try {
-                val start = Utc.nowLocalDateTime()
-                pruneOldPartitions()
-                val end = Utc.nowLocalDateTime()
-                val durationMs = ChronoUnit.MILLIS.between(start, end)
-                logger.debug("Partition prune complete started at $start, ended at $end, duration: $durationMs ")
-            } catch (t: Throwable) {
-                meterRegistry.counter("maintenance_job_error_total", "job", "LocalOutboxMaintenanceJob.pruneOldPartitions").increment()
-                throw t
-            }
+        try {
+            val start = Utc.nowLocalDateTime()
+            pruneOldPartitions()
+            val end = Utc.nowLocalDateTime()
+            val durationMs = ChronoUnit.MILLIS.between(start, end)
+            logger.debug("Partition prune complete started at $start, ended at $end, duration: $durationMs ")
+        } catch (t: Throwable) {
+            maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.pruneOldPartitions"))
+            throw t
         }
     }
 
     @Scheduled(fixedDelay = 30 * 60 * 1000, initialDelay = 15 * 60 * 1000)
+    @Async("partitionRemovalExecutor")
     fun vacuumOldPartitionsWithNewRowsScheduled() {
-        taskScheduler.execute {
-            try {
-                val start = Utc.nowLocalDateTime()
-                vacuumOldPartitionsWithNewRows()
-                val end = Utc.nowLocalDateTime()
-                val durationMs = ChronoUnit.MILLIS.between(start, end)
-                logger.debug("Partition vacuum check complete started at $start, ended at $end, duration: $durationMs ")
-            } catch (t: Throwable) {
-                meterRegistry.counter("maintenance_job_error_total", "job", "LocalOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows").increment()
-                throw t
-            }
+        try {
+            val start = Utc.nowLocalDateTime()
+            vacuumOldPartitionsWithNewRows()
+            val end = Utc.nowLocalDateTime()
+            val durationMs = ChronoUnit.MILLIS.between(start, end)
+            logger.debug("Partition vacuum check complete started at $start, ended at $end, duration: $durationMs ")
+        } catch (t: Throwable) {
+            maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows"))
+            throw t
         }
     }
 }
@@ -106,7 +110,11 @@ class AsyncConfig {
         corePoolSize = 2
         maxPoolSize = 2
         setThreadNamePrefix("partition-creation-")
-        initialize()
+        setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
+        }
+
     }
 
     @Bean("partitionRemovalExecutor")
@@ -114,6 +122,10 @@ class AsyncConfig {
         corePoolSize = 2
         maxPoolSize = 2
         setThreadNamePrefix("partition-removal-")
-        initialize()
+        setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
+        }
+
     }
 }

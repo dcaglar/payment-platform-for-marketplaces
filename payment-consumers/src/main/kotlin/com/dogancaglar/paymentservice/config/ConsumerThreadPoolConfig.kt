@@ -1,81 +1,75 @@
 package com.dogancaglar.paymentservice.config
 
-import io.micrometer.core.instrument.MeterRegistry
-import org.slf4j.MDC
+import io.opentelemetry.context.Context
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.task.TaskDecorator
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
-import org.springframework.stereotype.Component
 import java.util.concurrent.ThreadPoolExecutor
-
+import kotlin.use
 
 @Configuration
-class ConsumerThreadPoolConfig(private val meterRegistry: MeterRegistry, private val decorator: MdcTaskDecorator) {
+class ConsumerThreadPoolConfig {
+
 
 
     @Bean("pspExecutionPool")
-    fun pspExecutionPool(decorator: TaskDecorator): ThreadPoolTaskExecutor =
-        ThreadPoolTaskExecutor().apply {
-            corePoolSize = 50
-            maxPoolSize = 500
-            queueCapacity = 1000
-            setThreadNamePrefix("psp-")
-            setTaskDecorator(decorator)
-            initialize()
+    fun pspExecutionPool(): ThreadPoolTaskExecutor {
+        val pspExecutor = ThreadPoolTaskExecutor()
+        pspExecutor.corePoolSize = 50
+        pspExecutor.maxPoolSize = 500
+        pspExecutor.queueCapacity = 1000
+        pspExecutor.setThreadNamePrefix("psp-")
+        pspExecutor.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
+        return  pspExecutor
+    }
 
     @Bean("resilientExecutor")
-    fun resilientExecutor(decorator: TaskDecorator): ThreadPoolTaskExecutor =
-        ThreadPoolTaskExecutor().apply {
-            corePoolSize = 32
-            maxPoolSize = 32
-            queueCapacity = 500
-            setThreadNamePrefix("resilient-callback-")
-            setTaskDecorator(decorator)
-            setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
-            initialize()
+    fun resilientExecutor(): ThreadPoolTaskExecutor {
+
+        val resilientExecutor = ThreadPoolTaskExecutor()
+        resilientExecutor.corePoolSize = 32
+        resilientExecutor.maxPoolSize = 32
+        resilientExecutor.queueCapacity = 500
+        resilientExecutor.setThreadNamePrefix("consumers-resilient-callback-")
+        resilientExecutor.setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
+
+        resilientExecutor.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
+
+        return resilientExecutor
+    }
 
     @Bean("taskScheduler")
-    fun defaultSpringScheduler(): ThreadPoolTaskScheduler =
-        ThreadPoolTaskScheduler().apply {
-            poolSize = 2
-            setThreadNamePrefix("payment-consumers-spring-scheduled-")
-            setTaskDecorator(decorator)
-            setWaitForTasksToCompleteOnShutdown(true)
-            initialize()
+    fun defaultSpringScheduler(): ThreadPoolTaskScheduler {
+        val scheduler = ThreadPoolTaskScheduler()
+        scheduler.poolSize = 2
+        scheduler.setThreadNamePrefix("payment-consumers-spring-scheduled-")
+        scheduler.setWaitForTasksToCompleteOnShutdown(true)
+        scheduler.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
 
+        return scheduler
+    }
 
     @Bean("retryDispatcherSpringScheduler")
-    fun retryDispatcherScheduler(decorator: MdcTaskDecorator) =
-        ThreadPoolTaskScheduler().apply {
-            poolSize = 1                      // one runner is enough; raise if you really want concurrent batches
-            setThreadNamePrefix("retry-dispatcher-")
-            setTaskDecorator(decorator)
-            setWaitForTasksToCompleteOnShutdown(true)
-            initialize()
+    fun retryDispatcherScheduler(): ThreadPoolTaskScheduler {
+        val scheduler = ThreadPoolTaskScheduler()
+        scheduler.poolSize = 1
+        scheduler.setThreadNamePrefix("retry-dispatcher-")
+        scheduler.setWaitForTasksToCompleteOnShutdown(true)
+        scheduler.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
 
-
-}
-
-
-@Component
-class MdcTaskDecorator : TaskDecorator {
-    override fun decorate(runnable: Runnable): Runnable {
-        val context = MDC.getCopyOfContextMap()
-        return Runnable {
-            val previous = MDC.getCopyOfContextMap()
-            if (context != null) MDC.setContextMap(context) else MDC.clear()
-            try {
-                runnable.run()
-            } finally {
-                if (previous != null) MDC.setContextMap(previous) else MDC.clear()
-            }
-        }
+        return scheduler
     }
 }
-

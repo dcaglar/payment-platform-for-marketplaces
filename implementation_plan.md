@@ -61,7 +61,8 @@ We use two NGINX controller hooks together:
 
 **OR** — the simpler, fully working alternative for our single-tenant cluster:
 
-Use `nginx.ingress.kubernetes.io/upstream-hash-by` with a **custom Nginx variable set by `configuration-snippet`** that is the extracted `nodeId` as a string. The hash of a constant string like `"0"`, `"1"`, `"2"` is always deterministic and will always map to the same slot. **But this still has the multi-replica consistency problem.**
+Use `nginx.ingress.kubernetes.io/upstream-hash-by` with a **custom Nginx variable set by `co
+nfiguration-snippet`** that is the extracted `nodeId` as a string. The hash of a constant string like `"0"`, `"1"`, `"2"` is always deterministic and will always map to the same slot. **But this still has the multi-replica consistency problem.**
 
 **The cleanest approach that is 100% deterministic**: Route to the headless pod DNS directly using **`proxy_pass`** in a custom NGINX `server-snippet` / by adding a secondary Ingress per cell.
 

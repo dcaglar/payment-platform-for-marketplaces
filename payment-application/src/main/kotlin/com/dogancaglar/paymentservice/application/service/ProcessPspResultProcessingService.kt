@@ -93,6 +93,7 @@ open class ProcessPspResultProcessingService(
 
         // 3. Generate JournalEntries
         val journalEntries = JournalEntry.authHold(
+            globalJournalEntryId = idGeneratorPort.generateId(),
             paymentId = PaymentId(paymentIdValue),
             txId = TxId(txIdValue),
             journalIdentifier = event.paymentIntentId,
@@ -115,9 +116,11 @@ open class ProcessPspResultProcessingService(
 
         // 5. Emit an OutboxEvent containing the raw JournalEntries
         val now = Utc.nowInstant()
+
+        val deterministicBatchId = "${transaction.txType.name}:${event.publicPaymentIntentId}:${transaction.txId.value}"
         val ledgerEvent = JournalEntriesRecorded.from(
             cmd = event,
-            batchId = transaction.txId.value.toString()+transaction.txType + transaction.status.name,
+            batchId = deterministicBatchId,
             entries = journalEntries.map { LedgerDomainEventEntityMapper.toLedgerEntryEventData(it) },
             customPartitionKey = event.merchantAccountId,
             now = now
@@ -162,6 +165,7 @@ open class ProcessPspResultProcessingService(
         val pspReceivable = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.PSP_RECEIVABLES, "GLOBAL.${event.currency}"))
 
         val journalEntries = JournalEntry.captureGrossAsset(
+            globalJournalEntryId = idGeneratorPort.generateId(),
             paymentId = payment.paymentId,
             txId = captureTx.txId,
             journalIdentifier = event.publicPaymentIntentId,
@@ -175,9 +179,10 @@ open class ProcessPspResultProcessingService(
         // Emit an OutboxEvent containing the raw JournalEntries
         // This decouples marketplace split logic from basic capture processing
         val now = Utc.nowInstant()
+        val deterministicBatchId = "${captureTx.txType.name}:${event.publicPaymentIntentId}:${captureTx.txId.value}:${captureTx.status.name}"
         val ledgerEvent = JournalEntriesRecorded.from(
             cmd = event,
-            batchId = captureTx.txId.value.toString()+captureTx.txType +  captureTx.status.name,
+            batchId = deterministicBatchId,
             entries = journalEntries.map { LedgerDomainEventEntityMapper.toLedgerEntryEventData(it) },
             customPartitionKey = event.merchantAccountId,
             now = now
@@ -201,6 +206,9 @@ open class ProcessPspResultProcessingService(
         val sourceAccount = Account.fromProfile(accountDirectory.getAccountByCode(event.sourceAccount))
         val targetAccount = Account.fromProfile(accountDirectory.getAccountByCode(event.targetAccount))
 
+        val paymentIntentId = PaymentIntentId(event.paymentIntentId.toLongOrNull() ?: 0L)
+        val payment = paymentRepository.findByPaymentIntentId(paymentIntentId)
+            ?: throw IllegalStateException("Payment not found for paymentIntentId=${event.paymentIntentId}")
         // 2. Load InternalTransfer and Tx
         val transferId = com.dogancaglar.paymentservice.domain.model.vo.InternalTransferId(event.transferId)
         val transfer = transferRepository.findById(transferId)
@@ -208,34 +216,23 @@ open class ProcessPspResultProcessingService(
 
         val updatedTransfer = transfer.markTransferred()
 
-        val paymentIntentId = PaymentIntentId(event.paymentIntentId.toLongOrNull() ?: 0L)
-        val payment = paymentRepository.findByPaymentIntentId(paymentIntentId)
-            ?: throw IllegalStateException("Payment not found for paymentIntentId=${event.paymentIntentId}")
-
-        val txs = paymentTxPort.findByPaymentId(payment.paymentId.value)
-        val internalTransferTx = txs.find { it.txId.value == event.internalTransferTxId }
-            ?: throw IllegalStateException("Pending InternalTransfer Tx not found for txId=${event.internalTransferTxId}")
-
-
-        val updatedTransferTx = (internalTransferTx as Tx.InternalTransferTx).markAsSuccess()
-
-
-
-        val journalIdentifier = "${event.publicPaymentIntentId}-${event.internalTransferTxId}"
+        val publicTransferId = PublicIdFactory.publicInternalTransferId(transferId.value)
+        val journalIdentifier = "${event.publicPaymentIntentId}-${event.sourceAccount}+${event.targetAccount}"
 
         //  Polymorphic invocation selects exact journal factory profile structures cleanly!
-        val journalEntries = when (JournalType.valueOf(event.journalType)) {
+        val journalEntries =
+            when (JournalType.valueOf(event.journalType)) {
             JournalType.COMMISSION_FEE -> JournalEntry.commissionFeeRegistered(
+                globalJournalEntryId = idGeneratorPort.generateId(),
                 paymentId = payment.paymentId,
-                txId = updatedTransferTx.txId,
                 journalIdentifier = journalIdentifier,
                 commissionFee = amount,
                 commissionEscrowAccount = targetAccount, // Maps explicitly based on design
-                merchantGrossPool = sourceAccount
+                merchantGrossPool = sourceAccount,
             )
 
             JournalType.REVENUE_RECOGNITION -> JournalEntry.recognizePlatformRevenue(
-                txId = updatedTransferTx.txId,
+                globalJournalEntryId = idGeneratorPort.generateId(),
                 recognitionIdentifier = journalIdentifier,
                 maturedFeeAmount = amount,
                 commissionEscrowAccount = sourceAccount,
@@ -243,22 +240,22 @@ open class ProcessPspResultProcessingService(
             )
 
             JournalType.INTERNAL_TRANSFER -> JournalEntry.internalTransfer(
+                globalJournalEntryId = idGeneratorPort.generateId(),
                 paymentId = payment.paymentId,
-                txId = updatedTransferTx.txId,
                 journalIdentifier = journalIdentifier,
                 amount = amount,
                 sourceAccount = sourceAccount,
                 targetAccount = targetAccount
             )
 
-            else -> throw IllegalArgumentException(
-                "Inbound routing error: JournalType [${event.journalType}] cannot be processed by processInternalTransferCommand. TxId: ${event.internalTransferTxId}"
-            )
-        }
+                else -> {throw IllegalArgumentException("Unexped journal type, journal type: ${event.journalType}")
+                }
+            }
         val now = Utc.nowInstant()
+        val deterministicBatchId =  "${JournalType.INTERNAL_TRANSFER}:${event.publicPaymentIntentId}:${publicTransferId}:${event.sourceAccount}:${event.targetAccount}"
         val ledgerEvent = JournalEntriesRecorded.from(
             cmd = event,
-            batchId = updatedTransferTx.txId.value.toString() + updatedTransferTx.txType + updatedTransferTx.status.name ,
+            batchId = deterministicBatchId ,
             entries = journalEntries.map { LedgerDomainEventEntityMapper.toLedgerEntryEventData(it) },
             customPartitionKey = event.targetAccount,
             now = now
@@ -269,7 +266,6 @@ open class ProcessPspResultProcessingService(
         // 4. Persist
         centralDbTransactionalFacadePort.recordInternalTransferOperationInLedger(
             internalTransfer = updatedTransfer,
-            tx = updatedTransferTx,
             journalEntries = journalEntries,
             outboxEvents = listOf(outboxEvent)
         )
@@ -285,19 +281,19 @@ open class ProcessPspResultProcessingService(
         val txHistory = paymentTxPort.findByPaymentId(payment.paymentId.value)
 
         // 2. Filter out pure collections to feed into our aggregate root
-        val captureTransactions = txHistory.filter { it.txType == com.dogancaglar.paymentservice.domain.model.ledger.JournalType.CAPTURE }.map { it as Tx.CaptureTx }
-        val targetCaptureTx = captureTransactions.find { it.settleStatus == SettleStatus.UNMATCHED }
-            ?: throw IllegalStateException("Outstanding UNMATCHED CaptureTx row not found for target paymentId=${payment.paymentId.value}")
+        val captureTransactions = txHistory.filterIsInstance<Tx.CaptureTx>()
 
         val actualGrossAmount = Amount.of(event.grossAmountValue, Currency(event.currency))
 
         // 3. EXECUTE DOMAIN-CONTROLLED STATE TRANSITION
-        // The aggregate processes the business rules and returns new, validated, immutable instances
-        val (updatedPayment, updatedCaptureTx) = payment.reconcileCaptureSettlement(
-            targetTxId = targetCaptureTx.txId,
+        // The aggregate owns finding the target line and processes the business rules
+        val reconciliationResult = payment.reconcileCaptureSettlement(
             actualGrossAmount = actualGrossAmount,
             allCaptures = captureTransactions
         )
+        
+        val updatedPayment = reconciliationResult.payment
+        val updatedCaptureTx = reconciliationResult.captureTx
 
         // 4. Formulate Ledger Accounting Structures (Unchanged)
         val settlementTxId = TxId(idGeneratorPort.generateId())
@@ -311,6 +307,7 @@ open class ProcessPspResultProcessingService(
         val feeAmount = Amount.of(event.pspFeeAmountValue, Currency(event.currency))
 
         val settlementJournals = JournalEntry.settlementLineItem(
+            globalJournalEntryId = idGeneratorPort.generateId(),
             paymentId = payment.paymentId,
             settlementTxId = settlementTxId,
             journalIdentifier = journalIdentifier,
@@ -326,18 +323,19 @@ open class ProcessPspResultProcessingService(
             txId = settlementTxId,
             paymentId = payment.paymentId,
             paymentIntentId = paymentIntentId,
-            captureTxId = targetCaptureTx.txId,
+            captureTxId = updatedCaptureTx.txId,
             acquirerBatchReference = journalIdentifier,
             grossAmount = actualGrossAmount,
             feeAmount = feeAmount,
             netCashAmount = netCashAmount,
-            originalCaptureAmount = targetCaptureTx.amount
+            originalCaptureAmount = updatedCaptureTx.amount
         )
 
         val now = Utc.nowInstant()
+        val deterministicBatchId = "${settlementTxRecord.txType.name}:${event.publicPaymentIntentId}:${settlementTxRecord.txId.value}:${settlementTxRecord.status.name}"
         val ledgerEvent = JournalEntriesRecorded.from(
             cmd = event,
-            batchId = settlementTxId.value.toString() + settlementTxRecord.txType + settlementTxRecord.status,
+            batchId = deterministicBatchId,
             entries = settlementJournals.map { LedgerDomainEventEntityMapper.toLedgerEntryEventData(it) },
             customPartitionKey = event.merchantAccountId,
             now = now

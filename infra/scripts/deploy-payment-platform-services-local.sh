@@ -1,100 +1,79 @@
 #!/usr/bin/env bash
-# Deploys all payment platform services to Local Kubernetes (OrbStack)
-#
-# Usage: ./deploy-payment-platform-services-local.sh
 set -euo pipefail
 
-trap 'echo "❌ Local payment platform services deployment failed on line $LINENO. Command: $BASH_COMMAND"' ERR
+trap 'echo "❌ Local infrastructure deployment failed on line $LINENO. Command: $BASH_COMMAND"' ERR
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="$SCRIPT_DIR/../.."
 cd "$REPO_ROOT"
 
-echo "🛡️  Checking and setting Kubernetes context..."
+echo "🛡️$REPO_ROOT  Checking and setting kubectl context to orbstack..."
 kubectl config set-context orbstack
 kubectl config use-context orbstack
 CURRENT_CONTEXT=$(kubectl config current-context || echo "none")
 
 if [[ "$CURRENT_CONTEXT" != "orbstack" ]]; then
-  echo "❌ Current context is '$CURRENT_CONTEXT'. Refusing to deploy payment platform services to the wrong cluster!"
-  echo "Run: first kubectl config set-context orbstack , then kubectl config use-context orbstack, and re-run the script again"
+  echo "❌ Current context is '$CURRENT_CONTEXT'. Refusing to deploy to the wrong cluster!"
   exit 1
 fi
-echo "ℹ️  Deploying to context: $CURRENT_CONTEXT"
 
-echo "🚀 Deploying all payment platform services to Local in a serialized manner..."
-
-# Format: RELEASE_NAME|NAMESPACE|SECRET_ARGS
-RELEASES=(
-  "payment-edge-cell|payment|-f secrets://$REPO_ROOT/edge-cell-sops-secrets.yaml"
-  "payment-edge-workers|payment|-f secrets://$REPO_ROOT/edge-cell-sops-secrets.yaml -f secrets://$REPO_ROOT/central-db-sops-secrets.yaml"
-  "central-db|payment|-f secrets://$REPO_ROOT/central-db-sops-secrets.yaml"
-  "payment-consumers|payment|-f secrets://$REPO_ROOT/central-db-sops-secrets.yaml"
-  "payment-central-relay|payment|-f secrets://$REPO_ROOT/central-db-sops-secrets.yaml"
-)
-
-log_success() {
-  echo "✅ SUCCESS: Manifests for '$1' successfully accepted by Kubernetes API."
-}
-
-log_error() {
-  echo "❌ ERROR: Failed to submit manifests for '$1'."
-  echo "Details: $2"
-}
-
-for RELEASE_INFO in "${RELEASES[@]}"; do
-  IFS='|' read -r RELEASE_NAME NAMESPACE SECRET_ARGS <<< "$RELEASE_INFO"
-
-  if [ "$SECRET_ARGS" == "null" ]; then SECRET_ARGS=""; fi
-
-  echo "========================================================"
-  echo "📦 Preparing deployment for: $RELEASE_NAME"
-
-  CHART_ROOT="$REPO_ROOT/charts/$RELEASE_NAME"
-  if [ ! -d "$CHART_ROOT" ]; then
-    echo "❌ Error: Chart directory $CHART_ROOT does not exist."
-    exit 1
-  fi
-
-  VALUES_ARGS="-f $CHART_ROOT/values.yaml -f $CHART_ROOT/local/values.yaml"
-
-  HELM_CMD="helm upgrade"
-  if [[ -n "$SECRET_ARGS" ]]; then
-    HELM_CMD="helm secrets upgrade"
-    echo "🔐 Using helm-secrets plugin with SOPS decryption."
-  fi
-
-  echo "⬇️  Updating helm dependencies for $RELEASE_NAME..."
-  helm dependency update "$CHART_ROOT"
-
-  echo "🚀 Executing $HELM_CMD --install for $RELEASE_NAME in namespace $NAMESPACE"
-  
-  # Execute helm upgrade --install and gracefully catch "already exists" edge cases
-  if ! err=$($HELM_CMD --install "$RELEASE_NAME" "$CHART_ROOT" \
-    -n "$NAMESPACE" --create-namespace \
-    $VALUES_ARGS \
-    $SECRET_ARGS 2>&1); then
-    
-    if echo "$err" | grep -qi "already exists"; then
-      echo "⚠️  WARNING: Release $RELEASE_NAME already exists or encountered a non-fatal collision. Continuing..."
-    else
-      log_error "$RELEASE_NAME" "$err"
-      exit 1
-    fi
-  else
-    log_success "$RELEASE_NAME"
-  fi
-
-  echo "🧹 Cleaning up downloaded .tgz dependencies..."
-  rm -rf "$CHART_ROOT/charts"
-  rm -f "$CHART_ROOT/Chart.lock"
-
-  echo "🔄 Forcing pod restart to pull the latest image..."
-  kubectl rollout restart deployment "$RELEASE_NAME" -n "$NAMESPACE" 2>/dev/null || true
-  kubectl rollout restart statefulset "$RELEASE_NAME" -n "$NAMESPACE" 2>/dev/null || true
-done
+echo "🚀 Deploying platform services locally..."
 
 echo "========================================================"
-echo "✅ All manifests successfully submitted to Local Kubernetes via helm."
-echo "Kubernetes is now resolving dependencies natively via initContainers."
-echo "Check progress via: kubectl get pods -n payment -w"
+echo "📦 1. Deploying central-db"
+helm dependency update "$REPO_ROOT/charts/central-db"
+helm secrets upgrade --install central-db "$REPO_ROOT/charts/central-db" \
+  -n payment --create-namespace \
+  -f "$REPO_ROOT/charts/central-db/values.yaml" \
+    -f "$REPO_ROOT/charts/central-db/local/values.yaml" \
+  -f "secrets://$REPO_ROOT/central-db-sops-secrets.yaml"
+
+echo "========================================================"
+echo "📦 2. Deploying payment-edge-cell"
+helm dependency update "$REPO_ROOT/charts/payment-edge-cell"
+helm secrets upgrade --install payment-edge-cell "$REPO_ROOT/charts/payment-edge-cell" \
+  -n payment --create-namespace \
+  -f "$REPO_ROOT/charts/payment-edge-cell/values.yaml" \
+  -f "$REPO_ROOT/charts/payment-edge-cell/local/values.yaml" \
+  -f "secrets://$REPO_ROOT/edge-cell-sops-secrets.yaml"
+
+echo "========================================================"
+echo "📦 3. Deploying payment-edge-workers"
+helm dependency update "$REPO_ROOT/charts/payment-edge-workers"
+helm secrets upgrade --install payment-edge-workers "$REPO_ROOT/charts/payment-edge-workers" \
+  -n payment --create-namespace \
+  -f "$REPO_ROOT/charts/payment-edge-workers/values.yaml" \
+    -f "$REPO_ROOT/charts/payment-edge-workers/local/values.yaml" \
+  -f "secrets://$REPO_ROOT/edge-cell-sops-secrets.yaml" \
+  -f "secrets://$REPO_ROOT/central-db-sops-secrets.yaml"
+
+echo "========================================================"
+echo "📦 4. Deploying payment-central-relay"
+helm dependency update "$REPO_ROOT/charts/payment-central-relay"
+helm secrets upgrade --install payment-central-relay "$REPO_ROOT/charts/payment-central-relay" \
+  -n payment --create-namespace \
+  -f "$REPO_ROOT/charts/payment-central-relay/values.yaml" \
+    -f "$REPO_ROOT/charts/payment-central-relay/local/values.yaml" \
+  -f "secrets://$REPO_ROOT/central-db-sops-secrets.yaml"
+
+echo "========================================================"
+echo "📦 5. Deploying payment-consumers"
+helm dependency update "$REPO_ROOT/charts/payment-consumers"
+helm secrets upgrade --install payment-consumers "$REPO_ROOT/charts/payment-consumers" \
+  -n payment --create-namespace \
+  -f "$REPO_ROOT/charts/payment-consumers/values.yaml" \
+    -f "$REPO_ROOT/charts/payment-consumers/local/values.yaml" \
+  -f "secrets://$REPO_ROOT/central-db-sops-secrets.yaml"
+
+
+  echo "📦 5. Deploying open telemetry trace/metric collector "
+  OTEL_VALUES_FILE="$REPO_ROOT/infra/helm-values/opentelemetry-collector-values-local.yaml"
+  helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+  helm repo update open-telemetry
+  helm  upgrade --install my-opentelemetry-collector open-telemetry/opentelemetry-collector \
+    -n payment \
+    -f "$OTEL_VALUES_FILE"
+
+echo "========================================================"
+echo "✅ All local platform services deployed sequentially."
+echo "Check progress via: kubectl get pods -A"

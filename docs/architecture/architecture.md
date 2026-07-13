@@ -822,14 +822,14 @@ The following catalog defines every event and command passing through Kafka, inc
 
 ### 2. Strict Type Safety & Generics Preservation
 
-#### Avoidance of Type Erasure
-In early iterations, generic event envelopes were sometimes cast to a raw `EventEnvelope<Event>` base wrapper. This degraded runtime type signatures and stripped Jackson of the concrete metadata needed to map and deserialize nested JSON sub-structures correctly. 
+#### High-Performance Outbox Event Relay (The "Zero-Deserialization" Flow) & Type Preservation
+In early iterations, generic event envelopes were sometimes cast to a raw `EventEnvelope<Event>` base wrapper during Kafka publishing, or required costly deserialize-reserialize cycles in the Relay Job. This degraded performance and risked stripping Jackson of the concrete metadata needed to map nested JSON sub-structures correctly. 
 
-To harden this, the system strictly implements **concrete type preservation** across both publication and consumption:
-1. **At Publication (`OutboxRelayJob` & `PaymentEventPublisher`)**:
-   Instead of calling `publishBatchAtomically<Event>`, the relay job parses the internal outbox event type and casts the envelope to its exact, concrete compile-time generic class (e.g. `EventEnvelope<PaymentAuthorized>`, `EventEnvelope<CaptureReceived>`, or `EventEnvelope<RefundReceived>`).
-2. **At Serialization (`JacksonSerializationAdapter` & `EventEnvelopeKafkaSerializer`)**:
-   The serialization adapter preserves the complete generic structure, appending the event's fully-qualified class details and type metadata into the JSON payload and Kafka headers (e.g., `traceId`, `eventId`, `eventType`).
+To harden this and improve performance, the system strictly implements **concrete type preservation at the point of creation** and uses **raw byte forwarding** during publication:
+1. **At Event Creation (`OutboxEventEventFactory`)**:
+   Concrete type preservation is guaranteed at the edge. The system constructs the exact compile-time generic `EventEnvelope<T>` (e.g., `EventEnvelope<PaymentAuthorized>`) and serializes it to a JSON payload *before* persisting it into the local outbox. Essential observability metadata (`traceId`, `eventId`, `parentEventId`, `eventType`) is extracted and stored as dedicated columns in the outbox table.
+2. **At Publication (`OutboxRelayJob` & `RawEventPublisher`)**:
+   The `OutboxRelayJob` bypasses JSON deserialization entirely. Instead of attempting to parse and cast to concrete `EventEnvelope<T>` wrappers, it uses the `RawEventPublisher` to stream the pre-serialized `payload` directly to Kafka as raw bytes. It also injects the necessary type metadata (`eventType`, `traceId`, `eventId`) directly into the Kafka headers. This maintains strict type safety for downstream consumers while maximizing relay throughput.
 
 #### Runtime Deserialization Binding
 Kafka messages are consumed using Spring Kafka's `ErrorHandlingDeserializer` delegating to our custom `EventEnvelopeKafkaDeserializer`. 
@@ -840,3 +840,27 @@ Kafka messages are consumed using Spring Kafka's `ErrorHandlingDeserializer` del
 - **Type Filtering**:
   At the container listener level (`KafkaTypedConsumerFactoryConfig`), the container factory is registered with a `RecordFilterStrategy` matching the class's exact expected event type. This ensures that any malformed or unexpected events are filtered or routed to the DLQ immediately without crashing the consumer.
 
+---
+
+## 🟦 Observability: Metrics, Tracing, and Exemplars (OpenTelemetry)
+
+To satisfy **NFR4 (Observability)** and provide deterministic debugging across our asynchronous, distributed components, the platform relies exclusively on **OpenTelemetry (OTel)** for both distributed tracing and metrics generation.
+
+### 1. The Instrumentation Strategy: `otel-spring-starter` vs. Alternatives
+A deliberate architectural decision was made regarding how OpenTelemetry is integrated into the Spring Boot ecosystem:
+* **NO Java Agent**: We explicitly **do not use** the OpenTelemetry Java Agent (`-javaagent:opentelemetry-javaagent.jar`). While the agent provides "magic" byte-code manipulation for auto-instrumentation, it obscures the trace lifecycle, can introduce classloader conflicts, and makes manual context propagation harder to reason about in our highly customized outbox workers.
+* **NO Micrometer**: We explicitly **do not rely** on Spring Boot 3's built-in Micrometer metrics, Micrometer Tracing, or its OTel bridges (`management.tracing.enabled=false`). Mixing Micrometer with OTel often leads to duplicate spans or context propagation conflicts. All custom Micrometer metrics have been fully deprecated and migrated to explicit OpenTelemetry metrics.
+* **YES to `otel-spring-starter`**: Instead, the platform integrates the official **OpenTelemetry Spring Boot Starter**. This provides clean, native, and explicit auto-instrumentation for standard Spring HTTP and Kafka flows directly within our application code boundary, giving us full control over the trace context.
+
+### 2. Modern Telemetry Infrastructure (Push over Pull)
+The local and remote infrastructure (`local` and `azure` profiles) deploys a centralized **OpenTelemetry Collector**. 
+* **Metrics Push Strategy**: Instead of relying on Prometheus to scrape application endpoints (`/metrics`) via `ServiceMonitors`, applications push their OTel metrics directly to the OTel Collector. The collector then acts as an agent, securely pushing the metrics into Prometheus via the `remote_write` API.
+* **Tempo over Jaeger**: Jaeger has been removed. **Grafana Tempo** is the designated tracing backend. The OTel collector buffers incoming OTLP traces and forwards them directly to Tempo.
+* **Exemplars Integration**: The architecture leverages OTel Exemplars, allowing us to natively link high-cardinality trace IDs directly to aggregated metric points (e.g., latency histograms) inside Grafana dashboards.
+* **Custom Service Configuration**: OTel custom configuration (such as sampling rates, specific exporter settings, or service attributes) can be easily managed per-service via their respective Helm `values.yaml` files. This allows for tailored telemetry settings across both `local` and `azure` profiles.
+
+### 3. Manual Context Propagation for the Outbox Pattern
+While the `otel-spring-starter` automatically instruments standard HTTP requests and Spring Kafka listeners, our two-stage outbox architecture introduces asynchronous database polling gaps that require careful manual instrumentation:
+
+* **Edge Context Preservation**: When `OutboxEvent` records are created synchronously at the Edge API, the current active OTel `traceId` and `eventId` are explicitly extracted and persisted as physical columns in the `outbox_event` table. This durably bridges the gap between the HTTP request and future database workers.
+* **Manual Context Resumption (`CentralOutboxDispatchWorker`)**: Background workers that poll the database outbox operate entirely outside of a standard HTTP or Kafka context. These components manually construct OTel Spans and re-hydrate the trace context from the `outbox_event` table columns using explicit OTel API helpers. This ensures that a trace initiated by a shopper's HTTP checkout request perfectly links to the Kafka messages consumed by the ledger engine hours later.

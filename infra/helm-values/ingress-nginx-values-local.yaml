@@ -1,5 +1,4 @@
 
-# nginx-ingress-controller-values-local.yaml
 controller:
   metrics:
     enabled: true
@@ -35,10 +34,8 @@ controller:
           memory: 32Mi
         limits:
           memory: 64Mi
-
   # ── Cell Routing: Lua snippet support ──────────────────────────────────────
   allowSnippetAnnotations: true
-
   config:
     annotations-risk-level: "Critical"
     lua-shared-dicts: "cell_routing: 1m"

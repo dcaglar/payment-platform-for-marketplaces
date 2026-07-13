@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.psp.simulator
 
+import io.opentelemetry.instrumentation.annotations.WithSpan
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import kotlin.random.Random
@@ -14,6 +15,7 @@ class AuthorizationNetworkSimulator(
         get() = config.scenarios[config.scenario]
             ?: throw IllegalStateException("No scenario config for ${config.scenario}")
 
+            @WithSpan("AuthorizationNetworkSimulator.simulate")
     fun simulate() {
         val sc = active
         logger.debug("Selected scenario: ${config.scenario}")

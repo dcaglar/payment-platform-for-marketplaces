@@ -40,10 +40,12 @@ class AccountBalanceConsumer(
     ) {
         // Deduplication: Filter out already-processed events and log duplicates
         val newRecords = records.filter { record ->
-            val exists = dedupe.exists(record.value().eventId)
+            val envelope = record.value() as EventEnvelope<JournalEntriesRecorded>
+            val singleDedupeKey = envelope.data.deterministicEventId()
+            val exists = dedupe.exists(singleDedupeKey)
             if (exists) {
                 logger.warn(
-                    "⚠️ Event is processed already, skipping eventId=${record.value().eventId}, aggregateId=${record.value().aggregateId}"
+                    "⚠️ Event is processed already, skipping deterministing eventid $singleDedupeKey eventId=${record.value().eventId}, aggregateId=${record.value().aggregateId}"
                 )
             }
             !exists
@@ -54,13 +56,17 @@ class AccountBalanceConsumer(
             .flatMap { it.value().data.ledgerEntries }
             .map {
                 logger.debug(
-                    "🎬 Processing  journal ${it.journalType.name} with journal entry id ${it.journalEntryId}  tx id ${it.txId} ")
+                    "🎬 Processing  journal ${it.journalType.name} with journal entry id ${it.journalEntryId}  global journal entry id ${it.globalJournalEntryId} ")
                 LedgerDomainEventEntityMapper.toDomain(it) }
         // idempotenct update Process batch with idempotency check
         accountBalanceService.updateAccountBalancesBatch(allLedgerEntriesDomain)
         
         // Mark processed events
-        newRecords.forEach { dedupe.markProcessed(it.value().eventId, 3600) }
+        newRecords.forEach {
+            val currentEventEnvelope = it.value()
+            val currentDedupeKey =   currentEventEnvelope.data.deterministicEventId()
+            dedupe.markProcessed(currentDedupeKey , 3600)
+        }
 
         logger.info("Account balance consumer executed successfully for batch size=${records.size}")
     }

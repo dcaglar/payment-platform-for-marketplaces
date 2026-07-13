@@ -11,6 +11,8 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import javax.sql.DataSource
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseDataSource
 import org.springframework.beans.factory.annotation.Value
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.instrumentation.hikaricp.v3_0.HikariTelemetry
 
 @Configuration
 class MultiDataSourceConfig(@Value("\${app.pod-name}") private val podName: String,
@@ -42,9 +44,10 @@ class MultiDataSourceConfig(@Value("\${app.pod-name}") private val podName: Stri
         @Value("\${app.datasource.outbox.validation-timeout:15000}") vTimeout: Long,
         @Value("\${app.datasource.outbox.idle-timeout:600000}") iTimeout: Long,
         @Value("\${app.datasource.outbox.max-lifetime:1800000}") mLife: Long,
-        @Value("\${app.datasource.outbox.maximum-pool-size:20}") mPool: Int
+        @Value("\${app.datasource.outbox.maximum-pool-size:20}") mPool: Int,
+        openTelemetry: OpenTelemetry
     ): HikariDataSource {
-        return HikariDataSource().apply {
+        val dataSource = HikariDataSource().apply {
             poolName = "$appName-edge-outbox-pool"
             jdbcUrl = buildDynamicEdgeUrl()
             username = user
@@ -55,6 +58,8 @@ class MultiDataSourceConfig(@Value("\${app.pod-name}") private val podName: Stri
             maxLifetime = mLife
             maximumPoolSize = mPool
         }
+        dataSource.metricsTrackerFactory = HikariTelemetry.create(openTelemetry).createMetricsTrackerFactory()
+        return dataSource
     }
 
     @Bean("maintenanceDataSource")
@@ -66,9 +71,10 @@ class MultiDataSourceConfig(@Value("\${app.pod-name}") private val podName: Stri
         @Value("\${app.datasource.maintenance.idle-timeout:60000}") iTimeout: Long,
         @Value("\${app.datasource.maintenance.max-lifetime:1800000}") mLife: Long,
         @Value("\${app.datasource.maintenance.maximum-pool-size:1}") mPool: Int,
-        @Value("\${app.datasource.maintenance.minimum-idle:0}") minIdleConns: Int
+        @Value("\${app.datasource.maintenance.minimum-idle:0}") minIdleConns: Int,
+        openTelemetry: OpenTelemetry
     ): HikariDataSource {
-        return HikariDataSource().apply {
+        val dataSource = HikariDataSource().apply {
             poolName = "$appName-edge-maintenance-pool"
             jdbcUrl = buildDynamicEdgeUrl()
             username = user
@@ -80,6 +86,8 @@ class MultiDataSourceConfig(@Value("\${app.pod-name}") private val podName: Stri
             maximumPoolSize = mPool
             minimumIdle = minIdleConns
         }
+        dataSource.metricsTrackerFactory = HikariTelemetry.create(openTelemetry).createMetricsTrackerFactory()
+        return dataSource
     }
 
     @Bean("centralDataSource")
@@ -91,9 +99,10 @@ class MultiDataSourceConfig(@Value("\${app.pod-name}") private val podName: Stri
         @Value("\${app.datasource.central.validation-timeout:15000}") vTimeout: Long,
         @Value("\${app.datasource.central.idle-timeout:600000}") iTimeout: Long,
         @Value("\${app.datasource.central.max-lifetime:1800000}") mLife: Long,
-        @Value("\${app.datasource.central.maximum-pool-size:10}") mPool: Int
+        @Value("\${app.datasource.central.maximum-pool-size:10}") mPool: Int,
+        openTelemetry: OpenTelemetry
     ): HikariDataSource {
-        return HikariDataSource().apply {
+        val dataSource = HikariDataSource().apply {
             poolName = "$appName-central-edge-worker-pool"
             jdbcUrl = url
             username = user
@@ -104,6 +113,8 @@ class MultiDataSourceConfig(@Value("\${app.pod-name}") private val podName: Stri
             maxLifetime = mLife
             maximumPoolSize = mPool
         }
+        dataSource.metricsTrackerFactory = HikariTelemetry.create(openTelemetry).createMetricsTrackerFactory()
+        return dataSource
     }
 
     // -------- TxManagers --------

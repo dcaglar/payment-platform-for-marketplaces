@@ -209,7 +209,6 @@ class Payment private constructor(
     }
 
     fun reconcileCaptureSettlement(
-        targetTxId: TxId,
         actualGrossAmount: Amount,
         allCaptures: List<Tx.CaptureTx>
     ): ReconciliationResult {
@@ -218,9 +217,9 @@ class Payment private constructor(
             "Cannot reconcile settlement against a payment in $status status. Target must be CAPTURED or PARTIALLY_CAPTURED."
         }
 
-        // Locate the specific target transaction within our provided aggregate collection context
-        val targetTx = allCaptures.find { it.txId == targetTxId }
-            ?: throw IllegalArgumentException("Transaction TxId=${targetTxId.value} is not a valid child of PaymentId=${this.paymentId.value}")
+        // Domain Rule: Find the outstanding unmatched target line!
+        val targetTx = allCaptures.find { it.settleStatus == SettleStatus.UNMATCHED }
+            ?: throw IllegalStateException("Outstanding UNMATCHED CaptureTx row not found for target paymentId=${this.paymentId.value}")
 
         // Invariant Check 2: Evaluate gross volume consistency (Expected vs Actual Cleared)
         val derivedSettleStatus = if (actualGrossAmount == targetTx.amount) {
@@ -234,7 +233,7 @@ class Payment private constructor(
 
         // Evaluate macro state machine transition conditions:
         // We check if this newly matched line item completes the puzzle for ALL captures.
-        val areAllCapturesMatched = allCaptures.map { if (it.txId == targetTxId) updatedCaptureTx else it }
+        val areAllCapturesMatched = allCaptures.map { if (it.txId == targetTx.txId) updatedCaptureTx else it }
             .all { it.settleStatus == SettleStatus.MATCHED }
 
         val newStatus = if (areAllCapturesMatched && status == PaymentStatus.CAPTURED) {

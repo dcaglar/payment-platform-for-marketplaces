@@ -28,13 +28,12 @@ open class RecordCaptureSubmissionService(
     private val paymentTxPort: PaymentTxPort,
     private val idGeneratorPort: IdGeneratorPort,
     private val outboxEventFactoryPort: OutboxEventFactoryPort,
-    private val serializationPort: SerializationPort,
     private val pspSimulationRulesPort: PspSimulationRulesPort
 ) : RecordCaptureSubmissionUseCase {
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    override fun recordSubmission(event: CaptureSubmitted, traceId: String, parentEventId: String) {
+    override fun recordSubmission(event: CaptureSubmitted, parentEventId: String) {
         val paymentIntentId = PaymentIntentId(event.paymentIntentId.toLongOrNull() ?: 0L)
         val payment = paymentRepository.findByPaymentIntentId(paymentIntentId)
             ?: throw IllegalStateException("Payment context aggregate absent for paymentIntentId=${event.paymentIntentId}")

@@ -11,6 +11,8 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
 import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import javax.sql.DataSource
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.instrumentation.hikaricp.v3_0.HikariTelemetry
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 
 @Configuration
@@ -30,9 +32,11 @@ class PaymentConsumerDataSourceConfig {
     @Bean
     @Primary
     @ConfigurationProperties("spring.datasource.payment-consumers.hikari")
-    fun primaryDataSource(): HikariDataSource {
-        return primaryDataSourceProperties().initializeDataSourceBuilder()
+    fun primaryDataSource(openTelemetry: OpenTelemetry): HikariDataSource {
+        val dataSource = primaryDataSourceProperties().initializeDataSourceBuilder()
             .type(HikariDataSource::class.java).build()
+        dataSource.metricsTrackerFactory = HikariTelemetry.create(openTelemetry).createMetricsTrackerFactory()
+        return dataSource
     }
 
     @Bean

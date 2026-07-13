@@ -9,7 +9,6 @@ import java.util.*
 
 object EventLogContext {
     private val logger = LoggerFactory.getLogger(EventLogContext::class.java)
-    fun getTraceId(): String = MDC.get(GenericLogFields.TRACE_ID)?: UUID.randomUUID().toString()
     fun getEventId(): String? =
         MDC.get(GenericLogFields.EVENT_ID)
     fun getParentEventId(): String? =
@@ -29,7 +28,6 @@ object EventLogContext {
         // capture outer MDC (if any)
         val previous = MDC.getCopyOfContextMap()
         try {
-            MDC.put(GenericLogFields.TRACE_ID, envelope.traceId)
             MDC.put(GenericLogFields.EVENT_ID, envelope.eventId)
             MDC.put(GenericLogFields.AGGREGATE_ID, envelope.aggregateId)
             MDC.put(GenericLogFields.EVENT_TYPE, envelope.eventType)

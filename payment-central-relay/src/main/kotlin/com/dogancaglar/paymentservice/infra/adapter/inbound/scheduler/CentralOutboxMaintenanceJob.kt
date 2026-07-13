@@ -11,16 +11,23 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.stereotype.Component
 import java.time.temporal.ChronoUnit
+import io.opentelemetry.context.Context
 
 
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.api.common.AttributeKey
+import io.opentelemetry.api.common.Attributes
 import com.dogancaglar.common.db.partitioning.AbstractOutboxPartitionCreator
 
 @Component
 class CentralOutboxMaintenanceJob(
     @Qualifier("maintenanceJdbcTemplate") jdbcTemplate: JdbcTemplate,
     @param:Qualifier("centralOutboxEventPartitionMaintenanceScheduler") private val taskScheduler: ThreadPoolTaskScheduler,
-    private val meterRegistry: io.micrometer.core.instrument.MeterRegistry
+    openTelemetry: OpenTelemetry
 ) : AbstractOutboxPartitionCreator(jdbcTemplate) {
+
+    private val meter = openTelemetry.meterBuilder("payment-central-relay.maintenance").build()
+    private val maintenanceErrorCounter = meter.counterBuilder("maintenance_job_error_total").build()
 
     @EventListener(ApplicationReadyEvent::class)
     @Scheduled(
@@ -36,7 +43,7 @@ class CentralOutboxMaintenanceJob(
                 val durationMs = ChronoUnit.MILLIS.between(start, end)
                 logger.debug("Central partition check complete started at $start, ended at $end, duration: $durationMs ")
             } catch (t: Throwable) {
-                meterRegistry.counter("maintenance_job_error_total", "job", "CentralOutboxMaintenanceJob.ensureCurrentAndNext").increment()
+                maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "CentralOutboxMaintenanceJob.ensureCurrentAndNext"))
                 throw t
             }
         }
@@ -52,7 +59,7 @@ class CentralOutboxMaintenanceJob(
                 val durationMs = ChronoUnit.MILLIS.between(start, end)
                 logger.debug("Central partition prune complete started at $start, ended at $end, duration: $durationMs ")
             } catch (t: Throwable) {
-                meterRegistry.counter("maintenance_job_error_total", "job", "CentralOutboxMaintenanceJob.pruneOldPartitions").increment()
+                maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "CentralOutboxMaintenanceJob.pruneOldPartitions"))
                 throw t
             }
         }
@@ -68,7 +75,7 @@ class CentralOutboxMaintenanceJob(
                 val durationMs = ChronoUnit.MILLIS.between(start, end)
                 logger.debug("Central partition vacuum check complete started at $start, ended at $end, duration: $durationMs ")
             } catch (t: Throwable) {
-                meterRegistry.counter("maintenance_job_error_total", "job", "CentralOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows").increment()
+                maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "CentralOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows"))
                 throw t
             }
         }
@@ -82,7 +89,10 @@ class CentralOutboxPartitionCreatorConfig {
         val scheduler = ThreadPoolTaskScheduler()
         scheduler.poolSize = 1
         scheduler.setThreadNamePrefix("central-outbox-maintenance-pool-")
-        scheduler.initialize()
+        scheduler.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
+        }
         return scheduler
     }
 }

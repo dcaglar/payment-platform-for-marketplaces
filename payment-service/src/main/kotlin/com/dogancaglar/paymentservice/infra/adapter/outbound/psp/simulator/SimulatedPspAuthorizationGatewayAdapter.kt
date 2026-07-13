@@ -5,6 +5,7 @@ import com.dogancaglar.paymentservice.domain.exception.PspTransientException
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentMethod
 import com.dogancaglar.paymentservice.ports.outbound.PspAuthorizationGatewayPort
+import io.opentelemetry.instrumentation.annotations.WithSpan
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -30,6 +31,7 @@ class SimulatedPspAuthorizationGatewayAdapter(
         get() = config.scenarios[config.scenario]
             ?: throw IllegalStateException("No scenario config for ${config.scenario}")
 
+    @WithSpan("SimulatedCreatePaymentIntent")
     override fun createPaymentIntent(paymentIntent: PaymentIntent): CompletableFuture<PaymentIntent> {
         return CompletableFuture.supplyAsync({
             simulator.simulate()
@@ -53,6 +55,7 @@ class SimulatedPspAuthorizationGatewayAdapter(
         }, createPaymentIntentExecutor)
     }
 
+    @WithSpan("SimulatedCreatePaymentIntent")
     override fun authorizePaymentIntent(paymentIntent: PaymentIntent, token: PaymentMethod?): CompletableFuture<PaymentIntent> {
         return CompletableFuture.supplyAsync({
             simulator.simulate()

@@ -27,7 +27,7 @@
                     <loggerName/>
                     <message/>
                     <!-- Export your MDC keys (e.g. traceId, userId) up to top level -->
-                    <mdc includes="traceId,eventId,parentEventId,aggregateId,eventType,
+                    <mdc includes="eventId,parentEventId,aggregateId,eventType,
                retryCount,retryBackoffMillis,retryReason,retryErrorMessage"/>
                     <stackTrace/>
                     <globalCustomFields>{"app":"payment-service"}</globalCustomFields>
@@ -36,18 +36,17 @@
         </appender>
 
         <!-- Suppress verbose Kafka client logs -->
-        <logger name="org.apache.kafka" level="WARN"/>
+      <!--  <logger name="org.apache.kafka" level="WARN"/>
         <logger name="org.apache.kafka.clients.producer.ProducerConfig" level="WARN"/>
         <logger name="org.apache.kafka.clients.producer.KafkaProducer" level="WARN"/>
         <logger name="org.apache.kafka.clients.consumer.ConsumerConfig" level="WARN"/>
         <logger name="org.apache.kafka.clients.consumer.KafkaConsumer" level="WARN"/>
         <logger name="org.apache.kafka.common.telemetry" level="WARN"/>
         <logger name="org.apache.kafka.common.utils.AppInfoParser" level="WARN"/>
-        <logger name="org.apache.kafka.clients.producer.internals.TransactionManager" level="WARN"/>
-        <logger name="org.apache.kafka.clients.consumer.internals" level="WARN"/>
-        
+        <logger name="org.apache.kafka.clients.consumer.internals" level="WARN"/>-->
+
         <!-- Suppress verbose Spring Kafka logs (keep errors/warnings) -->
-        <logger name="org.springframework.kafka" level="WARN"/>
+<!--        <logger name="org.springframework.kafka" level="WARN"/>-->
         
         <!-- Keep application logs at INFO -->
         <logger name="com.dogancaglar" level="INFO"/>

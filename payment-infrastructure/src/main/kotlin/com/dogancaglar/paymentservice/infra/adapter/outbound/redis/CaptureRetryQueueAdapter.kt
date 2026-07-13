@@ -7,21 +7,22 @@ import com.dogancaglar.paymentservice.application.util.RetryItem
 import com.dogancaglar.paymentservice.infra.adapter.outbound.redis.client.CaptureRetryRedisCache
 import com.dogancaglar.paymentservice.ports.outbound.RetryQueuePort
 import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
-import io.micrometer.core.instrument.Gauge
-import io.micrometer.core.instrument.MeterRegistry
+import io.opentelemetry.api.OpenTelemetry
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 @Component("captureRetryQueueAdapter")
 class CaptureRetryQueueAdapter(
     private val captureRetryRedisCache: CaptureRetryRedisCache,
-    meterRegistry: MeterRegistry,
+    openTelemetry: OpenTelemetry,
     val serializationPort: SerializationPort) : RetryQueuePort<CaptureRequested> {
 
     init {
-        Gauge.builder("redis_retry_zset_size") { captureRetryRedisCache.zsetSize() }
-            .description("Number of entries pending in the Redis retry ZSet")
-            .register(meterRegistry)
+        val meter = openTelemetry.meterBuilder("payment-infrastructure.redis.retry").build()
+        meter.gaugeBuilder("redis_retry_zset_size")
+            .setDescription("Number of entries pending in the Redis retry ZSet")
+            .ofLongs()
+            .buildWithCallback { it.record(captureRetryRedisCache.zsetSize()) }
     }
 
     private val logger = LoggerFactory.getLogger(CaptureRetryQueueAdapter::class.java)
@@ -37,7 +38,6 @@ class CaptureRetryQueueAdapter(
             val envelope = EventEnvelopeFactory.envelopeFor(
                 data = event,
                 aggregateId = event.publicPaymentIntentId,
-                traceId = EventLogContext.getTraceId(),
                 parentEventId = EventLogContext.getEventId()
             )
             val json = serializationPort.toJson(envelope)

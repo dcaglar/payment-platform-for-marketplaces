@@ -7,18 +7,18 @@
     <insert id="insertOutboxEvent"
             parameterType="com.dogancaglar.common.db.entity.OutboxEventEntity">
         INSERT INTO outbox_event (
-        oeid, partition_key, event_type, aggregate_id, trace_id, event_id, parent_event_id, payload, status,
+        oeid, partition_key, event_type, aggregate_id, event_id, parent_event_id, payload, status,
         created_at, updated_at, claimed_at, claimed_by
         )
         VALUES (
-        #{oeid}, #{partitionKey}, #{eventType}, #{aggregateId}, #{traceId}, #{eventId}, #{parentEventId}, #{payload}, #{status},
+        #{oeid}, #{partitionKey}, #{eventType}, #{aggregateId}, #{eventId}, #{parentEventId}, #{payload}, #{status},
         #{createdAt}, #{updatedAt}, #{claimedAt}, #{claimedBy}
         )
     </insert>
 
     <insert id="insertAllOutboxEvents" parameterType="java.util.List">
         INSERT INTO outbox_event (
-        oeid, partition_key, event_type, aggregate_id, trace_id, event_id, parent_event_id, payload, status,
+        oeid, partition_key, event_type, aggregate_id, event_id, parent_event_id, payload, status,
         created_at, updated_at, claimed_at, claimed_by
         )
         VALUES
@@ -27,7 +27,6 @@
             #{event.partitionKey},
             #{event.eventType},
             #{event.aggregateId},
-            #{event.traceId},
             #{event.eventId},
             #{event.parentEventId},
             #{event.payload},

@@ -21,9 +21,6 @@ data class EventEnvelope<T : Event> @JsonCreator constructor(
     @JsonProperty("timestamp")
     val timestamp: Instant = Utc.nowInstant(),
 
-    @JsonProperty("traceId")
-    val traceId: String,
-
     @JsonProperty("parentEventId")
     val parentEventId: String? = null
 )

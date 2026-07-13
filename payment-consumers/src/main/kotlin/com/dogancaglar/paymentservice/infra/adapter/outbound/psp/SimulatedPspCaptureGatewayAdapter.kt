@@ -7,7 +7,9 @@ import com.dogancaglar.paymentservice.domain.model.payment.PspCaptureGatewayResp
 import com.dogancaglar.paymentservice.domain.model.payment.PspModificationStatus
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import com.dogancaglar.paymentservice.ports.outbound.PspCaptureGatewayPort
-import io.micrometer.core.instrument.MeterRegistry
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.api.common.AttributeKey
+import io.opentelemetry.api.common.Attributes
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -26,10 +28,13 @@ class SimulatedPspCaptureGatewayAdapter(
     private val refundSimulator: RefundNetworkSimulator,
     private val refundConfig: RefundSimulationProperties,
     @param:Qualifier("pspExecutionPool") private val pspExecutor: ThreadPoolTaskExecutor,
-    private val meterRegistry: MeterRegistry
+    openTelemetry: OpenTelemetry
 ) : PspCaptureGatewayPort {
 
     private val logger = LoggerFactory.getLogger(javaClass)
+    private val meter = openTelemetry.meterBuilder("payment-consumers.psp.simulated").build()
+    private val pspCallsTotal = meter.counterBuilder("psp_calls_total").build()
+    private val pspRefundCallsTotal = meter.counterBuilder("psp_refund_calls_total").build()
 
     private val activeCapture: CaptureSimulationProperties.ScenarioConfig
         get() = captureConfig.scenarios[captureConfig.scenario]
@@ -47,18 +52,18 @@ class SimulatedPspCaptureGatewayAdapter(
 
             when {
                 roll < sc.successful -> {
-                    meterRegistry.counter("psp_calls_total", "result", "SUCCESS").increment()
+                    pspCallsTotal.add(1, Attributes.of(AttributeKey.stringKey("result"), "SUCCESS"))
                     PspCaptureGatewayResponse(
                         pspReference = generatedPspRef,
                         status = PspModificationStatus.PENDING_CAPTURE
                     )
                 }
                 roll < sc.successful + sc.retryable -> {
-                    meterRegistry.counter("psp_calls_total", "result", "RETRYABLE").increment()
+                    pspCallsTotal.add(1, Attributes.of(AttributeKey.stringKey("result"), "RETRYABLE"))
                     throw PspTransientException("Simulated transient gateway network timeout", RuntimeException("capture network lag"))
                 }
                 else -> {
-                    meterRegistry.counter("psp_calls_total", "result", "DECLINED").increment()
+                    pspCallsTotal.add(1, Attributes.of(AttributeKey.stringKey("result"), "DECLINED"))
                     throw PspPermanentException("Simulated terminal capture rejection by card scheme", RuntimeException("capture declined"))
                 }
             }
@@ -76,7 +81,7 @@ class SimulatedPspCaptureGatewayAdapter(
                 else -> PspModificationStatus.REFUND_DECLINED_FINAL
             }
 
-            meterRegistry.counter("psp_refund_calls_total", "result", resultStatus.name).increment()
+            pspRefundCallsTotal.add(1, Attributes.of(AttributeKey.stringKey("result"), resultStatus.name))
             resultStatus
         }, pspExecutor)
     }

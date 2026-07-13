@@ -8,6 +8,9 @@
 # Exception: prometheus-node-exporter is a DaemonSet — runs on every node
 # automatically to give per-node CPU/mem/disk/net metrics from all pools.
 
+defaultRules:
+  create: false
+
 # ── Prometheus Operator ────────────────────────────────────────────────────────
 prometheusOperator:
   nodeSelector:
@@ -42,6 +45,8 @@ prometheus:
 
     enableAdminAPI: true
     enableRemoteWriteReceiver: true
+    enableFeatures:
+      - exemplar-storage
 
     # Persistent storage on Azure Premium SSD.
     # Survives Prometheus pod restarts mid-test without losing metric history.
@@ -88,6 +93,7 @@ alertmanager:
 
 # ── Grafana ────────────────────────────────────────────────────────────────────
 grafana:
+  defaultDashboardsEnabled: false
   service:
     type: LoadBalancer
     port: 80
@@ -113,10 +119,6 @@ grafana:
 
   dashboards:
     default:
-      jvm-micrometer:
-        gnetId: 4701     # JVM (Micrometer) — HikariCP pools, GC, heap, threads
-        revision: 14
-        datasource: Prometheus
       node-exporter:
         gnetId: 1860     # Node Exporter Full — per-node CPU/mem/disk/net
         revision: 37
@@ -133,6 +135,13 @@ grafana:
         gnetId: 9614     # ingress-nginx — RPS, P95/P99, upstream latency
         revision: 1
         datasource: Prometheus
+
+  additionalDataSources:
+    - name: Tempo
+      type: tempo
+      uid: tempo
+      url: http://tempo.monitoring.svc.cluster.local:3200
+      access: proxy
 
   grafana.ini:
     database:
@@ -154,6 +163,9 @@ grafana:
 
   sidecar:
     datasources:
+      exemplarTraceIdDestinations:
+        datasourceUid: tempo
+        traceIdLabelName: trace_id
       resources:
         requests: {cpu: "5m",  memory: "24Mi"}
         limits:   {memory: "24Mi"}
@@ -175,10 +187,11 @@ kube-state-metrics:
 # ── Node Exporter ──────────────────────────────────────────────────────────────
 # DaemonSet: runs on ALL nodes automatically.
 # No nodeSelector: we want per-node metrics from edgepool, edgedbpool, centralpool.
+kubelet:
+  enabled: false
+
 prometheus-node-exporter:
-  resources:
-    requests: {cpu: "15m",  memory: "32Mi"}
-    limits:   {memory: "32Mi"}
+  enabled: false
 
 # ── Prometheus Adapter ────────────────────────────────────────────────────────
 # Managed as a subchart — industry standard.
@@ -228,7 +241,7 @@ prometheusAdapter:
           )
 
       # ── payment-central-relay HPA: central outbox backlog ───────────────────
-      # Emitted by the relay as a Micrometer gauge.
+      # Emitted by the relay as an OpenTelemetry gauge.
       # Relay is currently a singleton (autoscaling: false) but the metric is
       # registered here ready for when horizontal scaling is enabled.
       - seriesQuery: 'central_outbox_backlog_size{namespace!=""}'

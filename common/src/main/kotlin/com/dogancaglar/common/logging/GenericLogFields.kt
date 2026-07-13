@@ -1,7 +1,6 @@
 package com.dogancaglar.common.logging
 
 object GenericLogFields {
-    const val TRACE_ID = "traceId"
     const val PAYMENT_ID = "PAYMENT_ID"
     const val PAYMENT_ORDER_ID = "PAYMENT_ORDER_ID"
     const val JOURNAL_ID = "JOURNAL_ID"

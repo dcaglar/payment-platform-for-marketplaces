@@ -42,7 +42,6 @@ class CapturePspPerformedConsumer(
             try {
                 recordCaptureSubmissionService.recordSubmission(
                     event = eventData,
-                    traceId = envelope.traceId,
                     parentEventId = envelope.eventId
                 )
                 dedupe.markProcessed(eventId, 3600)

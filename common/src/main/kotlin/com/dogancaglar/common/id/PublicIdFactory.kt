@@ -8,8 +8,8 @@ object PublicIdFactory {
     fun publicPaymentIntentId(paymentIntentId: Long): String =
         "pi_${PublicIdCodec.encode(paymentIntentId)}"
 
-    fun publicPaymentOrderId(orderId: Long): String =
-        "po_${PublicIdCodec.encode(orderId)}"
+    fun publicInternalTransferId(internalTransferId: Long): String =
+        "tr_${PublicIdCodec.encode(internalTransferId)}"
 
     fun publicLedgerEntryId(id: Long): String =
         "le_${PublicIdCodec.encode(id)}"

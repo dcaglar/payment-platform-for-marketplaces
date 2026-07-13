@@ -1,6 +1,7 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.concurrency
 
 import com.dogancaglar.paymentservice.ports.outbound.ResilientExecutionPort
+import io.opentelemetry.instrumentation.annotations.WithSpan
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
@@ -15,6 +16,7 @@ class ResilientExecutionAdapter(
 ) : ResilientExecutionPort {
     private val logger = LoggerFactory.getLogger(ResilientExecutionAdapter::class.java)
 
+   @WithSpan("resilientExecutor")
     override fun <T> executeWithTimeoutAndBackgroundFallback(
         primaryTask: CompletableFuture<T>,
         timeoutMs: Long,

@@ -32,9 +32,10 @@ class PaymentController(
     private val modificationOrchestrator: ModificationOrchestrator,
     private val idempotencyService: IdempotencyService,
 ) {
+
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    /**
+        /**
      * Create a new payment.
      *
      * Requires 'payment:write' authority.
@@ -49,7 +50,6 @@ class PaymentController(
         @Valid @RequestBody request: CreatePaymentIntentRequestDTO
     ): ResponseEntity<CreatePaymentIntentResponseDTO> {
         logger.debug("📥 Starting payment create intent reqeust")
-
         val result = idempotencyService.run(
             key = java.util.UUID.fromString(idempotencyKey),
             requestBody = request,

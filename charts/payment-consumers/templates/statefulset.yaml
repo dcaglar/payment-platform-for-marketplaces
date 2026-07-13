@@ -41,17 +41,14 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: payment-consumers-config
           env:
             - name: JAVA_TOOL_OPTIONS
               value: "{{ .Values.jvmOpts }}"
             - name: SPRING_PROFILES_ACTIVE
               value: "{{ .Values.spring.profile }}"
-            - name: SPRING_DATA_REDIS_URL
-              value: "{{ .Values.redis.url | default "redis://localhost:6379" }}"
-            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-              value: "{{ .Values.kafka.bootstrapServers | default "localhost:9092" }}"
-            - name: CENTRAL_DB_URL
-              valueFrom: { configMapKeyRef: { name: central-db-config, key: CENTRAL_DB_URL } }
             - name: CENTRAL_DB_PAYMENT_CONSUMERS_USERNAME
               valueFrom: { secretKeyRef: { name: central-db-credentials, key: CENTRAL_DB_PAYMENT_CONSUMERS_USERNAME } }
             - name: CENTRAL_DB_PAYMENT_CONSUMERS_PASSWORD

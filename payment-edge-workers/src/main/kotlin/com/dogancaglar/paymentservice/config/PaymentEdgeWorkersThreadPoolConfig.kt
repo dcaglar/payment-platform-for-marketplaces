@@ -1,20 +1,15 @@
 package com.dogancaglar.paymentservice.config
 
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Tag
-import org.slf4j.MDC
+import io.opentelemetry.context.Context
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.task.TaskDecorator
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
-import org.springframework.stereotype.Component
 import java.util.concurrent.ThreadPoolExecutor
 
-
 @Configuration
-class PaymentEdgeWorkersThreadPoolConfig(private val meterRegistry: MeterRegistry, private val decorator: MdcTaskDecorator) {
+class PaymentEdgeWorkersThreadPoolConfig {
     @Bean("outboxJobTaskScheduler")
     fun outboxTaskScheduler(
         @Value("\${outbox-dispatcher.pool-size:2}") poolSize: Int,
@@ -23,83 +18,63 @@ class PaymentEdgeWorkersThreadPoolConfig(private val meterRegistry: MeterRegistr
         scheduler.poolSize = poolSize
         scheduler.setThreadNamePrefix("outbox-dispatcher-pool-")
         scheduler.setWaitForTasksToCompleteOnShutdown(true)
-        scheduler.setTaskDecorator(decorator)
-        // Metrics with a unique tag!
-        meterRegistry.gauge(
-            "scheduler_outbox_active_threads",
-            listOf(Tag.of("name", "outbox-dispatch")),
-            scheduler
-        ) { it.activeCount.toDouble() }
-
-        meterRegistry.gauge(
-            "scheduler_outbox_pool_size_threads",
-            listOf(Tag.of("name", "outbox-dispatch")),
-            scheduler
-        ) { it.poolSize.toDouble() }
-
-
-
-        meterRegistry.gauge(
-            "scheduler_outbox_queue_size",
-            listOf(Tag.of("name", "outbox-dispatch")),
-            scheduler
-        ) { it.scheduledThreadPoolExecutor.queue.size.toDouble() }
-
+        scheduler.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
+        }
         return scheduler
     }
 
+
+    @Bean("resilientExecutor")
+    fun resilientExecutor(): ThreadPoolTaskExecutor {
+
+        val resilientExecutor = ThreadPoolTaskExecutor()
+        resilientExecutor.corePoolSize = 32
+        resilientExecutor.maxPoolSize = 32
+        resilientExecutor.queueCapacity = 500
+        resilientExecutor.setThreadNamePrefix("edge-worker-resilient-callback-")
+        resilientExecutor.setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
+/*
+public ExecutorService wrapExecutor(ExecutorService executor) {
+  return Context.taskWrapping(executor);
+}
+ */
+        Context.taskWrapping {  }
+        resilientExecutor.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
+        }
+
+        return resilientExecutor
+    }
 
     @Bean
     fun outboxEventPartitionMaintenanceScheduler(): ThreadPoolTaskScheduler {
         val scheduler = ThreadPoolTaskScheduler()
-        scheduler.poolSize =
-            2 // or we ca increase it maybe 2 or 4 or 8, but this is dedicated to partition maintenance job
-        scheduler.setTaskDecorator(decorator)
+        scheduler.poolSize = 2
         scheduler.setThreadNamePrefix("outbox-mainenance-pool-")
-        scheduler.initialize()
+        scheduler.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
+        }
+
         return scheduler
     }
 
-     // threaad pool for background completion
 
-    @Bean("resilientExecutor")
-    fun resilientExecutor(decorator: TaskDecorator): ThreadPoolTaskExecutor =
-        ThreadPoolTaskExecutor().apply {
-            corePoolSize = 32
-            maxPoolSize = 32
-            queueCapacity = 500
-            setThreadNamePrefix("resilient-callback-")
-            setTaskDecorator(decorator)
-            setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
-            initialize()
-        }
 
     @Bean("taskScheduler")
-    fun defaultSpringScheduler(): ThreadPoolTaskScheduler =
-        ThreadPoolTaskScheduler().apply {
-            poolSize = 2
-            setThreadNamePrefix("payment-service-spring-scheduled-")
-            setTaskDecorator(decorator)
-            setWaitForTasksToCompleteOnShutdown(true)
-            initialize()
+    fun defaultSpringScheduler(): ThreadPoolTaskScheduler {
+        val scheduler = ThreadPoolTaskScheduler()
+        scheduler.poolSize = 2
+        scheduler.setThreadNamePrefix("payment-service-spring-scheduled-")
+        scheduler.setWaitForTasksToCompleteOnShutdown(true)
+        scheduler.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
 
-
-}
-
-@Component
-class MdcTaskDecorator : TaskDecorator {
-    override fun decorate(runnable: Runnable): Runnable {
-        val context = MDC.getCopyOfContextMap()
-        return Runnable {
-            val previous = MDC.getCopyOfContextMap()
-            if (context != null) MDC.setContextMap(context) else MDC.clear()
-            try {
-                runnable.run()
-            } finally {
-                if (previous != null) MDC.setContextMap(previous) else MDC.clear()
-            }
-        }
+        return scheduler
     }
 }
-

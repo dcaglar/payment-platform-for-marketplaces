@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$SCRIPT_DIR/../.."
 cd "$REPO_ROOT"
 
+echo "DIR is $REPO_ROOT $SCRIPT_DIR"
 
 echo "🚀 Building payment-service and payment-edge-workers in parallel (Batch 1/2)..."
 "$SCRIPT_DIR/build-and-push-local.sh" payment-service dcaglar1987 latest &

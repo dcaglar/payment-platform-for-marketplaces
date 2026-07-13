@@ -122,14 +122,6 @@ esac
  REPO_URL="https://charts.bitnami.com/bitnami"
  CHART="bitnami/redis"
  NAMESPACE="payment"
-helm repo add "$REPO_NAME" "$REPO_URL"
-helm repo update
 
-echo "📦 Deploying $RELEASE_NAME into namespace $NAMESPACE..."
-# Note: we are passing HELM_ARGS and EXTRA_ARGS unquoted intentionally so they expand
-helm upgrade --install "$RELEASE_NAME" "$CHART" \
-  -n "$NAMESPACE" --create-namespace \
-  $HELM_ARGS \
-  $EXTRA_ARGS
 
 echo "✅ Deployment request of $RELEASE_NAME to $ENV helm complete."

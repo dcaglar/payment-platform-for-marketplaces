@@ -7,6 +7,7 @@ import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.JournalEntriesRecorded
 import com.dogancaglar.paymentservice.application.util.toPublicPaymentIntentId
 import com.dogancaglar.paymentservice.domain.model.common.Amount
+import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalType
 import com.dogancaglar.paymentservice.domain.model.ledger.TxStatus
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
@@ -32,10 +33,8 @@ import org.springframework.stereotype.Component
 @Component
 class GrossCaptureAllocationConsumer(
     private val paymentRepository: PaymentRepository,
-    private val paymentTxPort: PaymentTxPort,
     private val accountDirectory: AccountDirectoryPort,
     private val dedupe: EventDeduplicationPort,
-    private val objectMapper: ObjectMapper,
     private val recordInternalTransferSubmissionUseCase: RecordInternalTransferSubmissionUseCase
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -63,40 +62,31 @@ class GrossCaptureAllocationConsumer(
                 // 1. Verify a successful CAPTURE journal entry exists in this ledger batch
                 val captureEntry = event.ledgerEntries.find { it.journalType == JournalType.CAPTURE }
                 if (captureEntry == null) {
-                    logger.debug("No CAPTURE journal entry found in this JournalEntriesRecorded. No clearing allocation required.")
+                    logger.debug("No CAPTURE journal entry found. No clearing allocation required.")
                     dedupe.markProcessed(eventId, 3600)
-                    logger.info("Gross capture allocation consumer executed successfully for paymentIntentId=${event.publicPaymentIntentId}")
                     return@with
                 }
-
                 val rawPaymentIntentId = event.paymentIntentId.trim()
                 val paymentIntentIdValue = rawPaymentIntentId.toLongOrNull() ?: 0L
                 val paymentIntentId = PaymentIntentId(paymentIntentIdValue)
                 val payment = paymentRepository.findByPaymentIntentId(paymentIntentId)
                 if (payment == null) {
-                    logger.error("🛑 POISON PILL DETECTED: Payment data entity not found for paymentIntentId='$rawPaymentIntentId'. This usually happens if the database was wiped but Kafka retained old data. Skipping event to unblock partition.")
+                    logger.error("🛑 POISON PILL DETECTED: Payment data entity not found for paymentIntentId='$rawPaymentIntentId'.")
                     dedupe.markProcessed(eventId, 3600)
                     return@with
                 }
-
-                val txs = paymentTxPort.findByPaymentId(payment.paymentId.value)
-                val captureTx = txs.find { it.txType == JournalType.CAPTURE && it.status == TxStatus.SUCCESS }
-                    ?: throw IllegalStateException("Successful CaptureTx record missing for paymentId=${payment.paymentId.value}")
-
                 // 1. Resolve Global Platform Accounts
-
-                        //
-                val masterAccountCode = "${payment.merchantAccount}.${captureTx.amount.currency.currencyCode}"
+                val currency = Currency(captureEntry.postings.first().currency)
+                val masterAccountCode = "${payment.merchantAccount}.${currency.currencyCode}"
                 val grossSuspenseAccount = accountDirectory.getAccountProfile(AccountType.MERCHANT_GROSS_CAPTURE_SUSPENSE, masterAccountCode)
                 val platformEscrowAccount = accountDirectory.getAccountProfile(AccountType.PLATFORM_COMMISSION_ESCROW, masterAccountCode)
 
                 // Fixed infrastructure fee Mor-DC charges for processing this tx (e.g., €0.50)
-                val morDcPlatformFee = Amount.of(50, captureTx.amount.currency)
+                val morDcPlatformFee = Amount.of(50,currency)
 
                 // === PATH A: Direct Merchant Payment (No Splits) ===
                 if (payment.splits.isEmpty()) {
                     logger.info("🎯 Direct Sale context identified. Moving 100% of gross funds to merchant direct revenue folder.")
-
                     val merchantDirectRevenueAccount = accountDirectory.getAccountProfile(
                         AccountType.MARKETPLACE_DIRECT_REVENUE_BALANCE_ACCOUNT,
                         masterAccountCode
@@ -106,11 +96,11 @@ class GrossCaptureAllocationConsumer(
                         paymentId = payment.paymentId,
                         paymentIntentId = paymentIntentId,
                         paymentMerchantAccountId = payment.merchantAccount,
-                        captureTxId = captureTx.txId,
                         sourceAccount = grossSuspenseAccount.accountCode,
                         targetAccount = merchantDirectRevenueAccount.accountCode,
-                        transferAmount = captureTx.amount,
-                        journalType = JournalType.INTERNAL_TRANSFER
+                        transferAmount = Amount.of(captureEntry.postings.first().amount,currency),
+                        journalType = JournalType.INTERNAL_TRANSFER,
+                        reason = "DIRECT_MERCHANT_REVENUE_ALLOCATION"
                     )
 
 
@@ -119,9 +109,11 @@ class GrossCaptureAllocationConsumer(
                         paymentId = payment.paymentId,
                         paymentIntentId = paymentIntentId,
                         paymentMerchantAccountId = payment.merchantAccount,
-                        captureTxId = captureTx.txId,
-                        sourceAccount = merchantDirectRevenueAccount.accountCode, targetAccount = platformEscrowAccount.accountCode,
-                        journalType = JournalType.COMMISSION_FEE, transferAmount = morDcPlatformFee
+                        sourceAccount = merchantDirectRevenueAccount.accountCode,
+                        targetAccount = platformEscrowAccount.accountCode,
+                        transferAmount = morDcPlatformFee,
+                        journalType = JournalType.COMMISSION_FEE,
+                        reason = "MOR_DC_INFRASTRUCTURE_PROCESSING_FEE"
                     )
 
                     logger.info("💾 Suspense account cleanly cleared. Staged 100% allocation to direct revenue for merchant: ${payment.merchantAccount}")
@@ -139,11 +131,11 @@ class GrossCaptureAllocationConsumer(
                         paymentId = payment.paymentId,
                         paymentIntentId = paymentIntentId,
                         paymentMerchantAccountId = payment.merchantAccount,
-                        captureTxId = captureTx.txId,
                         sourceAccount = grossSuspenseAccount.accountCode,
                         targetAccount = targetAccountCode,
                         transferAmount = split.amount,
-                        journalType = JournalType.INTERNAL_TRANSFER
+                        journalType = JournalType.INTERNAL_TRANSFER,
+                        reason = "MARKETPLACE_SELLER_SPLIT_DISTRIBUTION"
                     )
                 }
 
@@ -151,11 +143,14 @@ class GrossCaptureAllocationConsumer(
                 val operatorCommissionAccount = accountDirectory.getAccountProfile(AccountType.MARKETPLACE_COMMISSION_REVENUE_BALANCE_ACCOUNT, masterAccountCode)
 
                 recordInternalTransferSubmissionUseCase.recordSubmission(
-                    paymentId = payment.paymentId, paymentIntentId = paymentIntentId,
+                    paymentId = payment.paymentId,
+                    paymentIntentId = paymentIntentId,
                     paymentMerchantAccountId = payment.merchantAccount,
-                    captureTxId = captureTx.txId,
-                    sourceAccount = operatorCommissionAccount.accountCode, targetAccount = platformEscrowAccount.accountCode,
-                    journalType = JournalType.COMMISSION_FEE, transferAmount = morDcPlatformFee
+                    sourceAccount = operatorCommissionAccount.accountCode,
+                    targetAccount = platformEscrowAccount.accountCode,
+                    transferAmount = morDcPlatformFee,
+                    journalType = JournalType.COMMISSION_FEE,
+                    reason = "MOR_DC_MARKETPLACE_OPERATOR_PROCESSING_FEE"
                 )
 
                 logger.info("💾 Suspense account cleanly cleared. Staged split ledger allocations across all ${payment.splits.size} distribution paths.")

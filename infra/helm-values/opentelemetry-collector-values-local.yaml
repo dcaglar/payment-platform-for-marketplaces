@@ -1,0 +1,93 @@
+mode: daemonset
+image:
+  repository: otel/opentelemetry-collector-contrib
+
+resources:
+  limits:
+    memory: 1024Mi
+  requests:
+    cpu: 100m
+    memory: 512Mi
+
+extraEnvs:
+  - name: CENTRAL_DB_MAINTENANCE_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: central-db-credentials
+        key: CENTRAL_DB_MAINTENANCE_USERNAME
+  - name: CENTRAL_DB_MAINTENANCE_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: central-db-credentials
+        key: CENTRAL_DB_MAINTENANCE_PASSWORD
+
+presets:
+  logsCollection:
+    enabled: true
+  kubernetesAttributes:
+    enabled: true
+  hostMetrics:
+    enabled: true
+  kubeletMetrics:
+    enabled: true
+
+# Explicitly tell Helm to create a Kubernetes Service even though we are running as a DaemonSet
+service:
+  enabled: true
+
+config:
+  receivers:
+    prometheus:
+      config:
+        scrape_configs:
+          - job_name: 'postgresql'
+            scrape_interval: 15s
+            static_configs:
+              - targets: 
+                - 'central-db-postgresql-metrics.payment.svc.cluster.local:9187'
+                - 'payment-edge-cell.payment.svc.cluster.local:9187'
+          - job_name: 'kafka'
+            scrape_interval: 15s
+            static_configs:
+              - targets: ['kafka-metrics.payment.svc.cluster.local:9308']
+          - job_name: 'ingress-nginx'
+            scrape_interval: 15s
+            static_configs:
+              - targets: ['ingress-nginx-controller-metrics.ingress-controller.svc.cluster.local:10254']
+
+  processors:
+    memory_limiter:
+      check_interval: 1s
+      limit_mib: 300
+      spike_limit_mib: 50
+    batch:
+      send_batch_size: 1000
+      timeout: 1s
+    # Use k8s_attributes instead of k8sattributes to avoid deprecation warning
+    k8s_attributes: {}
+
+  exporters:
+    otlphttp/posthog:
+      traces_endpoint: "https://eu.i.posthog.com/i/v1/traces"
+      headers:
+        Authorization: "Bearer phc_ABquVAfZ7ZA3uYgMtd39p83633a5KBRAwTPkSFHTvWYc"
+    otlphttp/tempo:
+      endpoint: "http://tempo.monitoring.svc.cluster.local:4318"
+      sending_queue:
+        enabled: true
+        queue_size: 1000
+    prometheusremotewrite:
+      endpoint: "http://prometheus-stack-kube-prom-prometheus.monitoring.svc.cluster.local:9090/api/v1/write"
+      resource_to_telemetry_conversion:
+        enabled: true
+
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, k8s_attributes, batch]
+        exporters: [otlphttp/posthog, otlphttp/tempo]
+      metrics:
+        receivers: [otlp, prometheus]
+        processors: [memory_limiter, k8s_attributes, batch]
+        exporters: [prometheusremotewrite]

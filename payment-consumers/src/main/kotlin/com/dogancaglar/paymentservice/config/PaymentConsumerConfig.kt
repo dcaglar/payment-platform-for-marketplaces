@@ -8,6 +8,7 @@ import com.dogancaglar.paymentservice.ports.outbound.RetryQueuePort
 import com.dogancaglar.paymentservice.ports.outbound.PspCaptureGatewayPort
 import com.dogancaglar.paymentservice.application.service.AccountBalanceService
 import com.dogancaglar.paymentservice.application.service.AccountBalanceReadService
+import com.dogancaglar.paymentservice.application.service.RecordCaptureSubmissionService
 import com.dogancaglar.paymentservice.infra.adapter.outbound.serialization.OutboxEventEventFactory
 import com.dogancaglar.paymentservice.ports.inbound.usecases.ProcessPspResultUseCase
 import com.dogancaglar.paymentservice.ports.outbound.AccountBalanceCachePort
@@ -37,8 +38,8 @@ open class PaymentConsumerConfig(serializationPort: SerializationPort) {
 
 
     @Bean
-    fun outboxEventFactoryPort(serializationPort: SerializationPort): OutboxEventFactoryPort{
-        return OutboxEventEventFactory(serializationPort)
+    fun outboxEventFactoryPort(serializationPort: SerializationPort, idGeneratorPort: IdGeneratorPort): OutboxEventFactoryPort{
+        return OutboxEventEventFactory(serializationPort, idGeneratorPort)
     }
 
 
@@ -74,16 +75,14 @@ open class PaymentConsumerConfig(serializationPort: SerializationPort) {
         paymentTxPort: PaymentTxPort,
         idGeneratorPort: IdGeneratorPort,
         outboxEventFactoryPort : OutboxEventFactoryPort,
-        serializationPort: SerializationPort,
         pspSimulationRulesPort: com.dogancaglar.paymentservice.ports.outbound.PspSimulationRulesPort
-    ): com.dogancaglar.paymentservice.application.service.RecordCaptureSubmissionService {
-        return com.dogancaglar.paymentservice.application.service.RecordCaptureSubmissionService(
+    ): RecordCaptureSubmissionService {
+        return RecordCaptureSubmissionService(
             centralDbTransactionalFacadePort = centralDbTransactionalFacadePort,
             paymentRepository = paymentRepository,
             paymentTxPort = paymentTxPort,
             idGeneratorPort = idGeneratorPort,
             outboxEventFactoryPort = outboxEventFactoryPort,
-            serializationPort = serializationPort,
             pspSimulationRulesPort = pspSimulationRulesPort
         )
     }
@@ -92,14 +91,12 @@ open class PaymentConsumerConfig(serializationPort: SerializationPort) {
     fun recordInternalTransferSubmissionService(
         centralDbTransactionalFacadePort: CentralDbTransactionalFacadePort,
         idGeneratorPort: IdGeneratorPort,
-        outboxEventFactoryPort : OutboxEventFactoryPort,
-        serializationPort: SerializationPort
+        outboxEventFactoryPort : OutboxEventFactoryPort
     ): com.dogancaglar.paymentservice.application.service.RecordInternalTransferSubmissionService {
         return com.dogancaglar.paymentservice.application.service.RecordInternalTransferSubmissionService(
             centralDbTransactionalFacadePort = centralDbTransactionalFacadePort,
             idGeneratorPort = idGeneratorPort,
-            outboxEventFactoryPort = outboxEventFactoryPort,
-            serializationPort = serializationPort
+            outboxEventFactoryPort = outboxEventFactoryPort
         )
     }
 

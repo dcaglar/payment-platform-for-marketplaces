@@ -11,6 +11,8 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import javax.sql.DataSource
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.instrumentation.hikaricp.v3_0.HikariTelemetry
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 
 @Configuration
@@ -28,9 +30,14 @@ class AccountSnapshotJobDataSourceConfig {
 
     @Bean
     @ConfigurationProperties("spring.datasource.account-snapshot-job.hikari")
-    fun snapshotDataSource(@Qualifier("snapshotDataSourceProperties") properties: DataSourceProperties): HikariDataSource {
-        return properties.initializeDataSourceBuilder()
+    fun snapshotDataSource(
+        @Qualifier("snapshotDataSourceProperties") properties: DataSourceProperties,
+        openTelemetry: OpenTelemetry
+    ): HikariDataSource {
+        val dataSource = properties.initializeDataSourceBuilder()
             .type(HikariDataSource::class.java).build()
+        dataSource.metricsTrackerFactory = HikariTelemetry.create(openTelemetry).createMetricsTrackerFactory()
+        return dataSource
     }
 
     @Bean

@@ -7,7 +7,6 @@ data class OutboxEventEntity(
     val partitionKey: String,
     val eventType: String,
     val aggregateId: String,
-    val traceId: String,
     val eventId:String,
     val parentEventId: String?,
     val payload: String,

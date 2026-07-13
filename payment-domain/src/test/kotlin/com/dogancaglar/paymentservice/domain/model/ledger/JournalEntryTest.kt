@@ -72,7 +72,7 @@ class JournalEntryTest {
          */
         val amount = Amount.of(10_000, eur) // €100.00
 
-        val entries = JournalEntry.authHold(paymentId, txId, journalId, amount, authReceivableAccount, authLiabilityAccount)
+        val entries = JournalEntry.authHold(1L, paymentId, txId, journalId, amount, authReceivableAccount, authLiabilityAccount)
         val entry = entries.first()
 
         assertBalanced(entry)
@@ -93,7 +93,7 @@ class JournalEntryTest {
          */
         val amount = Amount.of(10_000, eur)
 
-        val entries = JournalEntry.captureGrossAsset(paymentId, txId, journalId, amount, authReceivableAccount, authLiabilityAccount, merchantSuspenseAccount, pspReceivableAccount)
+        val entries = JournalEntry.captureGrossAsset(2L, paymentId, txId, journalId, amount, authReceivableAccount, authLiabilityAccount, merchantSuspenseAccount, pspReceivableAccount)
         val entry = entries.first()
 
         assertBalanced(entry)
@@ -114,7 +114,7 @@ class JournalEntryTest {
          */
         val amount = Amount.of(5_000, eur) // €50.00
 
-        val entries = JournalEntry.internalTransfer(paymentId, txId, journalId, amount, merchantSuspenseAccount, subSellerAccount)
+        val entries = JournalEntry.internalTransfer(3L, paymentId,  journalId, amount, merchantSuspenseAccount, subSellerAccount,"ts")
         val entry = entries.first()
 
         assertBalanced(entry)
@@ -137,7 +137,7 @@ class JournalEntryTest {
         val settledAmount = Amount.of(9_500, eur)
         val feeAmount = Amount.of(500, eur)
 
-        val entries = JournalEntry.settlementLineItem(paymentId, txId, journalId, gross, settledAmount, feeAmount, platformCashAccount, pspReceivableAccount, pspFeeExpenseAccount)
+        val entries = JournalEntry.settlementLineItem(4L, paymentId, txId, journalId, gross, settledAmount, feeAmount, platformCashAccount, pspReceivableAccount, pspFeeExpenseAccount)
         val entry = entries.first()
 
         assertBalanced(entry)
@@ -159,7 +159,7 @@ class JournalEntryTest {
          */
         val amount = Amount.of(200, eur)
 
-        val entries = JournalEntry.commissionFeeRegistered(paymentId, txId, journalId, amount, commissionEscrowAccount, operatorCommissionAccount)
+        val entries = JournalEntry.commissionFeeRegistered(5L, paymentId, journalId, amount, commissionEscrowAccount, operatorCommissionAccount)
         val entry = entries.first()
 
         assertBalanced(entry)
@@ -181,12 +181,11 @@ class JournalEntryTest {
          */
         val amount = Amount.of(200, eur)
 
-        val entries = JournalEntry.recognizePlatformRevenue(txId, journalId, amount, commissionEscrowAccount, platformOperationalRevenueAccount)
+        val entries = JournalEntry.recognizePlatformRevenue(6L, journalId, amount, commissionEscrowAccount, platformOperationalRevenueAccount)
         val entry = entries.first()
 
         assertBalanced(entry)
-        // Note: Currently maps to INTERNAL_TRANSFER in your factory enum map, update if you rename to FEE_RELEASE
-        assertEquals(JournalType.INTERNAL_TRANSFER, entry.journalType)
+        assertEquals(JournalType.REVENUE_RECOGNITION, entry.journalType)
         assertPostingContains(entry, commissionEscrowAccount, isDebit = true, expectedAmount = 200)
         assertPostingContains(entry, platformOperationalRevenueAccount, isDebit = false, expectedAmount = 200)
     }
@@ -201,7 +200,7 @@ class JournalEntryTest {
          */
         val amount = Amount.of(9_800, eur)
 
-        val entries = JournalEntry.payout(paymentId, txId, journalId, amount, subSellerAccount, platformCashAccount)
+        val entries = JournalEntry.payout(7L, paymentId, txId, journalId, amount, subSellerAccount, platformCashAccount)
         val entry = entries.first()
 
         assertBalanced(entry)
@@ -221,7 +220,7 @@ class JournalEntryTest {
          */
         val amount = Amount.of(10_000, eur)
 
-        val entries = JournalEntry.refund(paymentId, txId, journalId, amount, authReceivableAccount, authLiabilityAccount, merchantSuspenseAccount, pspReceivableAccount)
+        val entries = JournalEntry.refund(8L, paymentId, txId, journalId, amount, authReceivableAccount, authLiabilityAccount, merchantSuspenseAccount, pspReceivableAccount)
         val entry = entries.first()
 
         assertBalanced(entry)

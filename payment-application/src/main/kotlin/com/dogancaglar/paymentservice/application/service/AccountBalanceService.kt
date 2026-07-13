@@ -26,7 +26,7 @@ class AccountBalanceService(
                     Triple(
                         posting.account.accountCode,
                         posting.getSignedAmount().quantity,
-                        entry.txId.value
+                        entry.globalJournalEntryId
                     )
                 }
             }

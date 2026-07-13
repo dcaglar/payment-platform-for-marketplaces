@@ -35,8 +35,7 @@ class EventEnvelopeSerializationTest {
         val evt = TestEvent(x = 42)
         val env = EventEnvelopeFactory.envelopeFor(
             data = evt,
-            aggregateId = "agg-1",
-            traceId = "tr"
+            aggregateId = "agg-1"
         )
 
         val json = mapper.writeValueAsString(env)
@@ -56,7 +55,6 @@ class EventEnvelopeSerializationTest {
             aggregateId = "agg",
             data = evt,
             timestamp = evt.timestamp,
-            traceId = "T",
             parentEventId = null
         )
 
@@ -71,8 +69,7 @@ class EventEnvelopeSerializationTest {
         val evt = TestEvent(x = 1)
         val env = EventEnvelopeFactory.envelopeFor(
             data = evt,
-            aggregateId = "agg",
-            traceId = "T"
+            aggregateId = "agg"
         )
 
         val json = mapper.writeValueAsString(env)

@@ -1,0 +1,614 @@
+{
+  "data": [
+    {
+      "traceID": "f86a13be3c836075994a1da68bf41781",
+      "spans": [
+        {
+          "traceID": "f86a13be3c836075994a1da68bf41781",
+          "spanID": "b4f0bd4079b9eda7",
+          "operationName": "INSERT edge-db.idempotency_keys",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "f86a13be3c836075994a1da68bf41781",
+              "spanID": "dfd2ae19d1a102f0"
+            }
+          ],
+          "startTime": 1783529479595566,
+          "duration": 3712,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://localhost:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "edge-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "INSERT"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "idempotency_keys"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "INSERT INTO idempotency_keys ( idempotency_key, request_hash, status,created_at ) VALUES ( ?, ?, ?, ? ) ON CONFLICT (idempotency_key) DO NOTHING RETURNING id"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "localhost"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "f86a13be3c836075994a1da68bf41781",
+          "spanID": "5babcd0b265f2143",
+          "operationName": "SELECT edge-db.idempotency_keys",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "f86a13be3c836075994a1da68bf41781",
+              "spanID": "dfd2ae19d1a102f0"
+            }
+          ],
+          "startTime": 1783529479602173,
+          "duration": 613,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://localhost:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "edge-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "SELECT"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "idempotency_keys"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "SELECT id, idempotency_key, request_hash, payment_intent_id, response_payload, status, created_at FROM idempotency_keys WHERE idempotency_key = ?"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "localhost"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "f86a13be3c836075994a1da68bf41781",
+          "spanID": "cc0c2fc001af2327",
+          "operationName": "INSERT edge-db.payment_intents",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "f86a13be3c836075994a1da68bf41781",
+              "spanID": "dfd2ae19d1a102f0"
+            }
+          ],
+          "startTime": 1783529479618983,
+          "duration": 11202,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://localhost:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "edge-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "INSERT"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "payment_intents"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "INSERT INTO payment_intents ( payment_intent_id, psp_reference, buyer_id, order_id, merchant_account, processing_model, total_amount_value, currency, status, splits_json, created_at, updated_at ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb), ?, ? )"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "localhost"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "f86a13be3c836075994a1da68bf41781",
+          "spanID": "633cfc9b7a77cea8",
+          "operationName": "UPDATE edge-db.payment_intents",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "f86a13be3c836075994a1da68bf41781",
+              "spanID": "dfd2ae19d1a102f0"
+            }
+          ],
+          "startTime": 1783529479963296,
+          "duration": 2279,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://localhost:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "edge-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "UPDATE"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "payment_intents"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "UPDATE payment_intents SET psp_reference = ?, order_id = ?, buyer_id = ?, merchant_account = ?, processing_model = ?, total_amount_value = ?, currency = ?, status = ?, splits_json = CAST(? AS jsonb), created_at = ?, updated_at = ? WHERE payment_intent_id = ?"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "localhost"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "f86a13be3c836075994a1da68bf41781",
+          "spanID": "5fcb878e032c94eb",
+          "operationName": "UPDATE edge-db.idempotency_keys",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "f86a13be3c836075994a1da68bf41781",
+              "spanID": "dfd2ae19d1a102f0"
+            }
+          ],
+          "startTime": 1783529479966948,
+          "duration": 2107,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.jdbc"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "db.connection_string",
+              "type": "string",
+              "value": "postgresql://localhost:5432"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "edge-db"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "UPDATE"
+            },
+            {
+              "key": "db.sql.table",
+              "type": "string",
+              "value": "idempotency_keys"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "UPDATE idempotency_keys SET response_payload = CAST(? AS jsonb), payment_intent_id = ?, status = ? WHERE idempotency_key = ?"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "localhost"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "f86a13be3c836075994a1da68bf41781",
+          "spanID": "dfd2ae19d1a102f0",
+          "operationName": "POST /api/v1/payments",
+          "references": [],
+          "startTime": 1783529479583567,
+          "duration": 390124,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "io.opentelemetry.spring-webmvc-6.0"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "2.29.0-alpha"
+            },
+            {
+              "key": "client.address",
+              "type": "string",
+              "value": "192.168.194.1"
+            },
+            {
+              "key": "http.request.method",
+              "type": "string",
+              "value": "POST"
+            },
+            {
+              "key": "http.response.status_code",
+              "type": "int64",
+              "value": 201
+            },
+            {
+              "key": "http.route",
+              "type": "string",
+              "value": "/api/v1/payments"
+            },
+            {
+              "key": "network.peer.address",
+              "type": "string",
+              "value": "192.168.194.1"
+            },
+            {
+              "key": "network.peer.port",
+              "type": "int64",
+              "value": 33248
+            },
+            {
+              "key": "network.protocol.version",
+              "type": "string",
+              "value": "1.1"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "192.168.139.2"
+            },
+            {
+              "key": "url.path",
+              "type": "string",
+              "value": "/api/v1/payments"
+            },
+            {
+              "key": "url.scheme",
+              "type": "string",
+              "value": "http"
+            },
+            {
+              "key": "user_agent.original",
+              "type": "string",
+              "value": "Grafana k6/1.0.0"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "server"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "payment-service",
+          "tags": [
+            {
+              "key": "container.id",
+              "type": "string",
+              "value": "49b1b14c7704f80f8d716bbfd1d0537ed4ccb21bdbf50cf986f1a6bcf819dd48"
+            },
+            {
+              "key": "host.arch",
+              "type": "string",
+              "value": "aarch64"
+            },
+            {
+              "key": "host.name",
+              "type": "string",
+              "value": "payment-edge-cell-0"
+            },
+            {
+              "key": "k8s.cluster.uid",
+              "type": "string",
+              "value": "29a583cb-1af7-46aa-a365-c57b0d94c747"
+            },
+            {
+              "key": "k8s.namespace.name",
+              "type": "string",
+              "value": "payment"
+            },
+            {
+              "key": "k8s.node.name",
+              "type": "string",
+              "value": "orbstack"
+            },
+            {
+              "key": "k8s.pod.name",
+              "type": "string",
+              "value": "payment-edge-cell-0"
+            },
+            {
+              "key": "k8s.pod.start_time",
+              "type": "string",
+              "value": "2026-07-08T16:46:29Z"
+            },
+            {
+              "key": "k8s.pod.uid",
+              "type": "string",
+              "value": "d579f01a-0f56-4984-b623-e0db0cd42f18"
+            },
+            {
+              "key": "k8s.statefulset.name",
+              "type": "string",
+              "value": "payment-edge-cell"
+            },
+            {
+              "key": "k8s.statefulset.uid",
+              "type": "string",
+              "value": "0040d87b-1a26-4a44-87ab-a4bba1f16582"
+            },
+            {
+              "key": "os.description",
+              "type": "string",
+              "value": "Linux 7.0.11-orbstack-00360-gc9bc4d96ac70"
+            },
+            {
+              "key": "os.type",
+              "type": "string",
+              "value": "linux"
+            },
+            {
+              "key": "os.version",
+              "type": "string",
+              "value": "7.0.11-orbstack-00360-gc9bc4d96ac70"
+            },
+            {
+              "key": "process.command_args",
+              "type": "string",
+              "value": "[\"/opt/java/openjdk/bin/java\",\"-jar\",\"app.jar\"]"
+            },
+            {
+              "key": "process.executable.path",
+              "type": "string",
+              "value": "/opt/java/openjdk/bin/java"
+            },
+            {
+              "key": "process.pid",
+              "type": "int64",
+              "value": 1
+            },
+            {
+              "key": "process.runtime.description",
+              "type": "string",
+              "value": "Eclipse Adoptium OpenJDK 64-Bit Server VM 21.0.11+10-LTS"
+            },
+            {
+              "key": "process.runtime.name",
+              "type": "string",
+              "value": "OpenJDK Runtime Environment"
+            },
+            {
+              "key": "process.runtime.version",
+              "type": "string",
+              "value": "21.0.11+10-LTS"
+            },
+            {
+              "key": "service.instance.id",
+              "type": "string",
+              "value": "c074f72a-801d-4694-b2da-2eb1771f3104"
+            },
+            {
+              "key": "service.namespace",
+              "type": "string",
+              "value": "payment"
+            },
+            {
+              "key": "service.version",
+              "type": "string",
+              "value": "1.0.0-SNAPSHOT"
+            },
+            {
+              "key": "telemetry.distro.name",
+              "type": "string",
+              "value": "opentelemetry-spring-boot-starter"
+            },
+            {
+              "key": "telemetry.distro.version",
+              "type": "string",
+              "value": "2.29.0"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "java"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "opentelemetry"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.63.0"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    }
+  ],
+  "total": 0,
+  "limit": 0,
+  "offset": 0,
+  "errors": null
+}

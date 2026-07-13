@@ -1,0 +1,112 @@
+' Force PlantUML server rendering for GitHub
+!define PLANTUML_REMOTE
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Kubernetes Deployment Architecture (Scaled Edge & Core Processing)
+
+' === Custom Color Tags ===
+AddBoundaryTag("edge_region", $bgColor="#eaf2f8", $fontColor="#154360", $borderColor="#2980b9", $borderThickness="2")
+AddBoundaryTag("internal_region", $bgColor="#f4f6f6", $fontColor="#1b2631", $borderColor="#2c3e50", $borderThickness="2")
+AddBoundaryTag("logical_partition", $bgColor="#ffffff", $fontColor="#273746", $borderColor="#273746", $borderStyle="dashed")
+AddBoundaryTag("edge_cell", $bgColor="#e8f4f8", $fontColor="#0b3b60", $borderColor="#0b3b60")
+AddBoundaryTag("edge_worker", $bgColor="#e9f7ef", $fontColor="#145a32", $borderColor="#145a32")
+AddBoundaryTag("internal_app", $bgColor="#f4ecf7", $fontColor="#4a235a", $borderColor="#4a235a")
+AddBoundaryTag("internal_db", $bgColor="#eaeded", $fontColor="#1b2631", $borderColor="#1b2631")
+AddBoundaryTag("messaging", $bgColor="#fef9e7", $fontColor="#7d6608", $borderColor="#7d6608")
+
+' === External Actors ===
+Person(client, "Client", "k6 / Merchant App")
+
+' === EDGE CLUSTER ===
+System_Boundary(edge_cluster, "EDGE CLUSTER", $tags="edge_region") {
+    Container(nginx, "NGINX Ingress", "Lua", "Round-Robin / Snowflake Routing")
+
+    ' --- Scaled Partition 0 ---
+    System_Boundary(partition_0, "Logical Edge Partition 0", $tags="logical_partition") {
+        System_Boundary(edge_cell_0, "Pod: payment-edge-cell-0", $tags="edge_cell") {
+            Container(pas_0, "Payment Acceptance", "Kotlin/Spring")
+            ContainerDb(db_0, "Edge Local DB 0", "PostgreSQL")
+            Rel_D(pas_0, db_0, "Persists to")
+        }
+        System_Boundary(edge_worker_0, "Pod: payment-edge-workers-0", $tags="edge_worker") {
+            Container(worker_app_0, "Edge Dispatch Worker", "Kotlin/Spring")
+        }
+        Rel_U(worker_app_0, db_0, "Claims batches")
+    }
+
+    ' --- Scaled Partition 1 ---
+    System_Boundary(partition_1, "Logical Edge Partition 1", $tags="logical_partition") {
+        System_Boundary(edge_cell_1, "Pod: payment-edge-cell-1", $tags="edge_cell") {
+            Container(pas_1, "Payment Acceptance", "Kotlin/Spring")
+            ContainerDb(db_1, "Edge Local DB 1", "PostgreSQL")
+            Rel_D(pas_1, db_1, "Persists to")
+        }
+        System_Boundary(edge_worker_1, "Pod: payment-edge-workers-1", $tags="edge_worker") {
+            Container(worker_app_1, "Edge Dispatch Worker", "Kotlin/Spring")
+        }
+        Rel_U(worker_app_1, db_1, "Claims batches")
+    }
+}
+
+' === INTERNAL CLUSTER ===
+System_Boundary(internal_cluster, "INTERNAL CLUSTER (Central Core)", $tags="internal_region") {
+
+    System_Boundary(central_db_pod, "Pod: central-db-postgresql-0", $tags="internal_db") {
+        ContainerDb(central_db, "Central Database", "PostgreSQL", "OutboxEvent, JournalEntry, AccountBalance")
+    }
+
+    System_Boundary(relay_pod, "Pod: payment-central-relay", $tags="internal_app") {
+        Container(relay, "Outbox Relay", "Kotlin/Spring", "Polls central outbox")
+    }
+
+    System_Boundary(kafka_pod, "Pod: kafka-controller-0 (Kafka Cluster)", $tags="messaging") {
+        ContainerQueue(k_cmd, "gateway.capture.commands", "Topic", "<CaptureRequested>")
+        ContainerQueue(k_sub, "gateway.capture.submitted", "Topic", "<CaptureSubmitted>")
+        ContainerQueue(k_psp, "payment.psp.results", "Topic", "<Auth>, <Confirm>, <InternalTransfer>, <Settlement>")
+        ContainerQueue(k_jnl, "journal.entries.recorded", "Topic", "<JournalEntriesRecorded>")
+    }
+
+    System_Boundary(consumers_pod, "Pod: payment-consumers-0", $tags="internal_app") {
+        Component(c_cce, "CaptureCommandExecutor", "Consumer", "Calls PSP async")
+        Component(c_cpc, "CapturePspPerformed", "Consumer")
+        Component(c_prc, "PspResultConsumer", "Consumer")
+        Component(c_gca, "GrossCaptureAllocation", "Consumer", "Idempotent transfers")
+        Component(c_abc, "AccountBalanceConsumer", "Consumer")
+        Component(c_sdr, "SimulatedSdrStreaming", "Consumer")
+    }
+}
+
+' === Requests & Routing ===
+Rel_D(client, nginx, "POST /payments")
+Rel_D(nginx, pas_0, "proxy_pass")
+Rel_D(nginx, pas_1, "proxy_pass")
+
+' === Edge to Central Flow ===
+Rel_D(worker_app_0, central_db, "Forwards events (JDBC)")
+Rel_D(worker_app_1, central_db, "Forwards events (JDBC)")
+
+' === Relay to Kafka Mapping ===
+Rel_D(central_db, relay, "Polled by")
+Rel_D(relay, k_cmd, "Publishes <CaptureRequested>")
+Rel_D(relay, k_sub, "Publishes <CaptureSubmitted>")
+Rel_D(relay, k_psp, "Publishes EventEnvelope")
+Rel_D(relay, k_jnl, "Publishes <JournalEntriesRecorded>")
+
+' === Kafka to Consumers ===
+Rel_D(k_cmd, c_cce, "Consumes")
+Rel_D(k_sub, c_cpc, "Consumes")
+Rel_D(k_psp, c_prc, "Consumes")
+Rel_D(k_jnl, c_gca, "Consumes")
+Rel_D(k_jnl, c_abc, "Consumes")
+Rel_D(k_jnl, c_sdr, "Consumes")
+
+' === Consumers Back to DB (The Feedback Loop) ===
+Rel_U(c_cce, central_db, "Appends OutboxEvent <CAPTURE_SUBMITTED>")
+Rel_U(c_gca, central_db, "Appends OutboxEvent <InternalTransferCommand>")
+Rel_U(c_cpc, central_db, "Updates DB")
+Rel_U(c_prc, central_db, "Updates DB")
+Rel_U(c_sdr, central_db, "Updates DB")
+
+@enduml

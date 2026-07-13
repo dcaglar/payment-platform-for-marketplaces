@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.core.type.TypeReference
 import org.springframework.beans.factory.annotation.Qualifier
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit
+import io.opentelemetry.instrumentation.annotations.WithSpan
 
 @Repository
 class PaymentIntentOutboundAdapter(
@@ -21,20 +22,22 @@ class PaymentIntentOutboundAdapter(
 
     private val splitsTypeRef = object : TypeReference<List<PaymentSplit>>() {}
 
+    @WithSpan("PaymentIntentOutboundAdapter.tryMarkPendingAuth")
     override fun tryMarkPendingAuth(id: PaymentIntentId, now: Instant): Boolean {
         return paymentIntentMapper.tryMarkPendingAuth(id.value, now) == 1
     }
-
+    @WithSpan("PaymentIntentOutboundAdapter.updatePspReference")
     override fun updatePspReference(paymentIntentId: Long, pspReference: String, now: Instant){
         paymentIntentMapper.updatePspReference(paymentIntentId, pspReference, now)
     }
 
+    @WithSpan("PaymentIntentOutboundAdapter.save")
     override fun save(paymentIntent: PaymentIntent): PaymentIntent {
         val splitsJson = objectMapper.writeValueAsString(paymentIntent.splits)
         paymentIntentMapper.insert(PaymentIntentEntityMapper.toEntity(paymentIntent, splitsJson))
         return paymentIntent
     }
-
+    @WithSpan("PaymentIntentOutboundAdapter.findById")
     override fun findById(paymentIntentId: PaymentIntentId): PaymentIntent {
         val entity = paymentIntentMapper.findById(paymentIntentId.value)!!
         val splits: List<PaymentSplit> = if (entity.splitsJson.isNotBlank()) {
@@ -45,11 +48,13 @@ class PaymentIntentOutboundAdapter(
         return PaymentIntentEntityMapper.toDomain(entity, splits)
     }
 
+    @WithSpan("PaymentIntentOutboundAdapter.getMaxPaymentIntentId")
     override fun getMaxPaymentIntentId(): PaymentIntentId {
         val paymentIntentIdLong = paymentIntentMapper.getMaxPaymentIntentId() ?: 0
         return PaymentIntentId(paymentIntentIdLong)
     }
 
+    @WithSpan("PaymentIntentOutboundAdapter.updatePaymentIntent")
     override fun updatePaymentIntent(paymentIntent: PaymentIntent) {
         val splitsJson = objectMapper.writeValueAsString(paymentIntent.splits)
         val entity = PaymentIntentEntityMapper.toEntity(paymentIntent, splitsJson)

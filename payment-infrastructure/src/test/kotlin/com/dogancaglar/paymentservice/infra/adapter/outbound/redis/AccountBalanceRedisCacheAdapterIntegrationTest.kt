@@ -45,7 +45,7 @@ class AccountBalanceRedisCacheAdapterIntegrationTest {
     class TestConfig {
         @Bean
         fun accountBalanceRedisCacheAdapter(redisTemplate: StringRedisTemplate): AccountBalanceRedisCacheAdapter {
-            return AccountBalanceRedisCacheAdapter(redisTemplate, deltaTtlSeconds = 60, meterRegistry = io.micrometer.core.instrument.simple.SimpleMeterRegistry()) // 60 seconds TTL for testing
+            return AccountBalanceRedisCacheAdapter(redisTemplate, deltaTtlSeconds = 60, openTelemetry = io.opentelemetry.api.OpenTelemetry.noop()) // 60 seconds TTL for testing
         }
     }
 

@@ -69,18 +69,21 @@
 
     <changeSet id="create-journal-entries-table-v2" author="dogancaglar">
         <createTable tableName="journal_entries">
-            <column name="id" type="VARCHAR(128)">
+            <column name="id" type="VARCHAR(255)">
                 <constraints primaryKey="true" primaryKeyName="pk_journal_entries"/>
+            </column>
+            <column name="global_journal_entry_id" type="BIGINT">
+                <constraints nullable="false"/>
             </column>
             <column name="journal_type" type="VARCHAR(32)">
                 <constraints nullable="false"/>
             </column>
-            <column name="name" type="VARCHAR(128)"/>
+            <column name="name" type="VARCHAR(255)"/>
             <column name="payment_id" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
             <column name="tx_id" type="BIGINT">
-                <constraints nullable="false"/>
+                <constraints nullable="true"/>
             </column>
             <column name="created_at" type="TIMESTAMP WITHOUT TIME ZONE" defaultValueComputed="(now() AT TIME ZONE 'UTC')">
                 <constraints nullable="false"/>
@@ -105,7 +108,7 @@
             <column name="id" type="BIGSERIAL">
                 <constraints primaryKey="true" primaryKeyName="pk_postings"/>
             </column>
-            <column name="journal_id" type="VARCHAR(128)">
+            <column name="journal_id" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
             <column name="account_code" type="VARCHAR(128)">

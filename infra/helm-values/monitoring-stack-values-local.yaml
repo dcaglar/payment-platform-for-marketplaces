@@ -1,3 +1,6 @@
+defaultRules:
+  create: false
+
 prometheusOperator:
   resources:
     requests: { cpu: 30m,  memory: 96Mi }
@@ -13,6 +16,8 @@ prometheus:
   prometheusSpec:
     enableAdminAPI: true
     enableRemoteWriteReceiver: true
+    enableFeatures:
+      - exemplar-storage
     containers:
       - name: config-reloader
         resources:
@@ -42,6 +47,7 @@ alertmanager:
       limits:   { memory: 48Mi }
 
 grafana:
+  defaultDashboardsEnabled: false
   adminPassword: admin
   plugins: []
   readinessProbe:
@@ -63,8 +69,20 @@ grafana:
   resources:
     requests: { cpu: 200m, memory: 512Mi }
     limits:   { memory: 1024Mi }
+  additionalDataSources:
+    - name: Tempo
+      type: tempo
+      uid: tempo
+      url: http://tempo.monitoring.svc.cluster.local:3200
+      access: proxy
+      jsonData:
+        httpMethod: GET
+        grpc: false
   sidecar:
     datasources:
+      exemplarTraceIdDestinations:
+        datasourceUid: tempo
+        traceIdLabelName: trace_id
       resources:
         requests: { cpu: 5m,  memory: 24Mi }
         limits:   { memory: 24Mi }
@@ -78,10 +96,11 @@ kube-state-metrics:
     requests: { cpu: 30m,  memory: 48Mi }
     limits:   { memory: 48Mi }
 
+kubelet:
+  enabled: false
+
 prometheus-node-exporter:
-  resources:
-    requests: { cpu: 15m,  memory: 24Mi }
-    limits:   { memory: 24Mi }
+  enabled: false
 
 prometheusAdapter:
   enabled: false

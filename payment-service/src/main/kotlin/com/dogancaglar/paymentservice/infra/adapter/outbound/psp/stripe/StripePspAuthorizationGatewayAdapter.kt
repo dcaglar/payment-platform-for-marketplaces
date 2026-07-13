@@ -16,8 +16,7 @@ import com.stripe.exception.StripeException
 import com.stripe.net.RequestOptions
 import com.stripe.param.PaymentIntentConfirmParams
 import com.stripe.param.PaymentIntentCreateParams
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Timer
+import io.opentelemetry.api.OpenTelemetry
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -37,16 +36,18 @@ class StripePspAuthorizationGatewayAdapter(
     private val config: AuthorizationSimulationProperties,
     @param:Qualifier("createPaymentIntentExecutor") private val createPaymentIntentExecutor: ThreadPoolTaskExecutor,
     @param:Qualifier("authorizePaymentIntentExecutor") private val authorizePaymentIntentExecutor: ThreadPoolTaskExecutor,
-    private val meterRegistry: MeterRegistry
+    openTelemetry: OpenTelemetry
 ) : PspAuthorizationGatewayPort {
 
-    private val pspQueueDelay = Timer.builder("psp_queue_delay")
-        .publishPercentileHistogram()
-        .register(meterRegistry)
+    private val meter = openTelemetry.meterBuilder("payment-service.psp.stripe").build()
 
-    private val pspExecDuration = Timer.builder("psp_exec_duration")
-        .publishPercentileHistogram()
-        .register(meterRegistry)
+    private val pspQueueDelay = meter.histogramBuilder("psp_queue_delay")
+        .setUnit("s")
+        .build()
+
+    private val pspExecDuration = meter.histogramBuilder("psp_exec_duration")
+        .setUnit("s")
+        .build()
 
     private val logger = LoggerFactory.getLogger(javaClass)
 

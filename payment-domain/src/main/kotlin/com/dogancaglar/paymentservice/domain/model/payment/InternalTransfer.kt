@@ -11,7 +11,6 @@ import java.time.LocalDateTime
 
 class InternalTransfer private constructor(
     val transferId: InternalTransferId,
-    val sourceTransactionId: TxId,
     val paymentId: PaymentId,
     val paymentIntentId: PaymentIntentId,
     val merchantAccountId: String,
@@ -74,7 +73,6 @@ class InternalTransfer private constructor(
         updatedAt: LocalDateTime = Utc.nowLocalDateTime()
     ): InternalTransfer = InternalTransfer(
         transferId          = transferId,
-        sourceTransactionId = sourceTransactionId,
         paymentIntentId = paymentIntentId,
         merchantAccountId = merchantAccountId,
         paymentId = paymentId,
@@ -92,7 +90,6 @@ class InternalTransfer private constructor(
     // =========================================================================
 
     override fun toString(): String =
-        "InternalTransfer(transferId=${transferId.value}, sourceTransactionId=${sourceTransactionId.value}, " +
         "amount=$amount, target=$targetAccount/$targetAccount, " +
         "source=$sourceAccount/$sourceAccount, status=$status, transferType= $transferType createdAt=$createdAt, updatedAt=$updatedAt)"
 
@@ -104,7 +101,6 @@ class InternalTransfer private constructor(
 
         fun createNew(
             transferId: InternalTransferId,
-            sourceTransactionId: TxId,
             paymentIntentId: PaymentIntentId,
             paymentId: PaymentId,
             merchantAccountId: String,
@@ -116,7 +112,6 @@ class InternalTransfer private constructor(
         ): InternalTransfer {
             return InternalTransfer(
                 transferId          = transferId,
-                sourceTransactionId = sourceTransactionId,
                 paymentId = paymentId,
                 paymentIntentId = paymentIntentId,
                 merchantAccountId = merchantAccountId,
@@ -132,7 +127,6 @@ class InternalTransfer private constructor(
 
         fun rehydrate(
             transferId: InternalTransferId,
-            sourceTransactionId: TxId,
             paymentId: PaymentId,
             paymentIntentId: PaymentIntentId,
             merchantAccountId: String,
@@ -145,7 +139,6 @@ class InternalTransfer private constructor(
             updatedAt: LocalDateTime
         ): InternalTransfer = InternalTransfer(
             transferId          = transferId,
-            sourceTransactionId = sourceTransactionId,
             paymentIntentId = paymentIntentId,
             paymentId = paymentId,
             merchantAccountId = merchantAccountId,

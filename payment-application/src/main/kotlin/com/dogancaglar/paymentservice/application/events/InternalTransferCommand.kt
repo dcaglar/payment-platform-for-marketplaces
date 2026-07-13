@@ -5,10 +5,9 @@ import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.domain.model.payment.InternalTransfer
 import java.time.Instant
 
-data class InternalTransferCommand(
+data class
+InternalTransferCommand(
     val transferId: Long,
-    val internalTransferTxId: Long,
-    val sourceTransactionId: Long,
     override val amountValue: Long,
     override val currency: String,
     val targetAccount: String,
@@ -21,16 +20,15 @@ data class InternalTransferCommand(
     override val timestamp: Instant = Utc.nowInstant()
 ) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, merchantAccountId,amountValue, currency, timestamp) {
     override val eventType: String = EventType.INTERNAL_TRANSFER_COMMAND
+    override fun deterministicEventId(): String = "${PublicIdFactory.publicPaymentId(transferId)}:$eventType"
 
     companion object {
-        fun from(transfer: InternalTransfer, txId: Long, paymentIntentId: String,journalType: String, // ◄ Passed from submission layer
+        fun from(transfer: InternalTransfer, paymentIntentId: String,journalType: String, // ◄ Passed from submission layer
                  publicPaymentIntentId: String): InternalTransferCommand {
             return InternalTransferCommand(
                 transferId = transfer.transferId.value,
-                internalTransferTxId = txId,
-                sourceTransactionId = transfer.sourceTransactionId.value,
-                paymentIntentId = transfer.paymentIntentId.toString(),
-                publicPaymentIntentId = PublicIdFactory.publicPaymentIntentId(transfer.paymentIntentId.value),
+                paymentIntentId = paymentIntentId,
+                publicPaymentIntentId = publicPaymentIntentId,
                 merchantAccountId = transfer.merchantAccountId,
                 amountValue = transfer.amount.quantity,
                 currency = transfer.amount.currency.currencyCode,

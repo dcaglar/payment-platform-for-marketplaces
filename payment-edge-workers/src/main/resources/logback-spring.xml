@@ -26,8 +26,8 @@
                     <threadName/>
                     <loggerName/>
                     <message/>
-                    <!-- Export your MDC keys (e.g. traceId, userId) up to top level -->
-                    <mdc includes="traceId,eventId,parentEventId,aggregateId,eventType,
+                    <!-- Export your MDC keys (e.g. trace_id, span_id) up to top level -->
+                    <mdc includes="trace_id,span_id,eventId,parentEventId,aggregateId,eventType,
                retryCount,retryBackoffMillis,retryReason,retryErrorMessage"/>
                     <stackTrace/>
                     <globalCustomFields>{"app":"payment-edge-workers"}</globalCustomFields>

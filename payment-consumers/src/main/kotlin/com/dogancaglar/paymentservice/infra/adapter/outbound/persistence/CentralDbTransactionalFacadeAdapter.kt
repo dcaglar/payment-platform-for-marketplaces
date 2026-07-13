@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Qualifier
 import com.dogancaglar.paymentservice.application.dto.PaymentSplitDto
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.CentralOutboxWriterMapper
+import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.TransferMapper
 
 @Repository
 open class CentralDbTransactionalFacadeAdapter(
@@ -27,7 +28,7 @@ open class CentralDbTransactionalFacadeAdapter(
     private val paymentMapper: PaymentMapper,
     private val txMapper: PaymentTxMapper,
     private val centralOutboxWriterMapper: CentralOutboxWriterMapper,
-    private val transferMapper: com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.TransferMapper,
+    private val transferMapper: TransferMapper,
     @Qualifier("myObjectMapper") private val objectMapper: ObjectMapper
 ) : CentralDbTransactionalFacadePort {
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -50,14 +51,11 @@ open class CentralDbTransactionalFacadeAdapter(
     @Transactional(timeout = 5)
     override fun recordInternalTransferOperationInLedger(
         internalTransfer: com.dogancaglar.paymentservice.domain.model.payment.InternalTransfer,
-        tx: Tx,
         journalEntries: List<JournalEntry>,
         outboxEvents: List<OutboxEvent>
     ) {
         val transferEntity = com.dogancaglar.common.db.converter.TransferEntityMapper.toEntity(internalTransfer)
         transferMapper.upsert(transferEntity)
-        val txEntity = PaymentTxEntityMapper.toEntity(tx)
-        txMapper.upsert(txEntity)
         saveJournalAndOutbox(journalEntries, outboxEvents)
     }
 

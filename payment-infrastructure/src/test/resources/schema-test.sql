@@ -45,6 +45,7 @@ CREATE TABLE payments (
         'CAPTURED',
         'PARTIALLY_CAPTURED',
         'PARTIALLY_REFUNDED',
+        'SETTLED'
         'REFUNDED',
         'VOIDED'
     )),

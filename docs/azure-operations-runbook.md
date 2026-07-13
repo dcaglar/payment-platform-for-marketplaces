@@ -108,8 +108,65 @@ Run this command, then connect your local Kafka tools to `localhost:9092`:
 kubectl port-forward -n payment svc/kafka 9092:9092
 ```
 
----
+###  fastest way to apply a values.yaml change directly to Kubernetes without waiting for a full script redeploy or building any images is to run a targeted helm upgrade, followed by a rollout restart (if needed).
 
+
+```bash
+helm dependency update charts/payment-edge-cell
+helm secrets upgrade --install payment-edge-cell charts/payment-edge-cell \
+-n payment --create-namespace \
+-f charts/payment-edge-cell/values.yaml \
+-f charts/payment-edge-cell/local/values.yaml \
+-f secrets://edge-cell-sops-secrets.yaml
+```
+
+
+
+
+```bash
+helm dependency update charts/payment-consumers
+helm secrets upgrade --install payment-consumers charts/payment-consumers \
+-n payment --create-namespace \
+-f charts/payment-consumers/values.yaml \
+-f charts/payment-consumers/local/values.yaml \
+-f secrets://central-db-sops-secrets.yaml
+```
+
+
+```bash
+helm dependency update charts/payment-edge-workers
+helm secrets upgrade --install payment-edge-workers charts/payment-edge-workers \
+-n payment --create-namespace \
+-f charts/payment-edge-workers/values.yaml \
+-f charts/payment-edge-workers/local/values.yaml \
+-f secrets://central-db-sops-secrets.yaml \
+-f secrets://edge-cell-sops-secrets.yaml
+```
+
+
+```bash
+helm dependency update charts/payment-central-relay
+helm secrets upgrade --install payment-central-relay charts/payment-central-relay \
+-n payment --create-namespace \
+-f charts/payment-central-relay/values.yaml \
+-f charts/payment-central-relay/local/values.yaml \
+-f secrets://central-db-sops-secrets.yaml
+```
+
+
+helm dependency update charts/payment-consumers
+helm secrets upgrade --install payment-consumers charts/payment-consumers \
+-n payment --create-namespace \
+-f charts/payment-consumers/values.yaml \
+-f charts/payment-consumers/local/values.yaml \
+-f secrets://central-db-sops-secrets.yaml
+# Force the Pod to Restart (If necessary)
+   When Helm runs, it updates the ConfigMap. However, Kubernetes does not automatically restart a pod just because a ConfigMap changed (unless you use a special checksum annotation in your Helm template).
+
+To force Kubernetes to gracefully spin up a new pod with the new injected values, and then terminate the old pod (Zero Downtime Rolling Update), run this instantly after the Helm command:
+```bash
+kubectl rollout restart statefulset/payment-consumers -n payment
+```
 ## 6. Testing the Payment API
 
 Once your Azure infrastructure is deployed, you can test the public Payment API using standard curl commands. 
@@ -162,3 +219,6 @@ curl -i -X POST "http://51.105.254.202/api/v1/payments/pi_Ar6RoATCAAA/authorize"
   -H "Authorization: Bearer $(cat ./keycloak/output/jwt/payment-service.token)" \
   -d '{}'
 ```
+
+
+
