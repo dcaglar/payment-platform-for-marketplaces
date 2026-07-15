@@ -1,5 +1,5 @@
 # MoR-Payment-Platform
-
+Please check [here](docs/architecture/architecture.md) for detailed architecture details.
 > Event-Driven Payment Infrastructure for Merchant-of-Record Platforms
 
 **MoR-Payment-Platform** is a technical showcase of how large marketplace platforms
