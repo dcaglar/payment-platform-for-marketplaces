@@ -25,27 +25,15 @@ class PaymentIntent private constructor(
     val totalAmount: Amount,
     val processingModel: ProcessingModel,
     val merchantAccount: String,
-    val splits: List<PaymentSplit>,
+    private val splitsDelegate: Lazy<List<PaymentSplit>>,
     val status: PaymentIntentStatus,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime
 ) {
+    val splits: List<PaymentSplit> by splitsDelegate
 
     init {
-        require(splits.isNotEmpty()) { "PaymentIntent must have at least one payment line" }
         require(totalAmount.isPositive()) { "Total amount must be positive" }
-
-        // All lines must share same currency as totalAmount
-        val lineCurrencies = splits.map { it.amount.currency }.distinct()
-        require(lineCurrencies.size == 1 && lineCurrencies.first() == totalAmount.currency) {
-            "All payment lines must use the same currency as total amount"
-        }
-
-        // Total amount must equal sum of lines
-        val sum = splits.sumOf { it.amount.quantity }
-        require(sum == totalAmount.quantity) {
-            "Total amount (${totalAmount.quantity}) must equal sum of payment lines ($sum)"
-        }
 
         // Domain invariants about PSP reference:
         when (status) {
@@ -170,7 +158,7 @@ class PaymentIntent private constructor(
         processingModel =  processingModel,
         merchantAccount = merchantAccount,
         totalAmount = totalAmount,
-        splits = splits,
+        splitsDelegate = splitsDelegate,
         status = status,
         createdAt = createdAt,
         updatedAt = updatedAt
@@ -195,6 +183,17 @@ class PaymentIntent private constructor(
             splits: List<PaymentSplit>
         ): PaymentIntent {
             val now = Utc.nowLocalDateTime()
+            
+            require(splits.isNotEmpty()) { "PaymentIntent must have at least one payment line" }
+            val lineCurrencies = splits.map { it.amount.currency }.distinct()
+            require(lineCurrencies.size == 1 && lineCurrencies.first() == totalAmount.currency) {
+                "All payment lines must use the same currency as total amount"
+            }
+            val sum = splits.sumOf { it.amount.quantity }
+            require(sum == totalAmount.quantity) {
+                "Total amount (${totalAmount.quantity}) must equal sum of payment lines ($sum)"
+            }
+
             return PaymentIntent(
                 paymentIntentId = paymentIntentId,
                 pspReference = null,
@@ -203,7 +202,7 @@ class PaymentIntent private constructor(
                 processingModel =  processingModel,
                 merchantAccount = merchantAccount,
                 totalAmount = totalAmount,
-                splits = splits,
+                splitsDelegate = lazyOf(splits),
                 status = PaymentIntentStatus.CREATED_PENDING,
                 createdAt = now,
                 updatedAt = now
@@ -219,7 +218,7 @@ class PaymentIntent private constructor(
             totalAmount: Amount,
             merchantAccount: String,
             processingModel: ProcessingModel,
-            splits: List<PaymentSplit>,
+            splitsDelegate: Lazy<List<PaymentSplit>>,
             status: PaymentIntentStatus,
             createdAt: LocalDateTime,
             updatedAt: LocalDateTime
@@ -231,7 +230,7 @@ class PaymentIntent private constructor(
             merchantAccount = merchantAccount,
             processingModel = processingModel,
             totalAmount = totalAmount,
-            splits = splits,
+            splitsDelegate = splitsDelegate,
             status = status,
             createdAt = createdAt,
             updatedAt = updatedAt

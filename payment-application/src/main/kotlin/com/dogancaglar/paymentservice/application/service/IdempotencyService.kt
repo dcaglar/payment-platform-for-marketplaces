@@ -7,14 +7,14 @@ import com.dogancaglar.paymentservice.ports.outbound.InitialRequestStatus
 import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
 import org.slf4j.LoggerFactory
 
-class IdempotencyService(
+open class IdempotencyService(
     private val store: IdempotencyStorePort,
     private val hasher: HasherPort,
     private val serializer: SerializationPort
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    fun <REQ : Any, RES : Any> run(
+    open fun <REQ : Any, RES : Any> run(
         key: java.util.UUID,
         requestBody: REQ,
         responseClass: Class<RES>,
@@ -70,7 +70,7 @@ class IdempotencyService(
 
 class IdempotencyConflictClientException(msg: String) : RuntimeException(msg)
 
-data class IdempotencyResult<RES>(
+open class IdempotencyResult<RES>(
     val response: RES,
     val status: IdempotencyExecutionStatus
 )

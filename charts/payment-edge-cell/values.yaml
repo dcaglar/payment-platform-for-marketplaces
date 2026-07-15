@@ -45,11 +45,11 @@ ingress:
   paths:
     - path: /
       pathType: Prefix
-#postgresExporter:
-#  resources:
-#    requests:
-#      cpu: 50m
-#      memory: 64Mi
-#    limits:
-#      cpu: 100m
-#      memory: 128Mi
+postgresExporter:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi

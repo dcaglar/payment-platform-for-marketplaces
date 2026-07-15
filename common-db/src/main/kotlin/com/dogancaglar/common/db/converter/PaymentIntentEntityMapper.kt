@@ -14,7 +14,7 @@ import com.dogancaglar.common.db.entity.PaymentIntentEntity
 
 object PaymentIntentEntityMapper {
 
-    fun toDomain(entity: PaymentIntentEntity, splits: List<PaymentSplit>): PaymentIntent {
+    fun toDomain(entity: PaymentIntentEntity, splitsDelegate: Lazy<List<PaymentSplit>>): PaymentIntent {
         return PaymentIntent.rehydrate(
             paymentIntentId = PaymentIntentId(entity.paymentIntentId),
             pspReference = entity.pspReference,
@@ -23,7 +23,7 @@ object PaymentIntentEntityMapper {
             merchantAccount = entity.merchantAccount,
             processingModel = ProcessingModel.valueOf(entity.processingModel),
             totalAmount = Amount.of(entity.totalAmountValue, Currency(entity.currency)),
-            splits = splits,
+            splitsDelegate = splitsDelegate,
             status = PaymentIntentStatus.valueOf(entity.status),
             createdAt = Utc.fromInstant(entity.createdAt),
             updatedAt = Utc.fromInstant(entity.updatedAt)

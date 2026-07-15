@@ -79,22 +79,7 @@
         DELETE FROM payment_intents
     </delete>
 
-    <update id="update"
-            parameterType="com.dogancaglar.common.db.entity.PaymentIntentEntity">
-        UPDATE payment_intents SET
-        psp_reference = #{pspReference},
-        order_id = #{orderId},
-        buyer_id = #{buyerId},
-        merchant_account = #{merchantAccount},
-        processing_model = #{processingModel},
-        total_amount_value = #{totalAmountValue},
-        currency = #{currency},
-        status = #{status},
-        splits_json = CAST(#{splitsJson} AS jsonb),
-        created_at = #{createdAt},
-        updated_at = #{updatedAt}
-        WHERE payment_intent_id = #{paymentIntentId}
-    </update>
+
 
     <update id="tryMarkPendingAuth" parameterType="map">
         UPDATE payment_intents
@@ -108,6 +93,14 @@
         UPDATE payment_intents
         SET psp_reference = #{pspReference},
         updated_at = #{now, typeHandler=com.dogancaglar.common.db.typehandler.InstantTypeHandler}
+        WHERE payment_intent_id = #{paymentIntentId}
+    </update>
+
+    <update id="updatePaymentIntentWithPspResponse" parameterType="map">
+        UPDATE payment_intents
+        SET psp_reference = #{pspReference},
+        status = #{status},
+        updated_at = #{updatedAt, typeHandler=com.dogancaglar.common.db.typehandler.InstantTypeHandler}
         WHERE payment_intent_id = #{paymentIntentId}
     </update>
 

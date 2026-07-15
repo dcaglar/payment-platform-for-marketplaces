@@ -78,7 +78,9 @@ class AuthorizePaymentIntentService(
             val startPspCall = System.currentTimeMillis()
             logger.debug("📡 [AuthorizeService] Initiating resilient PSP authorization for ${cmd.paymentIntentId.value}")
             val finalPaymentIntent = resilientExecutionPort.executeWithTimeoutAndBackgroundFallback(
-                primaryTask = pspAuthGatewayPort.authorizePaymentIntent(authPendingPaymentIntent,cmd.paymentMethod), // tsk to be run aysnc by thread pool passed
+                primaryTask ={
+                    pspAuthGatewayPort.authorizePaymentIntent(authPendingPaymentIntent,cmd.paymentMethod)
+                },
                 timeoutMs = 3000,
                 onTimeoutFallback = {
                     logger.warn(

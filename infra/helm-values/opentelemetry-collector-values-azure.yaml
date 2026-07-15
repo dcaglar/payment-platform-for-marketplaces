@@ -20,6 +20,11 @@ extraEnvs:
       secretKeyRef:
         name: central-db-credentials
         key: CENTRAL_DB_MAINTENANCE_PASSWORD
+  - name: POSTHOG_TRACE_API_BEARER_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: central-db-credentials
+        key: PAYMENT_SERVICE_POSTHOG_TRACES_API_TOKEN
 
 presets:
   logsCollection:
@@ -71,7 +76,7 @@ config:
     otlphttp/posthog:
       traces_endpoint: "https://eu.i.posthog.com/i/v1/traces"
       headers:
-        Authorization: "Bearer phc_ABquVAfZ7ZA3uYgMtd39p83633a5KBRAwTPkSFHTvWYc"
+        Authorization: "Bearer-"${POSTHOG_TRACE_API_BEARER_TOKEN}
     otlphttp/tempo:
       endpoint: "http://tempo.monitoring.svc.cluster.local:4318"
       sending_queue:

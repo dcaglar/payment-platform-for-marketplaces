@@ -5,13 +5,17 @@ import com.dogancaglar.paymentservice.application.service.AuthorizePaymentIntent
 import com.dogancaglar.paymentservice.application.service.CapturePaymentService
 import com.dogancaglar.paymentservice.application.service.CreatePaymentIntentService
 import com.dogancaglar.paymentservice.application.service.GetPaymentIntentService
+import com.dogancaglar.paymentservice.application.service.IdempotencyService
 import com.dogancaglar.paymentservice.application.service.UpdatePaymentIntentService
+import com.dogancaglar.paymentservice.infra.adapter.outbound.hash.CanonicalJsonHasher
 import com.dogancaglar.paymentservice.infra.adapter.outbound.serialization.OutboxEventEventFactory
 import com.dogancaglar.paymentservice.ports.inbound.usecases.CreatePaymentIntentUseCase
 import com.dogancaglar.paymentservice.ports.inbound.usecases.GetPaymentIntentUseCase
 import com.dogancaglar.paymentservice.ports.outbound.PaymentTransactionalFacadePort
 import com.dogancaglar.paymentservice.ports.outbound.PspAuthorizationGatewayPort
 import com.dogancaglar.paymentservice.ports.outbound.ResilientExecutionPort
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
 import com.stripe.StripeClient
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
@@ -90,6 +94,17 @@ class PaymentServiceConfig(val serializationPort: SerializationPort) {
             pspAuthGatewayPort = pspAuthGatewayPort,
             resilientExecutionPort = resilientExecutionPort
         )
+    }
+
+
+
+    @Bean
+    fun idempotencyService(
+        store: IdempotencyStorePort,
+        hasher: HasherPort,
+        serializer: SerializationPort
+    ): IdempotencyService {
+        return IdempotencyService(store, hasher, serializer)
     }
 
     @Bean

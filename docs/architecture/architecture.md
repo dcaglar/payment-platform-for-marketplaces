@@ -855,7 +855,7 @@ A deliberate architectural decision was made regarding how OpenTelemetry is inte
 ### 2. Modern Telemetry Infrastructure (Push over Pull)
 The local and remote infrastructure (`local` and `azure` profiles) deploys a centralized **OpenTelemetry Collector**. 
 * **Metrics Push Strategy**: Instead of relying on Prometheus to scrape application endpoints (`/metrics`) via `ServiceMonitors`, applications push their OTel metrics directly to the OTel Collector. The collector then acts as an agent, securely pushing the metrics into Prometheus via the `remote_write` API.
-* **Tempo over Jaeger**: Jaeger has been removed. **Grafana Tempo** is the designated tracing backend. The OTel collector buffers incoming OTLP traces and forwards them directly to Tempo.
+* **Tempo and Posthog**:  **Grafana Tempo** is the designated tracing backend to use locally, in Azure Posthog is configured as backend for traces  The OTel collector buffers incoming OTLP traces and forwards them directly to Tempo.
 * **Exemplars Integration**: The architecture leverages OTel Exemplars, allowing us to natively link high-cardinality trace IDs directly to aggregated metric points (e.g., latency histograms) inside Grafana dashboards.
 * **Custom Service Configuration**: OTel custom configuration (such as sampling rates, specific exporter settings, or service attributes) can be easily managed per-service via their respective Helm `values.yaml` files. This allows for tailored telemetry settings across both `local` and `azure` profiles.
 

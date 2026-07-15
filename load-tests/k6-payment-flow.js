@@ -12,9 +12,9 @@ const AUTHORIZE_ENDPOINT = `${BASE_URL}/api/v1/payments`;
 const SCENARIOS = {
      single: {
         executor: 'constant-arrival-rate',
-        rate: 20,
+        rate: 1,
         timeUnit: '1s',
-        duration: '20m',
+        duration: '30s',
         preAllocatedVUs: 2,
         maxVUs: 20,
         tags: { test_type: 'single' },
@@ -22,11 +22,11 @@ const SCENARIOS = {
     // A. Smoke Test: Minimal load for validating that scripts and APIs work correctly
     smoke: {
         executor: 'constant-arrival-rate',
-        rate: 60,
+        rate: 15,
         timeUnit: '1s',
-        duration: '30m',
-        preAllocatedVUs: 30,
-        maxVUs: 300,
+        duration: '5m',
+        preAllocatedVUs: 100,
+        maxVUs: 500,
         tags: { test_type: 'smoke' },
     },
     // B. Average Load Test: Simulates expected day-to-day typical user traffic (RPS)
@@ -46,14 +46,21 @@ const SCENARIOS = {
     // C. Stress Test: Push system past average limits to see how resources handle pressure (RPS)
     stress: {
         executor: 'ramping-arrival-rate',
-        startRate: 0,
+        startRate: 2,
         timeUnit: '1s',
         preAllocatedVUs: 100,
         maxVUs: 1500,
         stages: [
-            { duration: '3m', target: 150 },  // Ramp to ~100% of single-pod ceiling
-            { duration: '10m', target: 150 },  // Sustained — should trigger HPA
-            { duration: '2m', target: 0 },     // Cool-down
+            { duration: '2m', target: 5 },  // Ramp to ~100% of single-pod ceiling
+            { duration: '5m', target: 10 },  // Sustained — should trigger HPA
+            { duration: '2m', target: 20 },     // Cool-down
+            { duration: '5m', target: 30 },     // Cool-down
+             { duration: '2m', target: 40 },     // Cool-down
+              { duration: '5m', target: 50 },     // Cool-down
+                { duration: '2m', target: 100 },     // Cool-down
+                 { duration: '5m', target: 130 },     // Cool-down
+                 { duration: '2m', target: 150 },     // Cool-down
+                { duration: '5m', target: 0 }   // Cool-down
         ],
         tags: { test_type: 'stress' },
     },
@@ -93,6 +100,24 @@ const SCENARIOS = {
             { duration: '15m', target: 350 },  // Ramp to find true 2-pod ceiling
         ],
         tags: { test_type: 'breakpoint' },
+    },
+    // G. Baseline Test: Establish low-concurrency baseline to prove latency remains flat (VUs)
+    baseline: {
+        executor: 'ramping-arrival-rate',
+        startRate: 5,
+        timeUnit: '1s',
+       preAllocatedVUs: 250,
+       maxVUs: 500,
+        stages: [
+
+           { duration: '2m', target: 100 },
+            { duration: '15m', target: 100 },
+            { duration: '2m', target: 150 },
+             { duration: '15m', target: 150 },
+                  { duration: '2m', target: 20 },
+
+        ],
+        tags: { test_type: 'baseline' },
     }
 };
 
@@ -102,7 +127,7 @@ const PROFILE = __ENV.PROFILE || 'smoke';
 const API_BASE_URL = __ENV.API_BASE_URL || 'http://localhost';
 
 export const options = {
-    summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
+    summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(99)'],
     scenarios: {
         [PROFILE]: SCENARIOS[PROFILE] || SCENARIOS.smoke
     },
@@ -114,21 +139,8 @@ export const options = {
 };
 
 // Custom metrics to show up explicitly in the summary
-const createBlocked = new Trend('create_1_blocked');
-const createConnecting = new Trend('create_2_connecting');
-const createTls = new Trend('create_3_tls_handshaking');
-const createSending = new Trend('create_4_sending');
-const createWaiting = new Trend('create_5_ttfb_backend_processing');
-const createReceiving = new Trend('create_6_receiving_body');
-const createDuration = new Trend('create_7_total_duration');
-
-const authBlocked = new Trend('auth_1_blocked');
-const authConnecting = new Trend('auth_2_connecting');
-const authTls = new Trend('auth_3_tls_handshaking');
-const authSending = new Trend('auth_4_sending');
-const authWaiting = new Trend('auth_5_ttfb_backend_processing');
-const authReceiving = new Trend('auth_6_receiving_body');
-const authDuration = new Trend('auth_7_total_duration');
+const createDuration = new Trend('create_duration');
+const authDuration = new Trend('auth_duration');
 
 // --- 3. Helper Functions ---
 function randomId(prefix) {
@@ -136,13 +148,20 @@ function randomId(prefix) {
 }
 
 function generateUuidV7() {
+    // 1. 48-bit Timestamp (Unix Epoch in milliseconds)
+    const timestampMs = Date.now();
+    let tsHex = timestampMs.toString(16).padStart(12, '0');
+
+    // 2. 74 bits of randomness
     const hex = () => Math.floor(Math.random() * 16).toString(16);
     const hexN = (n) => {
         let str = '';
         for (let i = 0; i < n; i++) str += hex();
         return str;
     };
-    return `${hexN(8)}-${hexN(4)}-7${hexN(3)}-8${hexN(3)}-${hexN(12)}`;
+
+    const variantHex = ['8', '9', 'a', 'b'][Math.floor(Math.random() * 4)];
+    return `${tsHex.substring(0, 8)}-${tsHex.substring(8, 12)}-7${hexN(3)}-${variantHex}${hexN(3)}-${hexN(12)}`;
 }
 
 // --- Marketplace Registry (mirrors account_directory.csv) ---
@@ -253,13 +272,7 @@ export default function () {
 
     const createRes = http.post(createUrl, createPayload, createParams);
     
-    // Detailed metrics for Create
-    createBlocked.add(createRes.timings.blocked);
-    createConnecting.add(createRes.timings.connecting);
-    createTls.add(createRes.timings.tls_handshaking);
-    createSending.add(createRes.timings.sending);
-    createWaiting.add(createRes.timings.waiting);
-    createReceiving.add(createRes.timings.receiving);
+    // Metric for Create
     createDuration.add(createRes.timings.duration);
 
     const isCreated = check(createRes, {
@@ -285,13 +298,7 @@ export default function () {
 
         const authRes = http.post(authUrl, authPayload, authParams);
         
-        // Detailed metrics for Auth
-        authBlocked.add(authRes.timings.blocked);
-        authConnecting.add(authRes.timings.connecting);
-        authTls.add(authRes.timings.tls_handshaking);
-        authSending.add(authRes.timings.sending);
-        authWaiting.add(authRes.timings.waiting);
-        authReceiving.add(authRes.timings.receiving);
+        // Metric for Auth
         authDuration.add(authRes.timings.duration);
 
         check(authRes, {

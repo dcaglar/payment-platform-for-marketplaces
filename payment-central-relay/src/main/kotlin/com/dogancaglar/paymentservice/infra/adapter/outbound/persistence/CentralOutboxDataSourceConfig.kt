@@ -12,6 +12,8 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import javax.sql.DataSource
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.instrumentation.hikaricp.v3_0.HikariTelemetry
 
 @Configuration
 @MapperScan(
@@ -35,7 +37,8 @@ class CentralOutboxDataSourceConfig {
         @Value("\${app.datasource.central-outbox.connection-timeout:15000}") cTimeout: Long,
         @Value("\${app.datasource.central-outbox.validation-timeout:10000}") vTimeout: Long,
         @Value("\${app.datasource.central-outbox.idle-timeout:120000}") iTimeout: Long,
-        @Value("\${app.datasource.central-outbox.max-lifetime:180000}") mLife: Long
+        @Value("\${app.datasource.central-outbox.max-lifetime:180000}") mLife: Long,
+        openTelemetry: OpenTelemetry
     ): HikariDataSource {
         return HikariDataSource().apply {
             this.poolName = poolName
@@ -48,6 +51,8 @@ class CentralOutboxDataSourceConfig {
             this.idleTimeout = iTimeout
             this.connectionTimeout = cTimeout
             this.validationTimeout = vTimeout
+        }.also {
+            it.metricsTrackerFactory = HikariTelemetry.create(openTelemetry).createMetricsTrackerFactory()
         }
     }
 
@@ -90,7 +95,8 @@ class CentralOutboxDataSourceConfig {
         @Value("\${app.datasource.maintenance.connection-timeout:15000}") cTimeout: Long,
         @Value("\${app.datasource.maintenance.validation-timeout:10000}") vTimeout: Long,
         @Value("\${app.datasource.maintenance.idle-timeout:120000}") iTimeout: Long,
-        @Value("\${app.datasource.maintenance.max-lifetime:180000}") mLife: Long
+        @Value("\${app.datasource.maintenance.max-lifetime:180000}") mLife: Long,
+        openTelemetry: OpenTelemetry
     ): HikariDataSource {
         return HikariDataSource().apply {
             this.poolName = poolName
@@ -103,6 +109,8 @@ class CentralOutboxDataSourceConfig {
             this.idleTimeout = iTimeout
             this.connectionTimeout = cTimeout
             this.validationTimeout = vTimeout
+        }.also {
+            it.metricsTrackerFactory = HikariTelemetry.create(openTelemetry).createMetricsTrackerFactory()
         }
     }
 

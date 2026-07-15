@@ -2,6 +2,7 @@ package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.common.db.converter.PaymentIntentEntityMapper
+import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.edge.PaymentIntentMapper
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import com.dogancaglar.paymentservice.ports.outbound.PaymentIntentRepository
@@ -40,12 +41,14 @@ class PaymentIntentOutboundAdapter(
     @WithSpan("PaymentIntentOutboundAdapter.findById")
     override fun findById(paymentIntentId: PaymentIntentId): PaymentIntent {
         val entity = paymentIntentMapper.findById(paymentIntentId.value)!!
-        val splits: List<PaymentSplit> = if (entity.splitsJson.isNotBlank()) {
-            objectMapper.readValue(entity.splitsJson, splitsTypeRef)
-        } else {
-            emptyList()
+        val splitsDelegate = lazy {
+            if (entity.splitsJson.isNotBlank()) {
+                objectMapper.readValue(entity.splitsJson, splitsTypeRef)
+            } else {
+                emptyList()
+            }
         }
-        return PaymentIntentEntityMapper.toDomain(entity, splits)
+        return PaymentIntentEntityMapper.toDomain(entity, splitsDelegate)
     }
 
     @WithSpan("PaymentIntentOutboundAdapter.getMaxPaymentIntentId")
@@ -56,9 +59,8 @@ class PaymentIntentOutboundAdapter(
 
     @WithSpan("PaymentIntentOutboundAdapter.updatePaymentIntent")
     override fun updatePaymentIntent(paymentIntent: PaymentIntent) {
-        val splitsJson = objectMapper.writeValueAsString(paymentIntent.splits)
-        val entity = PaymentIntentEntityMapper.toEntity(paymentIntent, splitsJson)
-        paymentIntentMapper.update(entity)
+        paymentIntentMapper.updatePaymentIntentWithPspResponse(paymentIntentId = paymentIntent.paymentIntentId.value, pspReference = paymentIntent.pspReference!!,
+            status = paymentIntent.status.name, updatedAt = Utc.nowInstant())
     }
 
 }

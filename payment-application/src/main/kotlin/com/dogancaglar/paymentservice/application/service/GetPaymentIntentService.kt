@@ -7,6 +7,7 @@ import com.dogancaglar.paymentservice.ports.inbound.usecases.GetPaymentIntentUse
 import com.dogancaglar.paymentservice.ports.outbound.PaymentIntentRepository
 import com.dogancaglar.paymentservice.ports.outbound.PspAuthorizationGatewayPort
 import com.dogancaglar.paymentservice.ports.outbound.ResilientExecutionPort
+
 import org.slf4j.LoggerFactory
 
 class GetPaymentIntentService(
@@ -18,43 +19,47 @@ class GetPaymentIntentService(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     override fun getPaymentIntent(cmd: GetPaymentIntentCommand): PaymentIntent {
+        logger.debug("GetPaymentIntentService.getPaymentIntent started")
+        val start = System.currentTimeMillis()
         // Load PaymentIntent from database
         val paymentIntent = paymentIntentRepository.findById(cmd.paymentIntentId)
             ?: throw PaymentIntentNotFoundException("PaymentIntent ${cmd.paymentIntentId.value} not found")
+        val finish = System.currentTimeMillis()
+        logger.debug("paymentIntentRepository.findById TOOK {} MS", finish - start)
 
         // If pspReference exists, retrieve clientSecret from Stripe (never persisted)
-        return if (paymentIntent.hasPspReference()) {
-            val clientSecretFuture = pspAuthGatewayPort.retrieveClientSecret(paymentIntent.pspReferenceOrThrow())
-            if (clientSecretFuture != null) {
-                return try {
-                    val clientSecret = resilientExecutionPort.executeWithTimeoutAndBackgroundFallback(
-                        primaryTask = clientSecretFuture,
-                        timeoutMs = 2000,
-                        onTimeoutFallback = {
-                            logger.warn("Timeout retrieving clientSecret from Stripe for pspReference={}", paymentIntent.pspReference)
-                            ""
-                        },
-                        onBackgroundSuccess = { },
-                        onBackgroundFailure = { }
-                    )
-                    
-                    if (clientSecret.isNotEmpty()) {
-                        logger.debug("Retrieved clientSecret from Stripe for paymentIntentId={}", cmd.paymentIntentId.value)
-                        paymentIntent.withClientSecret(clientSecret)
-                    } else {
-                        paymentIntent
-                    }
-                } catch (e: Exception) {
-                    logger.error("Error retrieving client secret", e)
+        if (paymentIntent.hasPspReference()) {
+            return try {
+                val startPspCall = System.currentTimeMillis()
+                val clientSecret = resilientExecutionPort.executeWithTimeoutAndBackgroundFallback(
+                    primaryTask = {
+                        pspAuthGatewayPort.retrieveClientSecret(paymentIntent.pspReferenceOrThrow())!!
+                    },
+                    timeoutMs = 2000,
+                    onTimeoutFallback = {
+                        logger.warn("Timeout retrieving clientSecret from Stripe for pspReference={}", paymentIntent.pspReference)
+                        ""
+                    },
+                    onBackgroundSuccess = { },
+                    onBackgroundFailure = { }
+                )
+                val finishPspCall = System.currentTimeMillis()
+                logger.debug("Stripe retrieveClientSecret TOOK {} MS", finishPspCall - startPspCall)
+
+                if (clientSecret.isNotEmpty()) {
+                    logger.debug("Retrieved clientSecret from Stripe for paymentIntentId={}", cmd.paymentIntentId.value)
+                    paymentIntent.withClientSecret(clientSecret)
+                } else {
+                    logger.warn("Could not retrieve clientSecret from Stripe for pspReference={}", paymentIntent.pspReference)
                     paymentIntent
                 }
-            } else {
-                logger.warn("Could not retrieve clientSecret from Stripe for pspReference={}", paymentIntent.pspReference)
+            } catch (e: Exception) {
+                logger.error("Error retrieving client secret", e)
                 paymentIntent
             }
         } else {
             logger.debug("No pspReference found for paymentIntentId={}, skipping Stripe retrieval", cmd.paymentIntentId.value)
-            paymentIntent
+            return paymentIntent
         }
     }
 }
