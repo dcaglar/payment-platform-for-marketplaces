@@ -20,6 +20,7 @@ import com.dogancaglar.paymentservice.ports.inbound.usecases.UpdatePaymentIntent
 import com.dogancaglar.paymentservice.ports.outbound.IdGeneratorPort
 import com.stripe.model.Event
 import com.stripe.model.PaymentIntent
+import io.opentelemetry.instrumentation.annotations.WithSpan
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
@@ -35,6 +36,7 @@ class PaymentApiOrchestrator(
 ) {
     private val logger = LoggerFactory.getLogger(PaymentApiOrchestrator::class.java)
 
+    @WithSpan("PaymentApiOrchestrator.createPaymentIntent")
     fun createPaymentIntent(request: CreatePaymentIntentRequestDTO): CreatePaymentIntentResponseDTO {
         logger.info("🔁 PaymentApiOrchestrator.createPaymentIntent started")
         paymentValidator.validate(request)
@@ -44,7 +46,7 @@ class PaymentApiOrchestrator(
         val paymentIntent = createPaymentIntentUseCase.create(cmd)
         return PaymentRequestMapper.toPaymentResponseDto(paymentIntent)
     }
-
+    @WithSpan("PaymentApiOrchestrator.authorizepaymentintent")
     fun authorizePayment(publicPaymentIntentId:String, request: AuthorizationRequestDTO): CreatePaymentIntentResponseDTO {
         logger.info("🔁 PaymentApiOrchestrator.authorizePayment started for short publicPaymentIntentId $publicPaymentIntentId")
         val cmd = PaymentRequestMapper.toAuthorizePaymentIntentCommand(publicPaymentIntentId,request)

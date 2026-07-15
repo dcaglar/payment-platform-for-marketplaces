@@ -16,21 +16,30 @@ class ResilientExecutionAdapter(
 ) : ResilientExecutionPort {
     private val logger = LoggerFactory.getLogger(ResilientExecutionAdapter::class.java)
 
-   @WithSpan("resilientExecutor")
+    @WithSpan("resilientExecutor")
     override fun <T> executeWithTimeoutAndBackgroundFallback(
-        primaryTask: CompletableFuture<T>,
+        primaryTask: () -> CompletableFuture<T>,
         timeoutMs: Long,
         onTimeoutFallback: () -> T,
         onBackgroundSuccess: (T) -> Unit,
         onBackgroundFailure: (Throwable) -> Unit
     ): T {
+        // ① Invoke the lambda here — this is the exact moment the PSP task is submitted
+        //    to its executor (createPaymentIntentExecutor / authorizePaymentIntentExecutor).
+        //    Nothing runs before this line.
+        val future: CompletableFuture<T> = primaryTask.invoke()
+
         return try {
-            primaryTask.get(timeoutMs, TimeUnit.MILLISECONDS)
+            // ② Block the Tomcat thread for at most timeoutMs milliseconds
+            future.get(timeoutMs, TimeUnit.MILLISECONDS)
+
         } catch (e: TimeoutException) {
             logger.warn("Task timed out after ${timeoutMs}ms. Returning fallback and continuing in background.")
-            
-            // Handle background completion
-            primaryTask.whenCompleteAsync({ result, error ->
+
+            // ③ PSP task is still running on its own executor.
+            //    Register a continuation on the future (not the lambda) that will
+            //    execute on resilientExecutor once the PSP task eventually completes.
+            future.whenCompleteAsync({ result, error ->
                 if (error != null) {
                     logger.error("Background task failed after timeout", error)
                     onBackgroundFailure(error)

@@ -54,15 +54,8 @@ xsi:schemaLocation="
     </sql>
 
     <!-- 4️⃣ Useful indexes -->
-    <createIndex indexName="idx_idempotency_request_hash"
-                 tableName="idempotency_keys">
-        <column name="request_hash"/>
-    </createIndex>
 
-    <createIndex indexName="idx_idempotency_payment_intent_id"
-                 tableName="idempotency_keys">
-        <column name="payment_intent_id"/>
-    </createIndex>
+
 
     <!-- 5️⃣ Rollback -->
     <rollback>

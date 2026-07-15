@@ -32,6 +32,8 @@ spec:
           volumeMounts:
             - name: db-init-scripts
               mountPath: /docker-entrypoint-initdb.d
+            - name: edge-db-data
+              mountPath: /var/lib/postgresql/data
 
           envFrom:
             - configMapRef:
@@ -61,7 +63,12 @@ spec:
             - name: EDGE_DB_MAINTENANCE_PASSWORD
               valueFrom: {secretKeyRef: {name: edge-cell-credentials, key: EDGE_DB_MAINTENANCE_PASSWORD}}
 
-          args: ["-c", "listen_addresses=*"]
+          args:
+            - "-c"
+            - "listen_addresses=*"
+            {{- if .Values.edgeDb.args }}
+            {{- toYaml .Values.edgeDb.args | nindent 12 }}
+            {{- end }}
           startupProbe:
             exec:
               command: ["pg_isready", "-U", "postgres"]
@@ -126,6 +133,28 @@ spec:
             timeoutSeconds: 5
           resources:
             {{- toYaml .Values.paymentService.resources | nindent 12}}
+        {{- if .Values.postgresExporter }}
+        - name: postgres-exporter
+          image: prometheuscommunity/postgres-exporter:v0.15.0
+          args: ["--collector.stat_statements"]
+          ports:
+            - name: db-metrics
+              containerPort: 9187
+          envFrom:
+            - configMapRef:
+                name: edge-cell-config
+            - secretRef:
+                name: edge-cell-credentials
+          env:
+            - name: DATA_SOURCE_NAME
+              value: "postgresql://$(EDGE_DB_PAYMENT_SERVICE_USERNAME):$(EDGE_DB_PAYMENT_SERVICE_PASSWORD)@localhost:5432/$(EDGE_DB_NAME)?sslmode=disable"
+            - name: PG_EXPORTER_COLLECTION_TIMEOUT
+              value: "1m"
+            - name: PG_EXPORTER_WEB_TELEMETRY_PATH
+              value: "/metrics"
+          resources:
+            {{- toYaml .Values.postgresExporter.resources | nindent 12}}
+        {{- end }}
       volumes:
         - name: db-init-scripts
           secret:
@@ -133,3 +162,11 @@ spec:
         - name: liquibase-workspace
           configMap:
             name: edge-db-changelog-configmap
+  volumeClaimTemplates:
+    - metadata:
+        name: edge-db-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.edgeDb.storage.size }}

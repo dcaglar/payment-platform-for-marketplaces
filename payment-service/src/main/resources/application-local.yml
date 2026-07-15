@@ -1,9 +1,9 @@
 server:
   tomcat:
     threads:
-      max: 120
+      max: 150
       min-spare: 40
-    max-connections: 1000
+    max-connections: 500
     accept-count: 200
     connection-timeout: 20000
 
@@ -39,7 +39,7 @@ spring:
       max-lifetime: 1800000
       leak-detection-threshold: 60000
       connection-init-sql: "SET statement_timeout = '500ms'; SET lock_timeout = '250ms';"
-      maximum-pool-size: 12
+      maximum-pool-size: 15
 
 outbox-dispatcher:
   thread-count: 2
@@ -54,9 +54,9 @@ db:
 
 stripe:
   api:
-    api-key: ${STRIPE_API_KEY:sk_test_51ShA8HEAJKUKtoJwTALvrfMadP0eoKwyggnasHkqgY6y6jLoSjg9YqewkxiYrRw54TnZ7tVFX5Xreg3qaHm5wWAX00tupdpr6y}
+    api-key:  ${STRIPE_API_KEY}
     connect-timeout: 5000
-    read-timeout: 30000
+    read-timeout: 10000    # 10s — protects background executor pool during PSP outage
 
 psp:
   gateway:

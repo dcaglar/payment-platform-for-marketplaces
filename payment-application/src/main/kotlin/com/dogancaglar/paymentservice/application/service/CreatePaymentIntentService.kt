@@ -53,7 +53,9 @@ class CreatePaymentIntentService(
         return try {
             val startPspCall = System.currentTimeMillis()
             val createdPaymentIntent = resilientExecutionPort.executeWithTimeoutAndBackgroundFallback(
-                primaryTask = pspAuthGatewayPort.createPaymentIntent(paymentIntent), // tsk to be run aysnc by thread pool passed
+                primaryTask ={
+                  pspAuthGatewayPort.createPaymentIntent(paymentIntent)
+                }, // tsk to be run aysnc by thread pool passed
                 timeoutMs = 3000,
                 onTimeoutFallback = {
                     logger.debug(

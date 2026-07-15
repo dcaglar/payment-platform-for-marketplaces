@@ -3,7 +3,7 @@ controller:
   metrics:
     enabled: true
     serviceMonitor:
-      enabled: false
+      enabled: true
       namespace: ingress-controller # or wherever your operator is
       additionalLabels:
         release: prometheus-stack # Match the label your operator looks for

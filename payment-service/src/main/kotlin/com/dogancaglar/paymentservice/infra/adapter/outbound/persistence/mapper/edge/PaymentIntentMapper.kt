@@ -11,10 +11,9 @@ interface PaymentIntentMapper {
 
     fun tryMarkPendingAuth(id: Long, now: Instant): Int
     fun updatePspReference(paymentIntentId: Long, pspReference: String, now: Instant): Int
-
+    fun updatePaymentIntentWithPspResponse(paymentIntentId: Long, pspReference: String,status:String, updatedAt: Instant): Int
     // Add other CRUD methods as needed, e.g.:
     fun insert(paymentIntent: PaymentIntentEntity): Int
     fun findById(id: Long): PaymentIntentEntity?
-    fun update(paymentIntent: PaymentIntentEntity): Int
     fun deleteById(id: Long): Int
 }

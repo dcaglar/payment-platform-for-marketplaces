@@ -15,7 +15,7 @@ interface ResilientExecutionPort {
      * @return The result of the task (if fast) or the fallback value (if slow)
      */
     fun <T> executeWithTimeoutAndBackgroundFallback(
-        primaryTask: CompletableFuture<T>,
+        primaryTask: () -> CompletableFuture<T>,
         timeoutMs: Long,
         onTimeoutFallback: () -> T,
         onBackgroundSuccess: (T) -> Unit,
