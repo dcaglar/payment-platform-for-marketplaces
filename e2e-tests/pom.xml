@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.dogancaglar</groupId>
+        <artifactId>ecommerce-platform-kotlin</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>e2e-tests</artifactId>
+    <packaging>jar</packaging>
+
+    <!--
+      End-to-end black-box test module.
+      Spins up the FULL platform topology as real Docker containers via Testcontainers:
+        keycloak, edge-db (postgres), central-db (postgres), kafka, redis,
+        payment-service, payment-edge-workers, payment-central-relay, payment-consumers.
+      Drives createPayment -> authorize over HTTP and asserts the two-stage-outbox +
+      double-entry ledger flow all the way to Payment.status = SETTLED.
+
+      This module produces NO runtime artifact; it only hosts *IntegrationTest.kt classes
+      executed by the Failsafe plugin during `mvn verify`.
+    -->
+
+    <properties>
+        <keycloak.testcontainers.version>3.4.0</keycloak.testcontainers.version>
+        <awaitility.version>4.2.1</awaitility.version>
+        <!-- This module has no unit tests; only container integration tests. -->
+        <skipUnitTests>true</skipUnitTests>
+    </properties>
+
+    <dependencies>
+        <!-- Domain enums for typed status/journal assertions (pure Kotlin, no Spring). -->
+        <dependency>
+            <groupId>com.dogancaglar</groupId>
+            <artifactId>payment-domain</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- PublicIdFactory: decode public pi_ id -> internal bigint payment_intent_id. -->
+        <dependency>
+            <groupId>com.dogancaglar</groupId>
+            <artifactId>common</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Kotlin -->
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib-jdk8</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-test-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- JUnit 5 -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Testcontainers: infra + service containers -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>kafka</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- AdminClient to explicitly create topics (gateway.capture.requested relies on
+             broker auto-create otherwise; we create all Topics.ALL deterministically). -->
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Keycloak container (dasniko) for real OIDC + JWT minting -->
+        <dependency>
+            <groupId>com.github.dasniko</groupId>
+            <artifactId>testcontainers-keycloak</artifactId>
+            <version>${keycloak.testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Awaitility for polling async milestones -->
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility-kotlin</artifactId>
+            <version>${awaitility.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Liquibase to migrate edge-db + central-db from the real charts/*/db changelogs -->
+        <dependency>
+            <groupId>org.liquibase</groupId>
+            <artifactId>liquibase-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Postgres driver for direct milestone SQL queries + Liquibase -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Jackson for parsing HTTP responses + outbox envelope payloads -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-kotlin</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Assertions -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- SLF4J impl so container + test logs surface -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <testSourceDirectory>${project.basedir}/src/test/kotlin</testSourceDirectory>
+        <testResources>
+            <testResource>
+                <directory>${project.basedir}/src/test/resources</directory>
+            </testResource>
+        </testResources>
+        <plugins>
+            <plugin>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>test-compile</id>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>test-compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

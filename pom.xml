@@ -44,6 +44,9 @@ It declares that this module is:
         <module>payment-central-relay</module>
         <module>common-test</module>
     </modules>
+    <!-- e2e-tests is intentionally NOT a reactor module: listing it breaks the service image
+         builds (their Dockerfiles don't copy e2e-tests into the build context). Run it standalone:
+         `mvn -f e2e-tests/pom.xml verify` — its <parent> resolves to this pom by default. -->
 
     <properties>
         <java.version>21</java.version>
