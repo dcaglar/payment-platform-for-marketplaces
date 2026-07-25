@@ -73,3 +73,51 @@ jobs:
             **/target/failsafe-reports/**/*.xml
             **/target/failsafe-reports/*.txt
           if-no-files-found: ignore
+
+  # 🌐 3. End-to-End Acceptance (full platform via Testcontainers)
+  # Runs the e2e-tests module: builds the 4 service images from THIS PR's code, then boots the whole
+  # topology (Keycloak + Postgres x2 + Kafka + Redis + the 4 services) as real containers and drives
+  # createPayment -> authorize, asserting the flow to Payment.status=SETTLED.
+  # PR-to-main only: the e2e-tests module is not a reactor module, so it needs its own -f invocation,
+  # and it must build the images itself (ci.yml does not 1push :latest — that only happens on Azure deploy).
+  e2e-acceptance:
+    name: E2E Acceptance (Testcontainers)
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Verify Docker Environment
+        run: docker info
+
+      - name: Build service images from PR code (no push)
+        run: |
+          for m in payment-service payment-edge-workers payment-central-relay payment-consumers; do
+            DOCKER_BUILDKIT=1 docker build -f "$m/Dockerfile" -t "dcaglar1987/$m:latest" .
+          done
+
+      - name: Install shared modules to local repo (skip tests)
+        run: mvn -B -q -pl common,payment-domain -am install -Dmaven.test.skip=true
+
+      - name: Run E2E flow (createPayment -> authorize -> SETTLED)
+        run: mvn -B -f e2e-tests/pom.xml verify
+
+      - name: Archive E2E Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: |
+            e2e-tests/target/failsafe-reports/**/*.xml
+            e2e-tests/target/failsafe-reports/*.txt
+            e2e-tests/target/e2e-run.log
+          if-no-files-found: ignore

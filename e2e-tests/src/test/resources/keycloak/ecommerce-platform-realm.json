@@ -1,0 +1,40 @@
+{
+  "realm": "ecommerce-platform",
+  "enabled": true,
+  "accessTokenLifespan": 3600,
+  "sslRequired": "none",
+  "roles": {
+    "realm": [
+      { "name": "payment:write", "description": "Permission to create/authorize/capture payments" },
+      { "name": "FINANCE" },
+      { "name": "ADMIN" },
+      { "name": "SELLER" },
+      { "name": "SELLER_API" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "payment-service",
+      "name": "Payment Service (client-credentials, test)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "payment-service-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": true
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-payment-service",
+      "enabled": true,
+      "serviceAccountClientId": "payment-service",
+      "realmRoles": ["payment:write"]
+    }
+  ]
+}

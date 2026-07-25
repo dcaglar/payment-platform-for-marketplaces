@@ -1,10 +1,8 @@
 package com.dogancaglar.paymentservice.application.events
 
 import com.dogancaglar.common.time.Utc
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import java.time.Instant
 
-@JsonIgnoreProperties(ignoreUnknown = true)
 data class CaptureSubmitted(
     val pspReference: String,
     override val paymentIntentId: String,

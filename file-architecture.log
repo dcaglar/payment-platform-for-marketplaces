@@ -1,0 +1,950 @@
+1-observability-structured-event-structure.md  [error opening dir]
+2-observability-distributed-traces.md  [error opening dir]
+3-observability-instrumentation-open-telemtry.md  [error opening dir]
+after-telemtetry.md  [error opening dir]
+AGENTS.MD  [error opening dir]
+central-db-sops-secrets.yaml  [error opening dir]
+charts
+├── central-db
+│   ├── azure
+│   │   └── values.yaml
+│   ├── Chart.yaml
+│   ├── db
+│   │   ├── 20260708-increase-ledger-limits.xml
+│   │   ├── 20260708-update-payment-status-constraint.xml
+│   │   ├── account_directory.csv
+│   │   ├── central-account-balances-table.xml
+│   │   ├── central-account-profile.xml
+│   │   ├── central-accounting-tables.xml
+│   │   ├── central-edge-watermak-table.xml
+│   │   ├── central-payment-outbox-changelog.xml
+│   │   ├── central-payments-missing-index.xml
+│   │   ├── central-payments-table.xml
+│   │   ├── central-transfers-table.xml
+│   │   └── changelog.central.xml
+│   ├── local
+│   │   └── values.yaml
+│   ├── templates
+│   │   ├── _helpers.tpl
+│   │   ├── central-db-changelog-configmap.yaml
+│   │   ├── central-db-config.yaml
+│   │   ├── central-db-init-secret.yaml
+│   │   ├── central-db-secrets.yaml
+│   │   └── liquibase-job.yaml
+│   └── values.yaml
+├── helm-cheatsheet.md
+├── payment-central-relay
+│   ├── azure
+│   │   └── values.yaml
+│   ├── Chart.yaml
+│   ├── local
+│   │   └── values.yaml
+│   ├── templates
+│   │   ├── _helpers.tpl
+│   │   ├── deployment.yaml
+│   │   ├── payment-central-relay-job-configmap.yaml
+│   │   ├── payment-central-relay-job-secrets.yaml
+│   │   ├── scaledobject.yaml
+│   │   ├── service.yaml
+│   │   └── servicemonitor.yaml
+│   └── values.yaml
+├── payment-consumers
+│   ├── azure
+│   │   └── values.yaml
+│   ├── Chart.yaml
+│   ├── local
+│   │   └── values.yaml
+│   ├── templates
+│   │   ├── _helpers.tpl
+│   │   ├── payment-consumer-secrets.yaml
+│   │   ├── payment-consumers-configmap.yaml
+│   │   ├── scaledobject.yaml
+│   │   ├── service.yaml
+│   │   ├── servicemonitor.yaml
+│   │   └── statefulset.yaml
+│   └── values.yaml
+├── payment-edge-cell
+│   ├── azure
+│   │   └── values.yaml
+│   ├── Chart.yaml
+│   ├── db
+│   │   ├── 20260208-optimize-idempotency-vacuum.xml
+│   │   ├── changelog.edge.xml
+│   │   ├── idempotency-key-changelog.xml
+│   │   ├── local-outbox-changelog.xml
+│   │   └── payment-intent-changelog.xml
+│   ├── local
+│   │   └── values.yaml
+│   ├── templates
+│   │   ├── _helpers.tpl
+│   │   ├── edge-cell-configmap.yaml
+│   │   ├── edge-cell-secrets.yaml
+│   │   ├── edge-db-changelog-configmap.yaml
+│   │   ├── edge-db-init-secret.yaml
+│   │   ├── ingress.yaml
+│   │   ├── scaledobject.yaml
+│   │   ├── service-monitor.yaml
+│   │   ├── service.yaml
+│   │   └── statefulset.yaml
+│   └── values.yaml
+└── payment-edge-workers
+    ├── azure
+    │   └── values.yaml
+    ├── Chart.yaml
+    ├── local
+    │   └── values.yaml
+    ├── templates
+    │   ├── _helpers.tpl
+    │   ├── edge-worker-configmap.yaml
+    │   ├── edge-worker-credentials.yaml
+    │   ├── pvc.yaml
+    │   ├── scaledobject.yaml
+    │   ├── service-monitor.yaml
+    │   ├── service.yaml
+    │   └── statefulset.yaml
+    └── values.yaml
+checkout-demo
+├── generate-env.cjs
+├── index.html
+├── package-lock.json
+├── package.json
+├── README.md
+├── SEPARATION_OF_CONCERNS.md
+├── server.js
+├── src
+│   ├── App.jsx
+│   ├── components
+│   │   └── PaymentElement.jsx
+│   ├── index.css
+│   ├── main.jsx
+│   └── services
+│       └── paymentService.js
+└── vite.config.js
+collection-patterns,.md  [error opening dir]
+common
+├── pom.xml
+└── src
+    ├── main
+    │   └── kotlin
+    │       └── com
+    │           └── dogancaglar
+    │               └── common
+    │                   ├── event
+    │                   │   ├── Event.kt
+    │                   │   ├── EventEnvelope.kt
+    │                   │   ├── EventEnvelopeFactory.kt
+    │                   │   └── metadata
+    │                   │       ├── EventMetadata.kt
+    │                   │       └── EventMetaDataRegistry.kt
+    │                   ├── id
+    │                   │   ├── PublicIdCodec.kt
+    │                   │   └── PublicIdFactory.kt
+    │                   ├── logging
+    │                   │   ├── EventLogContext.kt
+    │                   │   └── GenericLogFields.kt
+    │                   └── time
+    │                       └── Utc.kt
+    └── test
+        └── kotlin
+            └── com
+                └── dogancaglar
+                    └── common
+                        ├── event
+                        │   ├── EventEnvelopeFactoryTest.kt
+                        │   ├── EventEnvelopeSerializationTest.kt
+                        │   └── metadata
+                        │       └── EventMetadataRegistryTest.kt
+                        └── logging
+                            └── EventLogContextTest.kt
+common-db
+├── pom.xml
+└── src
+    └── main
+        ├── kotlin
+        │   └── com
+        │       └── dogancaglar
+        │           └── common
+        │               └── db
+        │                   ├── CommonDbAutoConfiguration.kt
+        │                   ├── converter
+        │                   │   ├── OutboxEventEntityMapper.kt
+        │                   │   ├── PaymentEntityMapper.kt
+        │                   │   ├── PaymentIntentEntityMapper.kt
+        │                   │   ├── PaymentTxEntityMapper.kt
+        │                   │   └── TransferEntityMapper.kt
+        │                   ├── entity
+        │                   │   ├── AccountBalanceEntity.kt
+        │                   │   ├── EdgeWatermarkEntity.kt
+        │                   │   ├── JournalEntryEntity.kt
+        │                   │   ├── OutboxEventEntity.kt
+        │                   │   ├── PaymentEntity.kt
+        │                   │   ├── PaymentIntentEntity.kt
+        │                   │   ├── PaymentTxEntity.kt
+        │                   │   ├── PostingEntity.kt
+        │                   │   └── TransferEntity.kt
+        │                   ├── LiquibaseJobExiter.kt
+        │                   ├── partitioning
+        │                   │   └── AbstractOutboxPartitionCreator.kt
+        │                   └── typehandler
+        │                       ├── IdempotencyStatusTypeHandler.kt
+        │                       ├── InstantTypeHandler.kt
+        │                       └── UUIDTypeHandler.kt
+        └── resources
+            └── META-INF
+                └── spring
+                    └── org.springframework.boot.autoconfigure.AutoConfiguration.imports
+common-kafka
+├── pom.xml
+└── src
+    └── main
+        ├── kotlin
+        │   └── com
+        │       └── dogancaglar
+        │           └── common
+        │               └── kafka
+        │                   ├── metadata
+        │                   │   ├── PaymentEventMetadataCatalog.kt
+        │                   │   └── Topics.kt
+        │                   ├── publisher
+        │                   │   ├── KafkaDeliveryResult.kt
+        │                   │   ├── PaymentEventPublisher.kt
+        │                   │   └── RawEventPublisher.kt
+        │                   └── serde
+        │                       ├── EventEnvelopeKafkaDeserializer.kt
+        │                       └── EventEnvelopeKafkaSerializer.kt
+        └── resources
+            └── META-INF
+                └── spring
+                    └── org.springframework.boot.autoconfigure.AutoConfiguration.imports
+common-test
+├── pom.xml
+└── src
+    └── test
+        └── kotlin
+            └── com
+                └── dogancaglar
+                    └── paymentservice
+                        └── util
+                            ├── JournalEntryTestHelper.kt
+                            └── PaymentTestHelper.kt
+decrypted_secrets.yaml  [error opening dir]
+differenttways-of-unstrumenting-telemetry-in-java.md  [error opening dir]
+docs
+├── architecture
+│   ├── adr-001-azure-infrastructure.md
+│   ├── architecture.md
+│   ├── idempotency-sequence-diagram.png
+│   ├── payment-central-relay.md
+│   ├── payment-consumers.md
+│   ├── payment-edge-workers.md
+│   ├── payment-service.md
+│   ├── payments-journey.svg
+│   └── um-diagram-payment-ledger-domain.png
+├── azure-operations-runbook.md
+├── cheatsheet
+│   ├── azure-environment-toolkit.md
+│   ├── connectivity.md
+│   ├── docker-cli-cheatsheet.md
+│   ├── ELK.md
+│   ├── helm-troubleshoot.md
+│   ├── kafka.md
+│   ├── kube-prometheus-stack-default-values.yaml
+│   ├── kubernetes-cheatsheet.md
+│   ├── orbstack-services-guide.md
+│   ├── performance_fine_tune_tomcat_max_db_connection_pool.md
+│   └── test-credentials.md
+├── diagrams.puml
+├── how-to-start.md
+├── monitoring-handbook.md
+└── test-ach.md
+edge-cell-sops-secrets.yaml  [error opening dir]
+filebeat
+└── filebeat.yml
+implementation_plan.md  [error opening dir]
+infra
+├── endpoints.json
+├── helm-values
+│   ├── elasticsearch-values-azure.yaml
+│   ├── elasticsearch-values-local.yaml
+│   ├── filebeat-values-azure.yaml
+│   ├── filebeat-values-local.yaml
+│   ├── ingress-nginx-values-azure.yaml
+│   ├── ingress-nginx-values-local.yaml
+│   ├── kafka-defaults.yaml
+│   ├── kafka-values-azure.yaml
+│   ├── kafka-values-local.yaml
+│   ├── keycloak-values-azure.yaml
+│   ├── keycloak-values-local.yaml
+│   ├── kibana-values-azure.yaml
+│   ├── kibana-values-local.yaml
+│   ├── monitoring-stack-values-azure.yaml
+│   ├── monitoring-stack-values-local.yaml
+│   ├── my-postgres-defaults.yaml
+│   ├── opentelemetry-collector-values-azure.yaml
+│   ├── opentelemetry-collector-values-local.yaml
+│   ├── redis-values-azure.yaml
+│   ├── redis-values-local.yaml
+│   ├── tempo-values-azure.yaml
+│   └── tempo-values-local.yaml
+├── scripts
+│   ├── build-all-payment-platform-images-and-push.sh
+│   ├── build-and-push-local.sh
+│   ├── build-and-push.sh
+│   ├── delete-all-azure.sh
+│   ├── delete-all-local.sh
+│   ├── delete-local.sh
+│   ├── delete.sh
+│   ├── deploy-all-external-infra-azure.sh
+│   ├── deploy-all-external-infra-local.sh
+│   ├── deploy-all-local.sh
+│   ├── deploy-external-infra-local.sh
+│   ├── deploy-monitoring-stack-azure.sh
+│   ├── deploy-monitoring-stack-local.sh
+│   ├── deploy-payment-platform-services-azure.sh
+│   ├── deploy-payment-platform-services-local.sh
+│   ├── list-all-resources.sh
+│   ├── optional
+│   │   ├── deploy-elasticsearch.sh
+│   │   ├── deploy-filebeat.sh
+│   │   ├── deploy-kibana.sh
+│   │   └── deploy-observability-stack.sh
+│   ├── run-local.sh
+│   ├── setup-github-secrets.sh
+│   ├── setup-terraform-backend.sh
+│   ├── teardown-and-hard-delete-local.sh
+│   └── teardown-terraform-backend.sh
+└── terraform
+    ├── aks-loadtest.tfvars
+    ├── main.tf
+    ├── providers.tf
+    └── variables.tf
+keycloak
+├── get-token-azure.sh
+├── get-token-finance.sh
+├── get-token-merchant-api.sh
+├── get-token-seller.sh
+├── get-token.sh
+├── provision-keycloak-azure.sh
+└── provision-keycloak.sh
+load-tests
+├── journey-of-a-request.md
+├── k6-payment-flow-azure.js
+├── k6-payment-flow.js
+├── k6-single-req.js
+├── load-testing-playbook.md
+├── readme.md
+├── run-local-test.sh
+├── thoughts-on-thread-coordination.md
+└── tomcat-db-pool-performance-tuning-tips.md
+manual-withspan-inlinespanstarreter-vestpraactices.md  [error opening dir]
+migration-plan.md  [error opening dir]
+mvnw  [error opening dir]
+mvnw.cmd  [error opening dir]
+observability-audit.md  [error opening dir]
+order-service
+└── pom.xml
+otel_integration_analysis.md  [error opening dir]
+payment-application
+├── pom.xml
+└── src
+    ├── main
+    │   └── kotlin
+    │       └── com
+    │           └── dogancaglar
+    │               └── paymentservice
+    │                   ├── application
+    │                   │   ├── command
+    │                   │   │   ├── AuthorizePaymentIntentCommand.kt
+    │                   │   │   ├── CapturePaymentCommand.kt
+    │                   │   │   ├── CreatePaymentIntentCommand.kt
+    │                   │   │   ├── GetPaymentIntentCommand.kt
+    │                   │   │   └── ProcessPaymentIntentUpdateCommand.kt
+    │                   │   ├── constants
+    │                   │   │   ├── IdNamespaces.kt
+    │                   │   │   └── PaymentLogFields.kt
+    │                   │   ├── dto
+    │                   │   │   ├── AccountTypeDto.kt
+    │                   │   │   └── PaymentSplitDto.kt
+    │                   │   ├── events
+    │                   │   │   ├── CaptureConfirmed.kt
+    │                   │   │   ├── CaptureRequested.kt
+    │                   │   │   ├── CaptureSubmitted.kt
+    │                   │   │   ├── EventType.kt
+    │                   │   │   ├── InternalTransferCommand.kt
+    │                   │   │   ├── JournalEntriesRecorded.kt
+    │                   │   │   ├── JournalEntryEventData.kt
+    │                   │   │   ├── OutboxEventTypes.kt
+    │                   │   │   ├── PaymentAuthorized.kt
+    │                   │   │   ├── PaymentBaseEvent.kt
+    │                   │   │   ├── PostingEventData.kt
+    │                   │   │   └── SettlementReceived.kt
+    │                   │   ├── service
+    │                   │   │   ├── AccountBalanceReadService.kt
+    │                   │   │   ├── AccountBalanceService.kt
+    │                   │   │   ├── AuthorizePaymentIntentService.kt
+    │                   │   │   ├── CapturePaymentService.kt
+    │                   │   │   ├── CreatePaymentIntentService.kt
+    │                   │   │   ├── GetPaymentIntentService.kt
+    │                   │   │   ├── IdempotencyService.kt
+    │                   │   │   ├── ProcessCaptureService.kt
+    │                   │   │   ├── ProcessPspResultProcessingService.kt
+    │                   │   │   ├── RecordCaptureSubmissionService.kt
+    │                   │   │   ├── RecordInternalTransferSubmissionService.kt
+    │                   │   │   └── UpdatePaymentIntentService.kt
+    │                   │   └── util
+    │                   │       ├── LedgerDomainEventEntityMapper.kt
+    │                   │       ├── psp
+    │                   │       │   ├── PSPAuthorizationStatusMapper.kt
+    │                   │       │   └── PSPCaptureStatusMapper.kt
+    │                   │       ├── PublicIdExtension.kt
+    │                   │       └── RetryItem.kt
+    │                   └── ports
+    │                       ├── inbound
+    │                       │   └── usecases
+    │                       │       ├── AccountBalanceReadUseCase.kt
+    │                       │       ├── AccountBalanceUseCase.kt
+    │                       │       ├── AuthorizePaymentIntentUseCase.kt
+    │                       │       ├── CapturePaymentUseCase.kt
+    │                       │       ├── CreatePaymentIntentUseCase.kt
+    │                       │       ├── ExecuteCaptureUseCase.kt
+    │                       │       ├── GetPaymentIntentUseCase.kt
+    │                       │       ├── ProcessPspResultUseCase.kt
+    │                       │       ├── RecordCaptureSubmissionUseCase.kt
+    │                       │       ├── RecordInternalTransferSubmissionUseCase.kt
+    │                       │       └── UpdatePaymentIntentUseCase.kt
+    │                       └── outbound
+    │                           ├── AccountBalanceCachePort.kt
+    │                           ├── AccountBalanceSnapshotPort.kt
+    │                           ├── AccountDirectoryPort.kt
+    │                           ├── BalanceIdempotencyPort.kt
+    │                           ├── CentralDbTransactionalFacadePort.kt
+    │                           ├── CentralOutboxForwarderPort.kt
+    │                           ├── CentralOutboxRelayPort.kt
+    │                           ├── CentralOutboxWriterPort.kt
+    │                           ├── EventDeduplicationPort.kt
+    │                           ├── EventPublisherPort.kt
+    │                           ├── ExternalIdGeneratorPort.kt
+    │                           ├── HasherPort.kt
+    │                           ├── IdempotencyRecord.kt
+    │                           ├── IdempotencyStorePort.kt
+    │                           ├── IdGeneratorPort.kt
+    │                           ├── LocalOutboxStoreAndForwardPort.kt
+    │                           ├── LocalOutboxWriterPort.kt
+    │                           ├── NetworkCaptureSimulatorPort.kt
+    │                           ├── OutboxEventFactoryPort.kt
+    │                           ├── PaymentIntentRepository.kt
+    │                           ├── PaymentRepository.kt
+    │                           ├── PaymentTransactionalFacadePort.kt
+    │                           ├── PaymentTxPort.kt
+    │                           ├── PspAuthorizationGatewayPort.kt
+    │                           ├── PspCaptureGatewayPort.kt
+    │                           ├── PspSimulationRulesPort.kt
+    │                           ├── RawEventPublisherPort.kt
+    │                           ├── ResilientExecutionPort.kt
+    │                           ├── RetryQueuePort.kt
+    │                           └── SerializationPort.kt
+    └── test
+        └── kotlin
+            └── com
+                └── dogancaglar
+                    └── paymentservice
+                        ├── application
+                        │   └── util
+                        │       └── LedgerDomainEventEntityMapperTest.kt
+                        └── util
+                            └── PaymentTestHelper.kt
+payment-central-relay
+├── Dockerfile
+├── pom.xml
+└── src
+    ├── main
+    │   ├── kotlin
+    │   │   └── com
+    │   │       └── dogancaglar
+    │   │           └── paymentservice
+    │   │               ├── config
+    │   │               │   ├── CentralOutboxRelayJobThreadPoolConfig.kt
+    │   │               │   └── PaymentCentralRelayConfig.kt
+    │   │               ├── infra
+    │   │               │   └── adapter
+    │   │               │       ├── inbound
+    │   │               │       │   └── scheduler
+    │   │               │       │       ├── CentralOutboxDispatchWorker.kt
+    │   │               │       │       ├── CentralOutboxKafkaHelper.kt
+    │   │               │       │       ├── CentralOutboxMaintenanceJob.kt
+    │   │               │       │       ├── OutboxEntryProcessor.kt
+    │   │               │       │       ├── OutboxRelayJob.kt
+    │   │               │       │       └── RetryDispatcherScheduler.kt
+    │   │               │       └── outbound
+    │   │               │           ├── kafka
+    │   │               │           │   └── KafkaProducerConfig.kt
+    │   │               │           └── persistence
+    │   │               │               ├── CentralOutboxDataSourceConfig.kt
+    │   │               │               ├── CentralOutboxRelayAdapter.kt
+    │   │               │               └── mapper
+    │   │               │                   └── CentralOutboxRelayMapper.kt
+    │   │               └── PaymentCentralRelayApplication.kt
+    │   └── resources
+    │       ├── application-azure.yml
+    │       ├── application-local.yml
+    │       ├── application.yml
+    │       ├── com
+    │       │   └── dogancaglar
+    │       │       └── paymentservice
+    │       │           └── infra
+    │       │               └── adapter
+    │       │                   └── outbound
+    │       │                       └── persistence
+    │       │                           └── mapper
+    │       │                               └── CentralOutboxRelayMapper.xml
+    │       └── logback-spring.xml
+    └── test
+        └── kotlin
+            └── com
+                └── dogancaglar
+                    └── paymentservice
+                        └── infra
+                            └── adapter
+                                └── inbound
+                                    └── scheduler
+                                        └── OutboxRelayJobTest.kt
+payment-consumers
+├── Dockerfile
+├── Dockerfile.bak
+├── pom.xml
+└── src
+    ├── main
+    │   ├── kotlin
+    │   │   └── com
+    │   │       └── dogancaglar
+    │   │           └── paymentservice
+    │   │               ├── adapter
+    │   │               │   └── inbound
+    │   │               │       └── rest
+    │   │               │           ├── BalanceController.kt
+    │   │               │           ├── BalanceService.kt
+    │   │               │           └── dto
+    │   │               │               └── BalanceDto.kt
+    │   │               ├── config
+    │   │               │   ├── ConsumerThreadPoolConfig.kt
+    │   │               │   ├── PaymentConsumerConfig.kt
+    │   │               │   └── SecurityConfig.kt
+    │   │               ├── infra
+    │   │               │   └── adapter
+    │   │               │       ├── inbound
+    │   │               │       │   ├── kafka
+    │   │               │       │   │   ├── consumers
+    │   │               │       │   │   │   ├── AccountBalanceConsumer.kt
+    │   │               │       │   │   │   ├── CaptureCommandExecutor.kt
+    │   │               │       │   │   │   ├── CapturePspPerformedConsumer.kt
+    │   │               │       │   │   │   ├── GrossCaptureAllocationConsumer.kt
+    │   │               │       │   │   │   └── PspResultConsumer.kt
+    │   │               │       │   │   ├── KafkaTopicsConfig.kt
+    │   │               │       │   │   └── KafkaTypedConsumerFactoryConfig.kt
+    │   │               │       │   ├── LiquibaseJobExiter.kt
+    │   │               │       │   └── scheduler
+    │   │               │       │       └── AccountBalanceSnapshotJob.kt
+    │   │               │       └── outbound
+    │   │               │           ├── config
+    │   │               │           │   └── SpringPspSimulationRulesAdapter.kt
+    │   │               │           ├── persistence
+    │   │               │           │   ├── AccountBalanceSnapshotAdapter.kt
+    │   │               │           │   ├── AccountDirectoryImpl.kt
+    │   │               │           │   ├── AccountSnapshotJobDataSourceConfig.kt
+    │   │               │           │   ├── CentralDbTransactionalFacadeAdapter.kt
+    │   │               │           │   ├── CentralOutboxWriterAdapter.kt
+    │   │               │           │   ├── converter
+    │   │               │           │   │   └── LedgerEntitiyMapper.kt
+    │   │               │           │   ├── mapper
+    │   │               │           │   │   ├── AccountBalanceReadMapper.kt
+    │   │               │           │   │   ├── AccountDirectoryMapper.kt
+    │   │               │           │   │   ├── CentralOutboxWriterMapper.kt
+    │   │               │           │   │   ├── LedgerMapper.kt
+    │   │               │           │   │   ├── PaymentMapper.kt
+    │   │               │           │   │   ├── PaymentTxMapper.kt
+    │   │               │           │   │   └── TransferMapper.kt
+    │   │               │           │   ├── PaymentConsumerDataSourceConfig.kt
+    │   │               │           │   ├── PaymentOutboundAdapter.kt
+    │   │               │           │   ├── PaymentTxAdapter.kt
+    │   │               │           │   ├── snapshotmapper
+    │   │               │           │   │   └── AccountBalanceWriteMapper.kt
+    │   │               │           │   └── TransferRepositoryAdapter.kt
+    │   │               │           ├── psp
+    │   │               │           │   ├── CaptureNetworkSimulator.kt
+    │   │               │           │   ├── CapturePspResponse.kt
+    │   │               │           │   ├── CaptureSimulationProperties.kt
+    │   │               │           │   ├── RefundNetworkSimulator.kt
+    │   │               │           │   ├── RefundSimulationProperties.kt
+    │   │               │           │   └── SimulatedPspCaptureGatewayAdapter.kt
+    │   │               │           └── redis
+    │   │               │               └── client
+    │   │               │                   └── AccountProfileRedisCache.kt
+    │   │               ├── PaymentConsumersApplication.kt
+    │   │               └── SchedulerConfig.kt.deleted
+    │   └── resources
+    │       ├── application-azure.yml
+    │       ├── application-liquibase-job.yml
+    │       ├── application-local.yml
+    │       ├── application.yml
+    │       ├── logback-spring.xml
+    │       ├── mapper
+    │       │   ├── AccountBalanceReadMapper.xml
+    │       │   ├── AccountDirectoryMapper.xml
+    │       │   ├── CentralOutboxWriterMapper.xml
+    │       │   ├── LedgerMapper.xml
+    │       │   ├── PaymentMapper.xml
+    │       │   ├── PaymentTxMapper.xml
+    │       │   ├── snapshotmapper
+    │       │   │   └── AccountBalanceWriteMapper.xml
+    │       │   └── TransferMapper.xml
+    │       └── META-INF
+    │           └── spring
+    │               └── org.springframework.boot.autoconfigure.AutoConfiguration.imports
+    └── test
+        ├── kotlin
+        │   └── com
+        │       └── dogancaglar
+        │           └── paymentservice
+        │               ├── adapter
+        │               │   └── inbound
+        │               │       └── rest
+        │               │           ├── BalanceControllerTest.kt
+        │               │           └── BalanceServiceTest.kt
+        │               └── infra
+        │                   └── adapter
+        │                       ├── inbound
+        │                       │   ├── kafka
+        │                       │   │   └── consumers
+        │                       │   │       └── AccountBalanceConsumerTest.kt
+        │                       │   └── scheduler
+        │                       │       └── AccountBalanceSnapshotJobTest.kt
+        │                       └── outbound
+        │                           ├── persistence
+        │                           │   └── AccountDirectoryImplTest.kt
+        │                           ├── psp
+        │                           │   ├── NetworkSimulatorTest.kt
+        │                           │   └── PaymentGatewayAdapterTest.kt
+        │                           └── redis
+        │                               └── client
+        │                                   └── AccountProfileRedisCacheTest.kt
+        └── resources
+            └── schema-test.sql
+payment-db
+└── postgresql.conf
+payment-domain
+├── pom.xml
+└── src
+    ├── main
+    │   └── kotlin
+    │       └── com
+    │           └── dogancaglar
+    │               └── paymentservice
+    │                   ├── domain
+    │                   │   ├── exception
+    │                   │   │   ├── PaymentDomainExceptions.kt
+    │                   │   │   ├── PaymentIntentNotFoundException.kt
+    │                   │   │   ├── PaymentValidationException.kt
+    │                   │   │   ├── PspCreateIntentException.kt
+    │                   │   │   ├── PspUnavailableException.kt
+    │                   │   │   └── PspUnknownException.kt
+    │                   │   └── model
+    │                   │       ├── balance
+    │                   │       │   └── AccountBalanceSnapshot.kt
+    │                   │       ├── common
+    │                   │       │   └── Amount.kt
+    │                   │       ├── ledger
+    │                   │       │   ├── Account.kt
+    │                   │       │   ├── AccountProfile.kt
+    │                   │       │   ├── JournalEntry.kt
+    │                   │       │   ├── JournalType.kt
+    │                   │       │   ├── Posting.kt
+    │                   │       │   ├── Tx.kt
+    │                   │       │   └── TxStatus.kt
+    │                   │       ├── payment
+    │                   │       │   ├── InternalTransfer.kt
+    │                   │       │   ├── InternalTransferStatus.kt
+    │                   │       │   ├── OutboxEvent.kt
+    │                   │       │   ├── Payment.kt
+    │                   │       │   ├── PaymentIntent.kt
+    │                   │       │   ├── PaymentIntentStatus.kt
+    │                   │       │   ├── PaymentMethod.kt
+    │                   │       │   ├── PaymentSplit.kt
+    │                   │       │   ├── PaymentStatus.kt
+    │                   │       │   ├── ProcessingModel.kt
+    │                   │       │   └── PspModificationStatus.kt
+    │                   │       └── vo
+    │                   │           ├── BuyerId.kt
+    │                   │           ├── InternalTransferId.kt
+    │                   │           ├── OrderId.kt
+    │                   │           ├── PaymentId.kt
+    │                   │           ├── PaymentIntentId.kt
+    │                   │           ├── PaymentSplit.kt
+    │                   │           ├── SellerId.kt
+    │                   │           └── TxId.kt
+    │                   └── ports
+    │                       └── outbound
+    │                           └── TransferRepository.kt
+    └── test
+        └── kotlin
+            └── com
+                └── dogancaglar
+                    └── paymentservice
+                        └── domain
+                            └── model
+                                ├── common
+                                │   └── AmountTest.kt
+                                ├── ledger
+                                │   ├── AccountTest.kt
+                                │   └── JournalEntryTest.kt
+                                └── payment
+                                    ├── OutboxEventTest.kt
+                                    ├── PaymentIntentTest.kt
+                                    └── PaymentTest.kt
+payment-edge-workers
+├── Dockerfile
+├── pom.xml
+└── src
+    └── main
+        ├── kotlin
+        │   └── com
+        │       └── dogancaglar
+        │           └── paymentservice
+        │               ├── config
+        │               │   └── PaymentEdgeWorkersThreadPoolConfig.kt
+        │               ├── infra
+        │               │   └── adapter
+        │               │       ├── inbound
+        │               │       │   └── scheduler
+        │               │       │       ├── LocalOutboxDispatchWorker.kt
+        │               │       │       ├── LocalOutboxMaintenceJob.kt
+        │               │       │       └── LocalOutboxStoreAndForwardJob.kt
+        │               │       └── outbound
+        │               │           └── persistence
+        │               │               ├── CentralOutboxForwarderAdapter.kt
+        │               │               ├── DBWriterTxManager.kt
+        │               │               ├── LocalOutboxStoreAndForwardAdapter.kt
+        │               │               ├── mapper
+        │               │               │   ├── CentralOutboxForwarderMapper.kt
+        │               │               │   └── LocalOutboxMapperForEdgeWorker.kt
+        │               │               ├── MultiDataSourceConfig.kt
+        │               │               └── MyBatisFactoriesConfig.kt
+        │               └── PaymentEdgeWorkersApplication.kt
+        └── resources
+            ├── application-azure.yml
+            ├── application-local.yml
+            ├── application.yml
+            ├── logback-spring.xml
+            └── mapper
+                ├── CentralOutboxForwarderMapper.xml
+                └── LocalOutboxMapperForEdgeWorker.xml
+payment-infrastructure
+├── pom.xml
+└── src
+    ├── main
+    │   ├── kotlin
+    │   │   └── com
+    │   │       └── dogancaglar
+    │   │           └── paymentservice
+    │   │               ├── config
+    │   │               │   └── PaymentInfrastructureAutoConfig.kt
+    │   │               └── infra
+    │   │                   ├── adapter
+    │   │                   │   └── outbound
+    │   │                   │       ├── concurrency
+    │   │                   │       │   └── ResilientExecutionAdapter.kt
+    │   │                   │       ├── hash
+    │   │                   │       │   └── CanonicalJsonHasher.kt
+    │   │                   │       ├── id
+    │   │                   │       │   ├── IdGenerationProperties.kt
+    │   │                   │       │   ├── SnowflakeCore.kt
+    │   │                   │       │   └── SnowflakeIdGeneratorAdapter.kt
+    │   │                   │       ├── redis
+    │   │                   │       │   ├── AccountBalanceRedisCacheAdapter.kt
+    │   │                   │       │   ├── CaptureRetryQueueAdapter.kt
+    │   │                   │       │   ├── client
+    │   │                   │       │   │   └── CaptureRetryRedisCache.kt
+    │   │                   │       │   ├── RedisConfig.kt
+    │   │                   │       │   ├── RedisEventDedupAdapter.kt
+    │   │                   │       │   └── RedisIdGeneratorPortAdapter.kt
+    │   │                   │       └── serialization
+    │   │                   │           ├── JacksonConfig.kt
+    │   │                   │           ├── JacksonSerializationAdapter.kt
+    │   │                   │           ├── JacksonUtil.kt
+    │   │                   │           └── OutboxEventEventFactory.kt
+    │   │                   └── monitoring
+    │   │                       ├── JobMetrics.kt
+    │   │                       ├── MetricHelper.kt
+    │   │                       ├── MetricNames.kt
+    │   │                       └── RedisMetrics.kt
+    │   └── resources
+    │       └── META-INF
+    │           └── spring
+    │               └── org.springframework.boot.autoconfigure.AutoConfiguration.imports
+    └── test
+        ├── kotlin
+        │   └── com
+        │       └── dogancaglar
+        │           └── paymentservice
+        │               ├── infra
+        │               │   └── adapter
+        │               │       └── outbound
+        │               │           ├── concurrency
+        │               │           │   └── ResilientExecutionAdapterTest.kt
+        │               │           ├── id
+        │               │           │   ├── FakeSnowflakeCore.kt
+        │               │           │   ├── SnowflakeCoreMonotonicTest.kt
+        │               │           │   └── SnowflakeIdGeneratorAdapterTest.kt
+        │               │           ├── redis
+        │               │           │   ├── AccountBalanceRedisCacheAdapterIntegrationTest.kt
+        │               │           │   └── AccountBalanceRedisCacheAdapterTest.kt
+        │               │           └── serialization
+        │               │               └── JacksonSerializationAdapterTest.kt
+        │               └── InfraTestBoot.kt
+        └── resources
+            ├── application-integration.yaml
+            ├── application-test.yaml
+            ├── application.yaml
+            └── schema-test.sql
+payment-service
+├── Dockerfile
+├── pom.xml
+└── src
+    ├── main
+    │   ├── kotlin
+    │   │   └── com
+    │   │       └── dogancaglar
+    │   │           └── paymentservice
+    │   │               ├── adapter
+    │   │               │   └── inbound
+    │   │               │       └── rest
+    │   │               │           ├── AdyenWebhookController.kt
+    │   │               │           ├── dto
+    │   │               │           │   ├── AmountDto.kt
+    │   │               │           │   ├── AuthorizationRequestDTO.kt
+    │   │               │           │   ├── BalanceAccountTypeDto.kt
+    │   │               │           │   ├── BalanceDto.kt
+    │   │               │           │   ├── CaptureRequestDTO.kt
+    │   │               │           │   ├── CaptureResponseDTO.kt
+    │   │               │           │   ├── CreatePaymentIntentRequestDTO.kt
+    │   │               │           │   ├── CreatePaymentIntentResponseDTO.kt
+    │   │               │           │   ├── PaymentMethodDTO.kt
+    │   │               │           │   ├── PaymentSplitRequestDTO.kt
+    │   │               │           │   └── ProcessingModelDto.kt
+    │   │               │           ├── mapper
+    │   │               │           │   ├── AmountMapper.kt
+    │   │               │           │   ├── CaptureRequestMapper.kt
+    │   │               │           │   └── PaymentRequestMapper.kt
+    │   │               │           ├── ModificationOrchestrator.kt
+    │   │               │           ├── PaymentApiOrchestrator.kt
+    │   │               │           ├── PaymentController.kt
+    │   │               │           ├── PaymentTransactionalFacadeAdapter.kt
+    │   │               │           ├── TracedIdempotencyService.kt
+    │   │               │           ├── validation
+    │   │               │           │   ├── UuidV7Validator.kt
+    │   │               │           │   └── ValidUuidV7.kt
+    │   │               │           ├── webconfig
+    │   │               │           │   ├── GlobalExceptionHandler.kt
+    │   │               │           │   ├── PaymentControllerWebExceptionHandler.kt
+    │   │               │           │   ├── SecurityConfig.kt
+    │   │               │           │   └── TraceFilter.kt
+    │   │               │           └── WebhookController.kt
+    │   │               ├── application
+    │   │               │   └── validator
+    │   │               │       └── PaymentValidator.kt
+    │   │               ├── config
+    │   │               │   ├── PaymentServiceConfig.kt
+    │   │               │   └── PaymentServiceThreadPoolConfig.kt
+    │   │               ├── infra
+    │   │               │   └── adapter
+    │   │               │       ├── inbound
+    │   │               │       │   └── shutdown
+    │   │               │       │       └── EdgeApiGracefulShutdownHook.kt
+    │   │               │       └── outbound
+    │   │               │           ├── persistence
+    │   │               │           │   ├── DataSourceConfig.kt
+    │   │               │           │   ├── EdgeMybatisConfig.kt
+    │   │               │           │   ├── IdempotencyStoreAdapter.kt
+    │   │               │           │   ├── LocalOutboxWriterAdapter.kt
+    │   │               │           │   ├── mapper
+    │   │               │           │   │   ├── edge
+    │   │               │           │   │   │   ├── LocalOutboxWriterMapper.kt
+    │   │               │           │   │   │   └── PaymentIntentMapper.kt
+    │   │               │           │   │   └── yugabyte
+    │   │               │           │   │       └── IdempotencyKeyMapper.kt
+    │   │               │           │   ├── PaymentIntentOutboundAdapter.kt
+    │   │               │           │   └── PaymentOutboundAdapter.kt
+    │   │               │           └── psp
+    │   │               │               ├── simulator
+    │   │               │               │   ├── AuthorizationNetworkSimulator.kt
+    │   │               │               │   ├── AuthorizationPspResponse.kt
+    │   │               │               │   ├── AuthorizationSimulationProperties.kt
+    │   │               │               │   └── SimulatedPspAuthorizationGatewayAdapter.kt
+    │   │               │               └── stripe
+    │   │               │                   └── StripePspAuthorizationGatewayAdapter.kt
+    │   │               └── PaymentServiceApplication.kt
+    │   └── resources
+    │       ├── application-azure.yml
+    │       ├── application-liquibase-job.yml
+    │       ├── application-local.yml
+    │       ├── application.yml
+    │       ├── logback-spring.xml
+    │       ├── mapper
+    │       │   ├── edge
+    │       │   │   ├── LocalOutboxEventMapper.xml
+    │       │   │   └── PaymentIntentMapper.xml
+    │       │   └── yugabyte
+    │       │       └── IdempotencyKeyMapper.xml
+    │       ├── sql
+    │       │   ├── checklist.txt
+    │       │   ├── outbox
+    │       │   │   ├── create-missing-partitions.sql
+    │       │   │   ├── outbox-create-table-partition-index.sql
+    │       │   │   ├── prunte-old-partitions.sql
+    │       │   │   └── remove-partitions.sql
+    │       │   ├── partitioning.sql
+    │       │   └── performance-tuning.sql
+    │       └── static
+    │           └── favicon.ico
+    └── test
+        ├── kotlin
+        │   └── com
+        │       └── dogancaglar
+        │           └── paymentservice
+        │               ├── adapter
+        │               │   └── inbound
+        │               │       └── rest
+        │               │           └── PaymentApiOrchestratorTest.kt
+        │               └── event
+        │                   └── DomainEventFactoryTest.kt
+        └── resources
+            ├── application.yaml
+            └── schema-test.sql
+pg-exporter-guide.md  [error opening dir]
+pom.xml  [error opening dir]
+problem_report.md  [error opening dir]
+prometheus
+├── grafana-provisioning
+│   ├── dashboards
+│   │   ├── dashboards.yml
+│   │   └── grafana-dashboard.json
+│   └── datasources.yml
+├── grafana-sample-dashboards
+│   ├── ingress-dashboard.json
+│   ├── payment-platform-exported-dsiasbled.json
+│   ├── payment-platform-exported-enabled.json
+│   └── postgre-db-dashboard.json
+├── grafana.ini
+└── prometheus.yml
+proposal_lua_cell_router.md  [error opening dir]
+README.md  [error opening dir]
+sample-trace-payment-central-relay.json  [error opening dir]
+sample-trace-payment-consumers.json  [error opening dir]
+sample-trace-payment-edge-worker.json  [error opening dir]
+sample-trace-payment-service.json  [error opening dir]
+shipment-service
+└── pom.xml
+user-roles-schema-management-flow.md  [error opening dir]
+wallet-service
+└── pom.xml
+
+340 directories, 608 files

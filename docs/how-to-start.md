@@ -8,27 +8,13 @@ Prereqs (once):
 - OrbStack native Kubernetes, kubectl, helm installed
 - Troubleshooting connectivity? See docs/troubleshooting/connectivity.md
 
-## ⚠️ The Golden Rules (Immutable Constraints)
-
-When working on or extending this system, the following rules are absolute and must never be violated:
-
-1. **The Separation of Powers (Consumers vs. Relays):**
-   - **OutboxRelayJob**: The only component allowed to publish to Kafka. It reads the outbox table and routes messages. It must never update operational database state.
-   - **Consumers (e.g., PspResultConsumer, CaptureCommandExecutor)**: The only components allowed to mutate the core database and ledger. They must never publish to Kafka directly. They communicate their results by appending new events to the Outbox.
-
-2. **No Kafka Transactions:**
-   - We do not use Kafka exactly-once semantics (EOS) or Kafka transactions. Instead, we rely purely on the Two-Stage Outbox Pattern to guarantee message durability and linearizability.
-
-3. **Stateless Network Workers:**
-   - Any worker interacting with the outside world (e.g., `CaptureCommandExecutor` calling the PSP) must do exactly one thing: execute the network call and append the result to the Outbox. It must not touch the ledger or alter core Payment domains.
-
 ---
  LOCAL ORB CLUSTER
 ## 0️⃣ Start the infrastructure and services
 
 Pre-step: switch to the project root directory and make scripts executable
 ```bash
-cd /path/to/ecommerce-platform-kotlin
+cd /path/to/payment-platform-for-marketplaces
 chmod +x infra/scripts/*.sh
 ```
 
@@ -152,7 +138,7 @@ curl -i -X POST "${AUTHORIZATION_ENDPOINT}" \
 
 > **Production Flow**: In the actual checkout flow, Stripe Payment Element collects payment details client-side and attaches the payment method to the PaymentIntent. The backend then confirms the payment using the stored PaymentIntent ID without receiving any card data.
 
-### Option B: Using Checkout Demo Page (Interactive UI)
+### Option B: Using Checkout Demo Page (Deprecated)
 
 A developer-friendly web interface for testing the complete end-to-end payment flow with Stripe Payment Element.
 
@@ -252,19 +238,6 @@ The checkout demo uses a production-like flow with Stripe Payment Element:
 > 💡 **Note**: The backend proxy simulates a production backend (order-service/checkout-service) and needs CORS enabled because the browser calls it directly (browser → proxy is cross-origin).
 
 
-
-
-9) Observability stack (Elasticsearch/Logstash/Kibana) (Optional)
-- What: Installs ELK stack for log aggregation and searching.
-- Run:
-```bash
-infra/scripts/deploy-observability-stack.sh
-```
-
-
-
-
-
 **Test Organization:**
 - **Unit Tests** (`*Test.kt`): Use mocks only, no external dependencies
   - **Execution**: Run with `mvn test` (Maven Surefire plugin, `test` phase)
@@ -279,7 +252,7 @@ infra/scripts/deploy-observability-stack.sh
 - **Type Inference Fixed**: Resolved MockK type inference issues in `OutboxRelayJobTest.kt` with explicit type hints and Jackson JSR310 module configuration
 
 For deep architecture or flow diagrams, see:
-- [`docs/architecture.md`](./architecture/architecture.md)
+- [`architecture/architecture.md`](./architecture/architecture.md)
 - [`README.md`](../README.md)
 
 ---

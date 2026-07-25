@@ -28,7 +28,7 @@ class ResilientExecutionAdapterTest {
 
         // when
         val result = adapter.executeWithTimeoutAndBackgroundFallback(
-            primaryTask = future,
+            primaryTask = { future },
             timeoutMs = 1000,
             onTimeoutFallback = { "fallback" },
             onBackgroundSuccess = { backgroundSuccessCalled = true },
@@ -53,7 +53,7 @@ class ResilientExecutionAdapterTest {
 
         // when
         val result = adapter.executeWithTimeoutAndBackgroundFallback(
-            primaryTask = future,
+            primaryTask = { future },
             timeoutMs = 100, // Short timeout
             onTimeoutFallback = { fallbackValue },
             onBackgroundSuccess = { res -> 
@@ -88,7 +88,7 @@ class ResilientExecutionAdapterTest {
 
         // when
         val result = adapter.executeWithTimeoutAndBackgroundFallback(
-            primaryTask = future,
+            primaryTask = { future },
             timeoutMs = 100, // Short timeout
             onTimeoutFallback = { fallbackValue },
             onBackgroundSuccess = { },
@@ -120,8 +120,8 @@ class ResilientExecutionAdapterTest {
 
         // when & then
         val exception = assertThrows(RuntimeException::class.java) {
-            adapter.executeWithTimeoutAndBackgroundFallback(
-                primaryTask = future,
+            adapter.executeWithTimeoutAndBackgroundFallback<String>(
+                primaryTask = { future },
                 timeoutMs = 1000,
                 onTimeoutFallback = { "fallback" },
                 onBackgroundSuccess = { },
