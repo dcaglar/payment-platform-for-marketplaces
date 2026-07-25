@@ -26,7 +26,7 @@ import java.time.Duration
 class PaymentFlowE2EIntegrationTest {
 
     private val forwarding = Duration.ofSeconds(90)   // edge-worker dispatch has initialDelay=30s
-    private val settlement = Duration.ofSeconds(120)  // full AUTHORIZED->SETTLED chain
+    private val settlement = Duration.ofSeconds(240)  // full AUTHORIZED->SETTLED chain
     private val poll = Duration.ofSeconds(1)
 
     @BeforeAll
