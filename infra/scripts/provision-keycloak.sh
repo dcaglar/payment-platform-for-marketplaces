@@ -7,7 +7,11 @@ set -euo pipefail
 REALM="ecommerce-platform"
 ADMIN_USER="admin"
 ADMIN_PASS="adminpassword"
-OUTPUT_DIR="$(dirname "$0")/output"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$REPO_ROOT"
+OUTPUT_DIR="$REPO_ROOT/keycloak/output"
 export KEYCLOAK_IP=$(kubectl get svc -n payment keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 export KEYCLOAK_URL="http://${KEYCLOAK_IP}:8080"
 #export KEYCLOAK_IP=$(kubectl get svc -n payment keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}')

@@ -1,8 +1,13 @@
 #!/bin/bash
 set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$REPO_ROOT"
+
 export KEYCLOAK_IP=$(kubectl get svc -n payment keycloak -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 export KC_URL="http://${KEYCLOAK_IP}:8080"
-OUTPUT_DIR="$(dirname "$0")/output"
+OUTPUT_DIR="$REPO_ROOT/keycloak/output"
 SECRETS_FILE="${OUTPUT_DIR}/secrets.txt"
 JWT_DIR="${OUTPUT_DIR}/jwt"
 TOKEN_BASENAME="payment-service.token"

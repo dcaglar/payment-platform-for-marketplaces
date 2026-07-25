@@ -19,40 +19,18 @@ chmod +x infra/scripts/*.sh
 ```
 
 
-1) Build and push the docker images of all payment platform service(also t§)  to remote image registry
-- What: Builds the latest source code of payment platform servcices into remote Docker images
-- Run:
+1) Build and push the docker images of all payment platform service + deploy external infra + + deploy payment platform services local
 ```bash
-infra/scripts/build-all-payment-platform-images-and-push.sh
+deploy-all-local.sh 
 ```
 
-2) Deploy all external infra(keycloak, redis, kafka)  to the local environment local or azure,those are 
-```bash
-infra/scripts/deploy-all-external-infra-local.sh
-```  
 
-3) Deploy all payment platform services  to  local cluster(e.g payment-edge-cell, payment-edge-worker, payment-central-relay, payment-consuemrs)
-```bash
-infra/scripts/deploy-payment-platform-services-local.sh 
-```  
-
-
-4) Monitoring stack (optional)(Prometheus + Grafana) (Optional)
+2) Monitoring stack (optional)(Prometheus + Grafana) (Optional)
 - What: Installs kube-prometheus-stack into monitoring.
 - Run:
 ```bash
-infra/scripts/deploy-monitoring-stack.sh
+deploy-monitoring-stack-local.sh 
 ```
-
-5) Exporters (Kafka & Postgresql) (Only if monitoring installed)
-- What: Exposes Kafka consumer lag, offsets, etc. for Prometheus.
-- Run:
-```bash
-infra/scripts/deploy-single-infra.sh kafka-exporter local
-infra/scripts/deploy-single-infra.sh postgresql-exporter) local
-```
-
-
 
 
 
@@ -115,7 +93,7 @@ curl -i -X POST "http://${API_BASE_URL}/api/v1/payments" \
 **Expected Response (200 OK):**
 ```json
 {
-  "paymentIntentId": "pi_AcqzYyHCcAA",
+  "paymentIntentId": "pi_At7esBlCAAA",
   "clientSecret": "pi_AcqzYyHCcAA_secret_xyz123",
   "status": "CREATED"
 }
@@ -128,7 +106,7 @@ curl -i -X POST "http://${API_BASE_URL}/api/v1/payments" \
 > **Note**: In production, payment details are collected by Stripe Payment Element (browser → Stripe). The authorize endpoint doesn't require payment method details - it uses the stored PaymentIntent ID. For testing with curl, you can send an empty body or omit paymentMethod:
 
 ```bash
-AUTHORIZATION_ENDPOINT="http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/payments/pi_AsYhFHsCAAA/authorize"
+AUTHORIZATION_ENDPOINT="http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/payments/pi_At7esBlCAAA/authorize"
 echo "Using auth url used :${AUTHORIZATION_ENDPOINT}"
 curl -i -X POST "${AUTHORIZATION_ENDPOINT}" \
   -H "Content-Type: application/json" \

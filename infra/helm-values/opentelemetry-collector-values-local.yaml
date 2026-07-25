@@ -75,7 +75,7 @@ config:
     otlphttp/posthog:
       traces_endpoint: "https://eu.i.posthog.com/i/v1/traces"
       headers:
-        Authorization: "Bearer-"${POSTHOG_TRACE_API_BEARER_TOKEN}
+        Authorization: "Bearer-${POSTHOG_TRACE_API_BEARER_TOKEN}"
     otlphttp/tempo:
       endpoint: "http://tempo.monitoring.svc.cluster.local:4318"
       sending_queue:
