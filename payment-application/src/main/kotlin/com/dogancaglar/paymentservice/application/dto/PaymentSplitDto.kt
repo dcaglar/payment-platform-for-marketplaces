@@ -3,8 +3,6 @@ package com.dogancaglar.paymentservice.application.dto
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit
-import com.fasterxml.jackson.annotation.JsonCreator
-import com.fasterxml.jackson.annotation.JsonProperty
 
 /**
  * PaymentSplitDto
@@ -24,11 +22,11 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * @param amountValue        The quantity of funds.
  * @param currency           The currency code (e.g., EUR, USD).
  */
-data class PaymentSplitDto @JsonCreator constructor(
-    @JsonProperty("accountType") val accountType: String,
-    @JsonProperty("account")    val account: String,
-    @JsonProperty("amountValue")       val amountValue: Long,
-    @JsonProperty("currency")          val currency: String
+data class PaymentSplitDto(
+    val accountType: String,
+    val account: String,
+    val amountValue: Long,
+    val currency: String
 ) {
     companion object {
         fun of(

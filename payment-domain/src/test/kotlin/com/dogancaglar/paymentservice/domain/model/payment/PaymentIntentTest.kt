@@ -214,7 +214,7 @@ class PaymentIntentTest {
             merchantAccount = merchantAccount,
             processingModel = processingModel,
             totalAmount = totalAmount,
-            splits = lines,
+            splitsDelegate = lazyOf(lines),
             status = PaymentIntentStatus.CREATED,
             createdAt = now,
             updatedAt = now
@@ -252,7 +252,7 @@ class PaymentIntentTest {
                 merchantAccount = merchantAccount,
                 processingModel = processingModel,
                 totalAmount = totalAmount,
-                splits = lines,
+                splitsDelegate = lazyOf(lines),
                 status = PaymentIntentStatus.CREATED_PENDING,
                 createdAt = now,
                 updatedAt = now
@@ -283,7 +283,7 @@ class PaymentIntentTest {
                 merchantAccount = merchantAccount,
                 processingModel = processingModel,
                 totalAmount = totalAmount,
-                splits = lines,
+                splitsDelegate = lazyOf(lines),
                 status = PaymentIntentStatus.CREATED,
                 createdAt = now,
                 updatedAt = now
@@ -304,7 +304,7 @@ class PaymentIntentTest {
                 merchantAccount = merchantAccount,
                 processingModel = processingModel,
                 totalAmount = totalAmount,
-                splits = lines,
+                splitsDelegate = lazyOf(lines),
                 status = PaymentIntentStatus.CREATED,
                 createdAt = now,
                 updatedAt = now

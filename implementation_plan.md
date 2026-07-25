@@ -87,7 +87,7 @@ payment-edge-cell-1.payment-edge-cell-headless.payment.svc.cluster.local
 
 ---
 
-### 1. [MODIFY] [ingress-controller-values-azure.yaml](file:///Users/dogancaglar/IdeaProjects/ecommerce-platform-kotlin/infra/helm-values/ingress-controller-values-azure.yaml)
+### 1. [MODIFY] [ingress-controller-values-azure.yaml](file:///Users/dogancaglar/IdeaProjects/payment-platform-for-marketplaces/infra/helm-values/ingress-controller-values-azure.yaml)
 
 Enable snippets and set risk level. Add a global Lua balancer hook:
 
@@ -129,7 +129,7 @@ controller:
 
 ---
 
-### 2. [MODIFY] [values.yaml (payment-edge-cell azure)](file:///Users/dogancaglar/IdeaProjects/ecommerce-platform-kotlin/charts/payment-edge-cell/azure/values.yaml)
+### 2. [MODIFY] [values.yaml (payment-edge-cell azure)](file:///Users/dogancaglar/IdeaProjects/payment-platform-for-marketplaces/charts/payment-edge-cell/azure/values.yaml)
 
 Add a `configuration-snippet` annotation that:
 1. Reads the `paymentIntentId` from the URL path
@@ -190,7 +190,7 @@ ingress:
 
 ---
 
-### 3. [MODIFY] [ingress.yaml (payment-edge-cell template)](file:///Users/dogancaglar/IdeaProjects/ecommerce-platform-kotlin/charts/payment-edge-cell/templates/ingress.yaml)
+### 3. [MODIFY] [ingress.yaml (payment-edge-cell template)](file:///Users/dogancaglar/IdeaProjects/payment-platform-for-marketplaces/charts/payment-edge-cell/templates/ingress.yaml)
 
 No structural changes needed — the annotation passthrough already works via `{{- toYaml .Values.ingress.annotations | nindent 4 }}`.
 

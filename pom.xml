@@ -11,7 +11,7 @@
     </parent>
     <packaging>pom</packaging>
     <!-- IMPORTANT
-    iecommerce-platform-kotlin)
+    ipayment-platform-for-marketplaces)
     The <packaging>pom</packaging> element means this Maven module is a parent or aggregator project.
     It does not produce a deployable artifact (like a JAR or WAR), but is used to manage configuration, dependencies, and modules for subprojects. It acts as a container for other modules in a multi-module Maven project.
     Parent POM:
@@ -27,7 +27,7 @@ It declares that this module is:
 	•	Not a deployable artifact (like a JAR or WAR)
 -->
     <groupId>com.dogancaglar</groupId>
-    <artifactId>ecommerce-platform-kotlin</artifactId>
+    <artifactId>payment-platform-for-marketplaces</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <modules>
         <module>common</module>

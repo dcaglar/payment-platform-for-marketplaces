@@ -4,10 +4,8 @@ import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.application.util.toPublicPaymentIntentId
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import java.time.Instant
 
-@JsonIgnoreProperties(ignoreUnknown = true)
 data class CaptureRequested(
     override val paymentIntentId: String,
     override val publicPaymentIntentId: String,

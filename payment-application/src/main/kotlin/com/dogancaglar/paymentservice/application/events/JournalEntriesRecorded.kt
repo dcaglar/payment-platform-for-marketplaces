@@ -1,9 +1,7 @@
 package com.dogancaglar.paymentservice.application.events
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import java.time.Instant
 
-@JsonIgnoreProperties(ignoreUnknown = true)
 data class JournalEntriesRecorded(
     override val paymentIntentId: String,
     override val publicPaymentIntentId: String,

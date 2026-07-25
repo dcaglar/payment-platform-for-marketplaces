@@ -14,7 +14,7 @@ Prereqs (once):
 
 Pre-step: switch to the project root directory and make scripts executable
 ```bash
-cd /path/to/ecommerce-platform-kotlin
+cd /path/to/payment-platform-for-marketplaces
 chmod +x infra/scripts/*.sh
 ```
 

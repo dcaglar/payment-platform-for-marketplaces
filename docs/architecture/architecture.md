@@ -520,7 +520,7 @@ TYou can see here sequence diagram  of shopper a, and payment journey end to end
 
 ### Simplified Consumer Architecture
 
-![Architecture](https://github.com/dcaglar/ecommerce-platform-kotlin/blob/25b863edd5fc15647c14b70f55703e3494bf6e91/docs/architecture/async-payment-prrocessing.png)
+![Architecture](https://github.com/dcaglar/payment-platform-for-marketplaces/blob/25b863edd5fc15647c14b70f55703e3494bf6e91/docs/architecture/async-payment-prrocessing.png)
 A new simplified Kafka consumer architecture has been introduced to streamline PSP operations and double-entry bookkeeping.
 
 **Why we moved away from the "Consume-Process-Publish" pattern:**

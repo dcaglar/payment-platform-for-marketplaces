@@ -5,18 +5,15 @@ import com.dogancaglar.paymentservice.application.dto.PaymentSplitDto
 import com.dogancaglar.paymentservice.application.util.toPublicPaymentIntentId
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntentStatus
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.Instant
 
-@JsonIgnoreProperties(ignoreUnknown = true)
 data class PaymentAuthorized(
     override val paymentIntentId: String,
     override val publicPaymentIntentId: String,
     override val merchantAccountId: String,
     val buyerId: String,
     val processingModel: String,
-    @JsonProperty("totalAmountValue") val totalAmountValue: Long,
+    val totalAmountValue: Long,
      override val currency: String,
     val splits: List<PaymentSplitDto>,
     override val timestamp: Instant = Utc.nowInstant(),

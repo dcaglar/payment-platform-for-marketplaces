@@ -1,17 +1,14 @@
 ## Discovery Protocol (READ BEFORE EXPLORING)
-1. **Docs-first, always.** Before reading code or spawning ANY agent, read                                                                                                                                                  
-   `docs/architecture/architecture.md` and `infra/scripts/deploy-all-local.sh`                                                                                                                                              
-   (plus the scripts it calls). They are the source of truth for topology, the                                                                                                                                              
-   Kafka event/topic catalog, DB URLs/creds, profiles, and the ledger flow.
-2. **Agent budget.** Prefer direct Read/Grep. Do NOT spawn Explore/general-purpose                                                                                                                                          
-   agents for anything findable in the docs or a targeted grep. Max ONE research                                                                                                                                            
+1. **Grounding, by need — not a ritual.** Per-module rules **auto-load** from each module's `CLAUDE.md` (`<module>/CLAUDE.md`); that covers single-module work — go straight to source. For **cross-module flow** ("what happens end-to-end"), read the **executable spec** `e2e-tests/.../PaymentFlowE2EIntegrationTest.kt` (milestones M0–M13, verified — it can't drift like prose). Use `docs/architecture/architecture.md` only for **topology diagrams + design rationale**, and `infra/scripts/deploy-all-local.sh` for infra wiring — both **on-demand, NOT mandatory prereads**. State grounding truthfully: if you go straight to source, say so — don't claim a doc you didn't open.
+2. **Agent budget.** Prefer direct Read/Grep. Do NOT spawn Explore/general-purpose
+   agents for anything findable in the docs or a targeted grep. Max ONE research
    agent without asking me first; never run overlapping agents; never let one re-run.
-3. **Scope before building.** For any new module / multi-file change, ask the 1–2                                                                                                                                           
-   pivotal scoping questions (e.g. build vs. reuse existing images; where config lives)                                                                                                                                     
+3. **Scope before building.** For any new module / multi-file change, ask the 1–2
+   pivotal scoping questions (e.g. build vs. reuse existing images; where config lives)
    BEFORE writing files.
-4. **Verify docs vs code only where they plausibly diverge.** Known drifts to check:                                                                                                                                        
-   real capture topic is `gateway.capture.requested` (doc says `.commands`);                                                                                                                                                
-   eventType is `settlement_received` (doc says `settlement_received_by_psp`);                                                                                                                                              
+4. **Verify docs vs code only where they plausibly diverge.** Known drifts to check:
+   real capture topic is `gateway.capture.requested` (doc says `.commands`);
+   eventType is `settlement_received` (doc says `settlement_received_by_psp`);
    `MARKETPLACE-5` is a hardcoded PSP-sim target (code-only, not in docs).
 
 # Repository Context & AI Assistant Guidelines
@@ -27,9 +24,6 @@ This project is an Event-Driven Payment Platform for a Merchant-of-Record (MoR) 
 - **[`How To Start`](./docs/how-to-start.md)** — Step-by-step setup guide to deploy infrastructure on orbstack local, its good to understand the infrastructure running platform.
 - **[`Azure infrastructure details changelog`](./docs/architecture/adr-001-azure-infrastructure.md)** — Azure Infrastructure Details Changelog
 
-
-
-
 ## 2. Immutable Architectural Constraints (The Golden Rules)
 When generating code, analyzing bugs, or suggesting changes, you **must strictly adhere** to these constraints:
 
@@ -43,22 +37,23 @@ When generating code, analyzing bugs, or suggesting changes, you **must strictly
 
 ---
 
-## 3. Module Boundaries & Responsibilities
+## 3. Module Map (detail is in each module's own CLAUDE.md)
+Each module directory has a `CLAUDE.md` that auto-loads when you work there — read those for per-module rules. The Golden Rules (§2) stay global.
 
-### Core Hexagon Layers
-*   **`payment-domain`**: Pure Kotlin business rules. Contains `Payment`, `PaymentIntent`, `JournalEntry`, `Account`, and `OutboxEvent` models[cite: 2]. Must have zero Spring or MyBatis dependencies[cite: 2].
-*   **`payment-application`**: Coordinates business flows. Contains Use Cases, DTOs, Domain Events, and outbound Port interfaces (`LocalOutboxWriterPort`, `CentralOutboxRelayPort`)[cite: 2]. Manages internal fund distribution logic[cite: 2].
-*   **`payment-infrastructure`**: Shared technical adapters. Implements Snowflake ID generation, Jackson serialization, and Redis caching[cite: 2]. 
-*   **`common-db` & `common-kafka`**: Shared templates, JSONb typehandlers, and `EventEnvelope` SerDe configurations[cite: 2].
+Inner hexagon (libraries, not deployable):
+*   **`payment-domain`** — pure Kotlin domain model (aggregates, VOs, double-entry); zero Spring/MyBatis.
+*   **`payment-application`** — use cases + inbound/outbound ports; WHAT not HOW; framework-clean.
+*   **`common`** — `EventEnvelope<T>` kernel, `PublicId` codec, `Utc`, event-metadata registry.
+*   **`common-db`** — domain⇄row entity mappers + MyBatis type handlers.
+*   **`common-kafka`** — `RawEventPublisher`, envelope SerDe, `Topics`/metadata catalogs.
+*   **`payment-infrastructure`** — outbound adapters (Snowflake, Redis, Jackson, resilience, OTel metrics).
 
-### Deployable Edge Components (Node Affinity Co-location)
-*   **`payment-service`**: The Edge REST API[cite: 2]. Deployed together with edge-db under payment-edge-cell  folowing cell architecture.Handles synchronous checkouts, Stripe integration(or locally simulation), and writes to `local-edge-db` via `LocalOutboxWriterPort`[cite: 2]. Routed via NGINX Lua Snowflake ID matching[cite: 2].
-*   **`payment-edge-workers`**: A standalone Pod on the Edge Cell that acts as the Local Sidecar Forwarder[cite: 2]. Polls the local outbox and pushes to the Central DB outbox using `CentralOutboxEdgePort`[cite: 2].
-
-### Deployable Central Components (Anti-Affinity Separation)
-*   **`payment-central-relay`**: A non-blocking service hosting the global `OutboxRelayJob`[cite: 2]. Polls the Central DB outbox behind `T_Safe` and publishes pre-serialized raw bytes to Kafka[cite: 2]. 
-*   **`payment-consumers`**: The asynchronous processor[cite: 2]. Hosts `@KafkaListener` components for capture execution, PSP result processing, and double-entry ledger bookkeeping[cite: 2]. 
-*   **`central-db`**:  Central postgreqsql db [central-db](charts/central-db/Chart.yaml) using helm template managed by helm templates 
+Deployable Spring Boot apps:
+*   **`payment-service`** — Edge REST API + the composition root (wires the framework-clean use cases as beans).
+*   **`payment-edge-workers`** — local→central outbox forwarder; own pod, pinned 1:1 to one edge-db.
+*   **`payment-central-relay`** — the ONLY Kafka publisher; polls central outbox behind `T_Safe`, streams raw bytes.
+*   **`payment-consumers`** — the ONLY ledger mutators; `@KafkaListener`s, dedup, double-entry, downstream via outbox.
+*   **`central-db`** — central Postgres (Helm-managed).
 
 ---
 
