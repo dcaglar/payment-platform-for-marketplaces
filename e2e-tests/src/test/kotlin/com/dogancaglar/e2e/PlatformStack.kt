@@ -6,9 +6,11 @@ import org.apache.kafka.clients.admin.NewTopic
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.Network
 import org.testcontainers.containers.PostgreSQLContainer
+import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.kafka.KafkaContainer
 import org.testcontainers.lifecycle.Startables
 import org.testcontainers.utility.DockerImageName
+import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.Properties
 
@@ -40,6 +42,10 @@ object PlatformStack {
     private const val ISSUER_INTERNAL = "http://keycloak:8080/realms/ecommerce-platform"
 
     val network: Network = Network.newNetwork()
+
+    // Streams each service container's stdout into the test log (prefixed per service) so CI
+    // surfaces what the consumers/relay actually did — e.g. diagnosing an M10 allocation stall.
+    private val containerLog = LoggerFactory.getLogger("e2e.container")
 
     // ---------------------------------------------------------------- infra
     val keycloak: KeycloakContainer = KeycloakContainer("quay.io/keycloak/keycloak:23.0.7")
@@ -98,6 +104,7 @@ object PlatformStack {
     val paymentService: GenericContainer<*> = GenericContainer(imageTag("payment-service"))
         .withNetwork(network)
         .withNetworkAliases("payment-service")
+        .withLogConsumer(Slf4jLogConsumer(containerLog).withPrefix("payment-service"))
         .withExposedPorts(8080)
         .withEnv(
             mapOf(
@@ -119,6 +126,7 @@ object PlatformStack {
     val edgeWorkers: GenericContainer<*> = GenericContainer(imageTag("payment-edge-workers"))
         .withNetwork(network)
         .withNetworkAliases("payment-edge-workers")
+        .withLogConsumer(Slf4jLogConsumer(containerLog).withPrefix("payment-edge-workers"))
         .withEnv(
             mapOf(
                 "SPRING_PROFILES_ACTIVE" to "local",
@@ -143,6 +151,7 @@ object PlatformStack {
     val centralRelay: GenericContainer<*> = GenericContainer(imageTag("payment-central-relay"))
         .withNetwork(network)
         .withNetworkAliases("payment-central-relay")
+        .withLogConsumer(Slf4jLogConsumer(containerLog).withPrefix("payment-central-relay"))
         .withEnv(
             mapOf(
                 "SPRING_PROFILES_ACTIVE" to "local",
@@ -162,6 +171,7 @@ object PlatformStack {
     val consumers: GenericContainer<*> = GenericContainer(imageTag("payment-consumers"))
         .withNetwork(network)
         .withNetworkAliases("payment-consumers")
+        .withLogConsumer(Slf4jLogConsumer(containerLog).withPrefix("payment-consumers"))
         .withEnv(
             mapOf(
                 "SPRING_PROFILES_ACTIVE" to "local",
