@@ -59,11 +59,13 @@ sequenceDiagram
 
 
 At the domain layer, the system follows **DDD principles** with clear aggregate boundaries
-(`PaymentIntent`, `Payment`, `PaymentOrder`, `Ledger`). Each event — authorization, capture
-request, PSP result, finalization, journal posting — is immutable and drives the next step
-in the workflow. At the infrastructure layer, the system relies on **hexagonal architecture**,
-the **outbox pattern**, **Kafka-based orchestration**, and **idempotent command/event handlers**
-to guarantee exactly-once processing across distributed components. All payment and ledger
+(`PaymentIntent`, `Payment`, `PaymentTx`, `JournalEntry`/`Ledger`). Each event — authorization,
+capture request, PSP result, settlement, journal posting — is immutable and drives the next
+step in the workflow. At the infrastructure layer, the system relies on **hexagonal
+architecture**, a **two-stage transactional outbox**, **Kafka-based choreography**, and
+**idempotent command/event handlers**: delivery is deliberately **at-least-once**, and
+duplicates are made harmless through event-id dedup and idempotent state transitions —
+yielding effectively-once *outcomes* without Kafka transactions. All payment and ledger
 flows are asynchronous, partition-aligned, and fault-tolerant by design.
 
 From an engineering standpoint, the project demonstrates how to structure a modern, cloud-ready

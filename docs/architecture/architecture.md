@@ -303,36 +303,12 @@ The platform internally uses:
 
 ---
 
-# 🟦 Core Entities (Domain-Level)
+# 🟩 Core Entities & Data Model
 
-These represent the nouns our system uses to satisfy the functional requirements.  
-They define the **data model**, the **API vocabulary**, and the **business language** of the Merchant-of-Record payment platform.
-
----
-
-## 🧍 Actors
-
-### **Shopper**
-The end-user making a purchase across one or multiple sellers.
-
-### **Seller**
-A marketplace participant who receives part of the shopper’s payment and later receives payouts.
-
-### **Internal Services**
-- Checkout / Order Service
-- Finance
-
-These actors perform operations on payments, orders, balances, and payouts.
-
----
-
-# 🟩 Core Business Entities
-Here you can see t journey of a paymentintent -> pamyent- > capture/refund/ settle/ payout/ split transaction
-
-
-These are the fundamental nouns of our Merchant-of-Record payment platform.
-
----
+## Actors
+- **Shopper** — end-user paying for a multi-seller basket (never calls our APIs directly).
+- **Seller** — marketplace participant who receives a share of each payment and later payouts.
+- **Internal services** — Checkout/Order, Finance: the actual API callers.
 
 ### Persistence model (ER) — derived from the Liquibase changelogs
 > Source of truth: charts/central-db/db + charts/payment-edge-cell/db changelogs.
@@ -433,223 +409,18 @@ erDiagram
 ```
 
 
-
-## **1. PaymentIntent**
-
-Represents the **shopper's intent to pay** for a multi-seller basket.
-
-**When it's created:**
-- Step 1: Shopper initiates checkout → `POST /api/v1/payments` endpoint
-- Created with status `CREATED_PENDING` (initially), then transitions to `CREATED` once Stripe ID is obtained.
-- Contains: `buyerId`, `orderId`, `totalAmount`, `paymentSplits` (seller breakdown)
-
-**Why it exists:**
-- Separates "intent to pay"(living in its own edge) from "actual payment transaction(payment-living in the central cluster)"
-- Enables idempotent authorization attempts (prevents duplicate PSP calls)
-- Supports retry logic for transient PSP failures
-
-
-## **2. Payment**
-
-Represents the **actual financial transaction** created after authorization succeeds
-
-**When it's created:**
-- Created centrally by the `PspResultConsumer` when the PSP authorization response is `AUTHORIZED`.
-
-**Why it exists:**
-- Models actual money movement (vs. PaymentIntent which is just "intent")
-- Tracks aggregate-level financial state across all sellers
-- Provides aggregate view: total captured, total refunded
-- Links to `PaymentIntent` via `paymentIntentId` for traceability
-- Enables financial reporting and reconciliation
-
-
-
-## **3. OutboxEvent**
-Represents **immutable integration events** stored locally on edge or centrally, it simply stores the deserilazed byte of an any EventEnvelope<Event>
-
-**When it's created:**
-  When intent mutations or external network results are received.
-
-**Why it exists:**
-- Guarantees exactly-once publishing through the database transaction.
-- Eliminates dual-write vulnerabilities between DB and Kafka.
-
----
-
-## **4. Payment Transaction (Tx)**
-
-Represents an **individual interaction with an external PSP** executed against a Payment (e.g., `AuthorizationTx`, `CaptureTx`, `RefundTx`, `SettleTx`). 
-
-**When it's created:**
-  - Whenever an operation is requested and executed against the external PSP (e.g., when we successfully call external psp capture api, a `CaptureTx` is recorded).
-
-**Why it exists:**
-  - **Audit & History:** While the `Payment` aggregate tracks the *cumulative total* (e.g., "This payment has 100 EUR captured"), the `Tx` tracks the *individual external psp interactions* ("We did call external psp capture api with this parameters, and this was the response from them").
-  - **External PSP Linking:** It stores the external network identifiers (like the PSP's acquirer reference) to trace exactly which network call caused the balance change.
-  - **JournalEntry record Bridging to actual external PSP interaction:** It actually is the proof of the transaction when we look at our JournalEntry and understand why we have this journal entry in our system,because of this external interaction with psp
-
-## **5. JournalEntry**
-Represents a **single double-entry journal entry**.It is always true that sum of the debit and credit postings are equal
-
-Contains:
-- Debit postings
-- Credit postings
-- JournalId
-- Timestamp
-- TxId(which is the linking this JournalEntry  to the exact external psp interaction record ) (paymentIntentId, txId, sellerId, etc.)
-
-**Why it exists:**  
-Ensures financial correctness, auditability, and immutable accounting history.
-
----
-
-## **6. Posting (Debit / Credit)**
-
-A component of a LedgerEntry.
-
-- Refers to an account
-- Contains a signed amount
-- Reflects accounting direction (DR/CR)
-
-**Why it exists:**  
-JournalEntries consist of multiple postings — always balanced.
-
----
-
-## **7. Account**
-
-Represents a **financial account** in the internal ledger, such as:
-
-- PLATFORM_CASH
-- PSP_RECEIVABLES
-- AUTH_RECEIVABLE
-- AUTH_LIABILITY
-- MERCHANT_GROSS_CAPTURE_SUSPENSE
-- BALANCE_ACCOUNT
-- PLATFORM_COMMISSION_ESCROW
-- PLATFORM_OPERATIONAL_REVENUE
-- PSP_FEE_EXPENSE
-
-**Why it exists:**  
-Money moves internally between accounts, not as free-form variables.
-
----
-
-## **8. Balance**
-
-Represents the **current financial standing** of an account (e.g., seller’s accrued revenue).  
-Derived from applied LedgerEntries.
-
-**Why it exists:**  
-Used for reporting, analytics, payouts, and consistency validation.
-
-
-
-
-
-
-
-
-TYou can see here sequence diagram  of shopper a, and payment journey end to end, also global idempotency hanlding 
-
-
-
-### Simplified Consumer Architecture
-> Visualized by the L2 System Topology (top of this doc) and the L3 PspResultConsumer diagram below.
-
-A new simplified Kafka consumer architecture has been introduced to streamline PSP operations and double-entry bookkeeping.
-
-**Why we moved away from the "Consume-Process-Publish" pattern:**
-Historically, consumers would read an event, process it (e.g. call a PSP), and then immediately publish a new event using Kafka Transactions. This attempted to achieve "exactly-once" delivery semantics but caused significant issues:
-- **Abusing Kafka as a Database**: Relying on Kafka transactions to guarantee state consistency across external API calls and database commits led to fragile, blocking architectures.
-- **Blocking Calls in Transactions**: External PSP calls (which can be slow) held open Kafka transactions, reducing throughput and risking transaction timeouts.
-- **Unrealistic Exactly-Once Guarantees**: Achieving true exactly-once semantics across a database, an external HTTP API, and Kafka is impossible without distributed locks or 2PC (Two-Phase Commit).
-
-**The New Pattern (Outbox-Driven Consumers):**
-1. **Intents (Capture/Refund Received)**: `CaptureReceived` events denote that an intent to capture has been recorded in the database edge outbox.
-2. **Executors (`CaptureCommandExecutor`)**: These components listen to `capture-execution-queue`. They perform the synchronous call to the external PSP Gateway. Upon receiving a terminal or retryable result, they **do not publish back to Kafka directly**. Instead, they write a `ExternalAsyncCaptureToPspPerformed` event into the Central Database Outbox.
-3. **Outbox Relay**: The `OutboxRelayJob` reads these results from the database outbox and publishes them asynchronously to their respective Kafka topics (e.g., `psp-result-queue`, `capture-execution-queue`, `internal-transfer-queue`, `journal.entries.recorded`) based on the event type.
-4. **Result Processing (`PspResultConsumer`)**: Listens to the `psp-result-queue` to apply the results to the central database, finalize payment statuses, trigger internal double-entry ledger bookkeeping, and schedule any required internal transfers.
-
-### L3 — PspResultConsumer branches (inside payment-consumers; one atomic commit per consumed event)
-```mermaid
-flowchart TB
-    classDef webapi fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
-    classDef job fill:#ffedd5,stroke:#c2410c,stroke-width:2px
-    classDef consumer fill:#ede9fe,stroke:#6d28d9,stroke-width:2px
-    classDef db fill:#dcfce7,stroke:#15803d,stroke-width:2px
-    classDef topic fill:#fef9c3,stroke:#a16207,stroke-width:2px
-    classDef external fill:#f3f4f6,stroke:#6b7280,stroke-width:2px,stroke-dasharray:5 5
-    classDef infra fill:#ccfbf1,stroke:#0f766e,stroke-width:2px
-
-    TIN{{"payment.psp.results «topic»"}}:::topic
-    CONS["PspResultConsumer «kafka-consumer»<br/>routes by eventType"]:::consumer
-    TIN --> CONS
-
-    subgraph B1["processAuthorized ⟵ payment_authorized"]
-        direction TB
-        A1["Payment: create, status AUTHORIZED"]
-        A2["AuthTx: SUCCESS"]
-        A3["Journal AUTH: DR AUTH_RECEIVABLE / CR AUTH_LIABILITY"]
-        A4{{"append outbox: capture_requested"}}:::topic
-        A1 --- A2 --- A3 --- A4
-    end
-
-    subgraph B2["processCaptureConfirmed ⟵ capture_confirmed"]
-        direction TB
-        C1["Payment: applyCapture, status CAPTURED"]
-        C2["CaptureTx: SUCCESS"]
-        C3["Journal CAPTURE (compound): release auth hold + book gross to MERCHANT_GROSS_CAPTURE_SUSPENSE"]
-        C4{{"append outbox: journal_entries_recorded"}}:::topic
-        C1 --- C2 --- C3 --- C4
-    end
-
-    subgraph B3["processInternalTransferCommand ⟵ internal_transfer_command"]
-        direction TB
-        T1["InternalTransferTx / Transfer: TRANSFERRED"]
-        T2["Journal INTERNAL_TRANSFER: suspense → seller / commission accounts"]
-        T3{{"append outbox: journal_entries_recorded"}}:::topic
-        T1 --- T2 --- T3
-    end
-
-    subgraph B4["processSettlementLineReconciled ⟵ settlement_received"]
-        direction TB
-        S1["Payment: reconcile, status SETTLED"]
-        S2["SettleTx: SUCCESS, settle_status MATCHED"]
-        S3["Journal SETTLEMENT: DR PLATFORM_CASH + PSP_FEE_EXPENSE / CR PSP_RECEIVABLES"]
-        S4{{"append outbox: journal_entries_recorded"}}:::topic
-        S1 --- S2 --- S3 --- S4
-    end
-
-    CONS --> B1
-    CONS --> B2
-    CONS --> B3
-    CONS --> B4
-
-    COMMIT[("central-db «database»<br/>ONE atomic commit per consumed event<br/>(rows + journal + outbox together)")]:::db
-    B1 --> COMMIT
-    B2 --> COMMIT
-    B3 --> COMMIT
-    B4 --> COMMIT
-```
-
-
-
-### AccountBalanceConsumer Details ( TODO )
-
-
-###  CaptureCommandExecutor/RefundCommandExecutor Details ( TODO )
-
-###  GrossCaptureAllocationConsumer Details ( TODO )
-
-###  SimulatedSdrStreamingProcessorConsumer Details ( TODO )
-
-
-
-
-
-
+## Entity lifecycle & rationale (companion to the ER above)
+
+| Entity | Created when / by | Why it exists |
+|---|---|---|
+| **PaymentIntent** (edge) | `POST /payments` → `CREATED_PENDING`, → `CREATED` once the PSP id arrives | Separates edge-local *intent to pay* from central money movement; makes authorization idempotent and retry-safe |
+| **Payment** (central) | `PspResultConsumer`, when the PSP authorization is `AUTHORIZED` | The actual financial transaction: aggregate totals (captured/refunded), links back via `payment_intent_id` |
+| **OutboxEvent** | Same DB transaction as the state change (edge or central) | Exactly-once publishing through the DB commit — eliminates the dual-write problem |
+| **Payment Tx** | One per external PSP interaction (auth / capture / refund / settle) | Audit of each network call incl. acquirer references — the **proof** every journal entry cites via `tx_id` |
+| **JournalEntry** | By consumers, in the same commit as state + tx | Immutable double-entry record; invariant **Σ DEBIT = Σ CREDIT** per journal |
+| **Posting** | With its journal entry | One DR/CR leg against one account |
+| **Account** | Seeded from `account_directory.csv` (changelog loadData) | Money moves between accounts, never free variables: `PLATFORM_CASH`, `PSP_RECEIVABLES`, `AUTH_RECEIVABLE/LIABILITY`, `MERCHANT_GROSS_CAPTURE_SUSPENSE`, seller balance accounts, commission escrow/revenue, `PSP_FEE_EXPENSE` |
+| **Balance** | Projection from applied entries (Redis deltas + snapshot job) | Reporting/payouts; **eventually consistent by design** — the sync path never waits on it |
 
 # 🟦 System Design & Modular Architecture
 
@@ -867,6 +638,102 @@ In line with strict security and network isolation principles, **there is no sha
     * **Username**: `central_db_payment_central_relay_username`
 
 ---
+
+## Consumer Architecture (L3 — payment-consumers)
+> Visualized by the L2 System Topology (top of this doc) and the L3 PspResultConsumer diagram below.
+
+A new simplified Kafka consumer architecture has been introduced to streamline PSP operations and double-entry bookkeeping.
+
+**Why we moved away from the "Consume-Process-Publish" pattern:**
+Historically, consumers would read an event, process it (e.g. call a PSP), and then immediately publish a new event using Kafka Transactions. This attempted to achieve "exactly-once" delivery semantics but caused significant issues:
+- **Abusing Kafka as a Database**: Relying on Kafka transactions to guarantee state consistency across external API calls and database commits led to fragile, blocking architectures.
+- **Blocking Calls in Transactions**: External PSP calls (which can be slow) held open Kafka transactions, reducing throughput and risking transaction timeouts.
+- **Unrealistic Exactly-Once Guarantees**: Achieving true exactly-once semantics across a database, an external HTTP API, and Kafka is impossible without distributed locks or 2PC (Two-Phase Commit).
+
+**The New Pattern (Outbox-Driven Consumers):**
+1. **Intents (Capture/Refund Received)**: `CaptureReceived` events denote that an intent to capture has been recorded in the database edge outbox.
+2. **Executors (`CaptureCommandExecutor`)**: These components listen to `capture-execution-queue`. They perform the synchronous call to the external PSP Gateway. Upon receiving a terminal or retryable result, they **do not publish back to Kafka directly**. Instead, they write a `ExternalAsyncCaptureToPspPerformed` event into the Central Database Outbox.
+3. **Outbox Relay**: The `OutboxRelayJob` reads these results from the database outbox and publishes them asynchronously to their respective Kafka topics (e.g., `psp-result-queue`, `capture-execution-queue`, `internal-transfer-queue`, `journal.entries.recorded`) based on the event type.
+4. **Result Processing (`PspResultConsumer`)**: Listens to the `psp-result-queue` to apply the results to the central database, finalize payment statuses, trigger internal double-entry ledger bookkeeping, and schedule any required internal transfers.
+
+### L3 — PspResultConsumer branches (inside payment-consumers; one atomic commit per consumed event)
+```mermaid
+flowchart TB
+    classDef webapi fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef job fill:#ffedd5,stroke:#c2410c,stroke-width:2px
+    classDef consumer fill:#ede9fe,stroke:#6d28d9,stroke-width:2px
+    classDef db fill:#dcfce7,stroke:#15803d,stroke-width:2px
+    classDef topic fill:#fef9c3,stroke:#a16207,stroke-width:2px
+    classDef external fill:#f3f4f6,stroke:#6b7280,stroke-width:2px,stroke-dasharray:5 5
+    classDef infra fill:#ccfbf1,stroke:#0f766e,stroke-width:2px
+
+    TIN{{"payment.psp.results «topic»"}}:::topic
+    CONS["PspResultConsumer «kafka-consumer»<br/>routes by eventType"]:::consumer
+    TIN --> CONS
+
+    subgraph B1["processAuthorized ⟵ payment_authorized"]
+        direction TB
+        A1["Payment: create, status AUTHORIZED"]
+        A2["AuthTx: SUCCESS"]
+        A3["Journal AUTH: DR AUTH_RECEIVABLE / CR AUTH_LIABILITY"]
+        A4{{"append outbox: capture_requested"}}:::topic
+        A1 --- A2 --- A3 --- A4
+    end
+
+    subgraph B2["processCaptureConfirmed ⟵ capture_confirmed"]
+        direction TB
+        C1["Payment: applyCapture, status CAPTURED"]
+        C2["CaptureTx: SUCCESS"]
+        C3["Journal CAPTURE (compound): release auth hold + book gross to MERCHANT_GROSS_CAPTURE_SUSPENSE"]
+        C4{{"append outbox: journal_entries_recorded"}}:::topic
+        C1 --- C2 --- C3 --- C4
+    end
+
+    subgraph B3["processInternalTransferCommand ⟵ internal_transfer_command"]
+        direction TB
+        T1["InternalTransferTx / Transfer: TRANSFERRED"]
+        T2["Journal INTERNAL_TRANSFER: suspense → seller / commission accounts"]
+        T3{{"append outbox: journal_entries_recorded"}}:::topic
+        T1 --- T2 --- T3
+    end
+
+    subgraph B4["processSettlementLineReconciled ⟵ settlement_received"]
+        direction TB
+        S1["Payment: reconcile, status SETTLED"]
+        S2["SettleTx: SUCCESS, settle_status MATCHED"]
+        S3["Journal SETTLEMENT: DR PLATFORM_CASH + PSP_FEE_EXPENSE / CR PSP_RECEIVABLES"]
+        S4{{"append outbox: journal_entries_recorded"}}:::topic
+        S1 --- S2 --- S3 --- S4
+    end
+
+    CONS --> B1
+    CONS --> B2
+    CONS --> B3
+    CONS --> B4
+
+    COMMIT[("central-db «database»<br/>ONE atomic commit per consumed event<br/>(rows + journal + outbox together)")]:::db
+    B1 --> COMMIT
+    B2 --> COMMIT
+    B3 --> COMMIT
+    B4 --> COMMIT
+```
+
+
+
+### AccountBalanceConsumer Details ( TODO )
+
+
+###  CaptureCommandExecutor/RefundCommandExecutor Details ( TODO )
+
+###  GrossCaptureAllocationConsumer Details ( TODO )
+
+###  SimulatedSdrStreamingProcessorConsumer Details ( TODO )
+
+
+
+
+
+
 
 ## 🟦 Kafka Event Typology & Type Verification
 
