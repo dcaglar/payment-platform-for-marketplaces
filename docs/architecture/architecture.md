@@ -9,138 +9,79 @@ The platform manages the **full payment lifecycle**: synchronous authorization, 
 
 # 🟦   High Level Plaform Arhictecture
 
-### Full System Context Diagram (Create Payment Intent/Authorization flows are merged here for the sake of simplicity, please check below detailed authorization flow)
+## Diagram standard (applies to every diagram in this doc)
+C4 discipline, Mermaid syntax: **one altitude per diagram** (L2 topology here; per-module L3 detail lives with each module), a **fixed stereotype taxonomy**, and a **vertical spine** (`flowchart TB`).
+
+| Stereotype | Meaning | Color/Shape |
+|---|---|---|
+| «web-api» | synchronous REST app (payment-service) | blue rectangle |
+| «scheduled-job» | poller, no inbound traffic (payment-edge-workers, payment-central-relay) | orange rectangle |
+| «kafka-consumer» | @KafkaListener app (payment-consumers) | purple rectangle |
+| «database» / «cache» | Postgres / Redis | green / pink cylinder |
+| «topic» | Kafka topic (each has a .DLQ twin) | yellow hexagon |
+| «external» | third party (PSP, merchant) | dashed gray |
+| «edge-infra» | ingress / router | teal |
+| pod: … | co-location boundary | labeled subgraph |
+
+### L2 — System Topology (request path reads top→bottom; numbered edges 1→10 tell the flow)
 ```mermaid
-flowchart TD
-    %% Define Color Styles
-    classDef edgeBg fill:#ffe6e6,stroke:#333,stroke-width:1px;
-    classDef internalBg fill:#e6f2ff,stroke:#99ccff,stroke-width:2px;
-    classDef greenBox fill:#ccffcc,stroke:#333,stroke-width:1px;
-    classDef pinkBox fill:#ffcccc,stroke:#333,stroke-width:1px;
-    classDef yellowBox fill:#ffeb99,stroke:#333,stroke-width:1px;
-    classDef whiteBox fill:#ffffff,stroke:#333,stroke-width:1px;
-    classDef db fill:#e6ffe6,stroke:#ff6666,stroke-width:px;
-    classDef topic fill:#8e7cc3,stroke:#ff6666,stroke-width:px;
-    classDef consumers fill:#c27ba0,stroke:#ff6666,stroke-width:px;
-    
-    %% Kafka/Job Style (The "CaptureCommandExecutor" green style)
-    classDef actionGreen fill:#ccffcc,stroke:#333,stroke-width:1px;
+flowchart TB
+    classDef webapi fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef job fill:#ffedd5,stroke:#c2410c,stroke-width:2px
+    classDef consumer fill:#ede9fe,stroke:#6d28d9,stroke-width:2px
+    classDef db fill:#dcfce7,stroke:#15803d,stroke-width:2px
+    classDef cache fill:#fce7f3,stroke:#be185d,stroke-width:2px
+    classDef topic fill:#fef9c3,stroke:#a16207,stroke-width:2px
+    classDef external fill:#f3f4f6,stroke:#6b7280,stroke-width:2px,stroke-dasharray:5 5
+    classDef infra fill:#ccfbf1,stroke:#0f766e,stroke-width:2px
 
-    Client["🌐 Client<br/>(k6 / Merchant App)"]:::whiteBox
+    CLIENT(["Merchant / Checkout «external»"]):::external
+    NGINX[/"NGINX + Snowflake Lua router «edge-infra»"/]:::infra
+    CLIENT -->|"1· POST /payments · /authorize"| NGINX
 
-    subgraph External ["External Edge Host-Stateless payment acceptance service high availibility"]
-        style External fill:transparent,stroke:none,color:#cc0000,font-weight:bold
-
-        NGINX["NGINX Ingress Controller<br/>(Snowflake Lua Router)"]:::greenBox
-
-        subgraph EdgeLayer ["EXTERNAL HOSTS (Edge Layer)"]
-            style EdgeLayer fill:#ffffff,stroke:#333
-
-            subgraph Cell1 ["Edge Cell 1 (Pod 0)"]
-                style Cell1 fill:#ffe6e6,stroke:#333
-                
-                PAS1["Payment Acceptance<br/>Service"]:::yellowBox
-                ID1["1. Idempotency Check<br/>⬇<br/>IdempotencyCheck"]:::greenBox
-                PSP1(["External PSP APIs<br/>(Synchronous Auth)"]):::whiteBox
-                DB1[("Edge Local db 0<br/>(PaymentIntent<br/>IdempotencyRecord<br/>OutboxEvent)")]:::db
-                JOB1["LocalOutboxStoreAndForwardJob"]:::actionGreen
-
-                PAS1 --> ID1
-                PAS1 -- "2a. Synchronous Auth" --> PSP1
-                PSP1 -- "2b. Persist Auth to Outbox" --> DB1
-                PAS1 -- "3. Capture / Refund" --> DB1
-                DB1 --> JOB1
-            end
-
-            subgraph Cell2 ["Edge Cell 2 (Pod 1)"]
-                style Cell2 fill:#ffe6e6,stroke:#333
-                
-                PAS2["Payment Acceptance<br/>Service"]:::yellowBox
-                ID2["1. Idempotency Check<br/>⬇<br/>IdempotencyCheck"]:::greenBox
-                PSP2(["External PSP APIs<br/>(Synchronous Auth)"]):::whiteBox
-                DB2[("Edge Local db 1<br/>(PaymentIntent<br/>IdempotencyRecord<br/>OutboxEvent)")]:::db
-                JOB2["LocalOutboxStoreAndForwardJob"]:::actionGreen
-
-                PAS2 --> ID2
-                PAS2 -- "2a. Synchronous Auth" --> PSP2
-                PSP2 -- "2b. Persist Auth to Outbox" --> DB2
-                PAS2 -- "3. Capture / Refund" --> DB2
-                DB2 --> JOB2
-            end
+    subgraph EDGE["EDGE NODE (edgepool) — cell 0 shown; cells scale linearly, each with its own edge-db"]
+        direction TB
+        subgraph CELLPOD["pod: payment-edge-cell-0"]
+            direction TB
+            PS["payment-service «web-api»"]:::webapi
+            EDB[("edge-db-0 «database»<br/>intents · idempotency · LOCAL outbox")]:::db
+            PS -->|"3· intent + outbox, ONE tx"| EDB
         end
+        subgraph EWPOD["pod: payment-edge-workers-0"]
+            EW["payment-edge-workers «scheduled-job»"]:::job
+        end
+        EDB -->|"4· poll NEW"| EW
     end
+    NGINX --> PS
 
-    subgraph Internal ["INTERNAL HOST"]
-        style Internal fill:#e6f2ff,stroke:#99ccff,color:#cc0000,font-weight:bold
+    PSP(["Stripe / PSP «external»"]):::external
+    PS -.->|"2· sync authorize"| PSP
 
-        CDB[("Central OutboxEvent DB<br/>(OutboxEvent<br/>(Payment</br>Tx , JournalEntry<br/>Posting,</br>Account</brAccountBalance)")]:::db
-        RELAY["Polls OutboxEvents<br/>OutboxRelayJob(s)"]:::greenBox
+    subgraph CENTRALDB["CENTRAL CLUSTER — system of record"]
+        direction TB
+        CDB[("central-db «database»<br/>CENTRAL outbox · payments · payment_tx<br/>journal_entries · postings · transfers")]:::db
+        RELAY["pod: payment-central-relay «scheduled-job»<br/>ONLY Kafka publisher · claims ≤ T_safe"]:::job
+        CDB -->|"6· claim batch"| RELAY
+    end
+    EW -->|"5· forward + advance watermark"| CDB
 
-        JOB1 --> CDB
-        JOB2 --> CDB
-        CDB --> RELAY
+    subgraph KAFKA["KAFKA — every topic has a .DLQ twin"]
+        direction LR
+        T1{{"payment.psp.results"}}:::topic
+        T2{{"gateway.capture.requested"}}:::topic
+        T3{{"gateway.capture.submitted"}}:::topic
+        T4{{"journal.entries.recorded"}}:::topic
+    end
+    RELAY -->|"7· publish raw bytes, key = partition_key"| KAFKA
 
-        subgraph Kafka ["Kafka Cluster"]
-            style Kafka fill:#f1c232,stroke:#333
-            
-            K1{{"gateway.capture.requested<br/>&lt;CaptureRequested&gt;"}}:::topic
-            K2{{"gateway.capture.submitted<br/>&lt;CaptureSubmitted&gt;"}}:::topic
-            K3{{"payment.psp.results<br/>EventEnvelope&lt;PaymentAuthorized&gt;,<br/>EventEnvelope&lt;CaptureConfirmed&gt;,<br/>EventEnvelope&lt;InternalTransferCommand&gt;"}}:::topic
-            K4{{"journal.entries.recorded<br/>&lt;JournalEntriesRecorded&gt;"}}:::topic
-
-        end
-
-        %% Link 0
-        RELAY -- "OutboxEvent&lt;PAYMENT_AUTHORIZED&gt; -> EventEnvelope&lt;PaymentAuthorized&gt; and publish " --> K3
-        %% Link 1
-        RELAY -- "OutboxEvent&lt;CAPTURE_REQUESTED&gt; -> EventEnvelope&lt;CaptureRequested&gt; and publish " --> K1
-        %% Link 2
-         RELAY -- "OutboxEvent&lt;CAPTURE_SUBMITTED&gt; -> EventEnvelope&lt;CaptureSubmitted&gt; and publish " --> K2
-        %% Link 3
-        RELAY -- "OutboxEvent&lt;CAPTURE_CONFIRMED&gt; -> EventEnvelope&lt;CaptureConfirmed&gt; and publish " --> K3
-        %% Link 4
-        RELAY -- "OutboxEvent&lt;JOURNAL_ENTRIES_RECORDED&gt; -> EventEnvelope&lt;JournalEntriesRecorded&gt; and publish " --> K4
-        %% Link 5
-        RELAY -- "OutboxEvent&lt;INTERNAL_TRANSFER_COMMAND&gt; -> EventEnvelope&lt;InternalTransferCommand&gt; and publish " --> K3
-        %% Link 6
-        RELAY -- "OutboxEvent&lt;SETTLEMENT_RECEIVED&gt; -> EventEnvelope&lt;SettlementReceived&gt; and publish " --> K3
-
-        subgraph Consumers ["Payment Consumers (payment-consumers)"]
-            style Consumers fill:#f2f2f2,stroke:#333
-            
-            C_CCE["CaptureCommandExecutor"]:::consumers
-            C_CPC["CapturePspPerformedConsumer"]:::consumers
-            C_PRC["PspResultConsumer"]:::consumers
-            C_GCA["GrossCaptureAllocationConsumer"]:::consumers
-            C_ABC["AccountBalanceConsumer"]:::consumers
-           C_SDR["SimulatedSdrStreamingProcessorConsumer"]:::consumers
-
-        end
-
-        K1 --> C_CCE 
-        K2 --> C_CPC 
-        K3 --> C_PRC
-        K4 --> C_ABC
-        K4 --> C_GCA
-         K4 --> C_SDR
- 
-        C_CCE -- "psp.asynCapure</br>append OutboxEvent&lt;CAPTURE_SUBMITTED&gt;" -->  CDB  
-        C_GCA -- "listen for Capture JournalEntries,based on the presence of payment-split, it does perform idempotent update on Transfer, InternalTransferTx,and OutboxEvent(InternalTransferCommand)" --> CDB
-        C_PRC --> CDB
-        C_CPC --> CDB
-        C_GCA --> CDB
-        C_SDR --> CDB
-
-        %% Ingress/Client Links (placed at end to preserve linkStyle index positions)
-        Client -- "POST /payments (Round-Robin)" --> NGINX
-        Client -- "POST /payments/pi_XXX/authorize (Snowflake-Routed)" --> NGINX
-        NGINX -- "proxy_pass to pod 0" --> PAS1
-        NGINX -- "proxy_pass to pod 1" --> PAS2
-
-        linkStyle 13,14,15,16,17,18,19 stroke:#6a0dad,stroke-width:3px;
-        linkStyle 20,21,22,23,24,25 stroke:#f44336,stroke-width:2px;
-        linkStyle 26,27,28,29,30,31 stroke:#8fce00,stroke-width:5px;
-end
+    subgraph CONS_BAND["pod: payment-consumers"]
+        CONS["payment-consumers «kafka-consumer»<br/>ONLY ledger writer · never publishes"]:::consumer
+    end
+    KAFKA -->|"8· consume"| CONS
+    REDIS[("redis «cache»")]:::cache
+    CONS -->|"9· ledger writes + append NEW outbox events"| CDB
+    CONS -.->|"10· async capture"| PSP
+    CONS --> REDIS
 ```
 
 
@@ -393,7 +334,103 @@ These are the fundamental nouns of our Merchant-of-Record payment platform.
 
 ---
 
-![UML Diagram](um-diagram-payment-ledger-domain.png)
+### Persistence model (ER) — derived from the Liquibase changelogs
+> Source of truth: charts/central-db/db + charts/payment-edge-cell/db changelogs.
+> payment_intents/idempotency_keys/outbox_event(LOCAL) live in each EDGE db; everything else in central-db.
+> The dashed intent→payment link is cross-database (logical, no FK).
+
+```mermaid
+erDiagram
+    payment_intents {
+        bigint payment_intent_id PK "snowflake (encodes cell nodeId)"
+        varchar psp_reference "external PSP intent id"
+        varchar buyer_id
+        varchar order_id
+        bigint total_amount_value "minor units"
+        char currency
+        varchar status "CREATED_PENDING/CREATED/PENDING_AUTH/AUTHORIZED"
+        jsonb splits_json "seller/commission splits, write-once"
+    }
+    idempotency_keys {
+        bigint id PK
+        uuid idempotency_key UK "UUIDv7 from client"
+        bigint payment_intent_id FK
+        varchar status "PENDING/COMPLETED"
+        text response_payload "replayed on retry"
+    }
+    payments {
+        bigint payment_id PK
+        bigint payment_intent_id "logical link to EDGE intent"
+        varchar merchant_account
+        varchar processing_model "DIRECT_MERCHANT/MARKETPLACE"
+        bigint total_amount_value
+        bigint captured_amount_value
+        bigint refunded_amount_value
+        varchar status "AUTHORIZED..SETTLED (CHECK constraint)"
+    }
+    payment_tx {
+        bigint tx_id PK
+        bigint parent_tx_id FK "AUTH to CAPTURE to SETTLE chain"
+        bigint payment_id FK
+        varchar tx_type "AUTHORIZATION/CAPTURE/REFUND/SETTLEMENT/..."
+        varchar status "PENDING/SUCCESS/FAILED"
+        varchar settle_status "UNMATCHED/MATCHED/DISCREPANCY"
+        varchar acquirer_reference "external PSP proof"
+    }
+    journal_entries {
+        varchar id PK "e.g. CAPTURE:pi_xxx"
+        varchar journal_type "AUTHORIZATION/CAPTURE/INTERNAL_TRANSFER/SETTLEMENT"
+        bigint payment_id FK
+        bigint tx_id FK "proof: WHY this entry exists"
+    }
+    postings {
+        bigint id PK
+        varchar journal_id FK
+        varchar account_code FK
+        varchar direction "DEBIT/CREDIT"
+        bigint amount "invariant: sum DR = sum CR per journal"
+    }
+    account_directory {
+        varchar account_code PK "e.g. SELLER-5-1.EUR"
+        varchar account_type "PLATFORM_CASH/SELLER_BALANCE/..."
+        varchar master_account_code
+        char currency
+    }
+    account_balances {
+        varchar account_code PK
+        bigint balance "projection, eventually consistent"
+        bigint last_applied_entry_id
+    }
+    transfers {
+        bigint transfer_id PK
+        bigint payment_id FK
+        varchar source_account "suspense/escrow account"
+        varchar target_account "seller/commission account"
+        varchar transfer_type "INTERNAL_TRANSFER/COMMISSION_FEE"
+        varchar status "TRANSFERRED"
+    }
+    outbox_event {
+        bigint oeid PK "same id travels LOCAL to CENTRAL to Kafka"
+        varchar partition_key "Kafka ordering lane"
+        varchar event_type
+        varchar event_id
+        varchar parent_event_id "causal chain (root = own id)"
+        varchar status "NEW/PROCESSING/SENT"
+        varchar aggregate_id
+    }
+
+    payment_intents ||--o{ idempotency_keys : "replay guard"
+    payment_intents ||..o| payments : "cross-DB: edge intent to central payment"
+    payments ||--o{ payment_tx : "external interactions"
+    payment_tx |o..o| payment_tx : "parent chain AUTH-CAPTURE-SETTLE"
+    payments ||--o{ journal_entries : ""
+    payment_tx ||--o{ journal_entries : "tx is the proof"
+    journal_entries ||--|{ postings : "balanced DR/CR"
+    account_directory ||--o{ postings : ""
+    account_directory ||--o| account_balances : "projection"
+    payments ||--o{ transfers : "allocation fan-out"
+
+```
 
 
 
@@ -519,8 +556,8 @@ TYou can see here sequence diagram  of shopper a, and payment journey end to end
 
 
 ### Simplified Consumer Architecture
+> Visualized by the L2 System Topology (top of this doc) and the L3 PspResultConsumer diagram below.
 
-![Architecture](https://github.com/dcaglar/payment-platform-for-marketplaces/blob/25b863edd5fc15647c14b70f55703e3494bf6e91/docs/architecture/async-payment-prrocessing.png)
 A new simplified Kafka consumer architecture has been introduced to streamline PSP operations and double-entry bookkeeping.
 
 **Why we moved away from the "Consume-Process-Publish" pattern:**
@@ -535,56 +572,66 @@ Historically, consumers would read an event, process it (e.g. call a PSP), and t
 3. **Outbox Relay**: The `OutboxRelayJob` reads these results from the database outbox and publishes them asynchronously to their respective Kafka topics (e.g., `psp-result-queue`, `capture-execution-queue`, `internal-transfer-queue`, `journal.entries.recorded`) based on the event type.
 4. **Result Processing (`PspResultConsumer`)**: Listens to the `psp-result-queue` to apply the results to the central database, finalize payment statuses, trigger internal double-entry ledger bookkeeping, and schedule any required internal transfers.
 
-### Psp Result Consumer Detailed Flow ( NOT %100 ACCURATE/DRAFT WIP)
+### L3 — PspResultConsumer branches (inside payment-consumers; one atomic commit per consumed event)
 ```mermaid
-graph TD
-%% Define Styles
-classDef branch fill:#f9f9f9,stroke:#333,stroke-width:2px;
-classDef atomic fill:#e1f5fe,stroke:#0277bd,stroke-width:2px;
+flowchart TB
+    classDef webapi fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef job fill:#ffedd5,stroke:#c2410c,stroke-width:2px
+    classDef consumer fill:#ede9fe,stroke:#6d28d9,stroke-width:2px
+    classDef db fill:#dcfce7,stroke:#15803d,stroke-width:2px
+    classDef topic fill:#fef9c3,stroke:#a16207,stroke-width:2px
+    classDef external fill:#f3f4f6,stroke:#6b7280,stroke-width:2px,stroke-dasharray:5 5
+    classDef infra fill:#ccfbf1,stroke:#0f766e,stroke-width:2px
 
-    %% Branch definitions
-    subgraph AuthBranch ["Branch: processAuthorized"]
-        A_State[("Payment: Initialize<br/>Status: AUTH")]:::branch
-        A_Tx[("Tx: Create AuthTx<br/>Status: SUCCESS")]:::branch
-        A_Ledger["JournalEntry: authHold<br/>(DR: Receivable / CR: Liability)"]:::branch
-        A_Outbox["Outbox: CaptureRequested"]:::branch
+    TIN{{"payment.psp.results «topic»"}}:::topic
+    CONS["PspResultConsumer «kafka-consumer»<br/>routes by eventType"]:::consumer
+    TIN --> CONS
+
+    subgraph B1["processAuthorized ⟵ payment_authorized"]
+        direction TB
+        A1["Payment: create, status AUTHORIZED"]
+        A2["AuthTx: SUCCESS"]
+        A3["Journal AUTH: DR AUTH_RECEIVABLE / CR AUTH_LIABILITY"]
+        A4{{"append outbox: capture_requested"}}:::topic
+        A1 --- A2 --- A3 --- A4
     end
 
-    subgraph CaptureBranch ["Branch: processCaptureConfirmed"]
-        B_State[("Payment: ApplyCapture<br/>Status: CAPTURED")]:::branch
-        B_Tx[("Tx: CaptureTx<br/>Status: SUCCESS")]:::branch
-        B_Ledger["JournalEntry: captureGrossAsset<br/>(DR: Liab / CR: Pool)"]:::branch
-        B_Outbox["Outbox: JournalEntriesRecorded"]:::branch
+    subgraph B2["processCaptureConfirmed ⟵ capture_confirmed"]
+        direction TB
+        C1["Payment: applyCapture, status CAPTURED"]
+        C2["CaptureTx: SUCCESS"]
+        C3["Journal CAPTURE (compound): release auth hold + book gross to MERCHANT_GROSS_CAPTURE_SUSPENSE"]
+        C4{{"append outbox: journal_entries_recorded"}}:::topic
+        C1 --- C2 --- C3 --- C4
     end
 
-    subgraph TransferBranch ["Branch: processInternalTransferCommand"]
-        C_State[("Payment: (No State Change)")]:::branch
-        C_Tx[("Tx: InternalTransferTx<br/>Status: SUCCESS")]:::branch
-        C_Ledger["JournalEntry: (Commission/Transfer/Revenue)<br/>(Recipe-specific DR/CR)"]:::branch
-        C_Outbox["Outbox: JournalEntriesRecorded"]:::branch
+    subgraph B3["processInternalTransferCommand ⟵ internal_transfer_command"]
+        direction TB
+        T1["InternalTransferTx / Transfer: TRANSFERRED"]
+        T2["Journal INTERNAL_TRANSFER: suspense → seller / commission accounts"]
+        T3{{"append outbox: journal_entries_recorded"}}:::topic
+        T1 --- T2 --- T3
     end
 
-    subgraph SettleBranch ["Branch: processSettlementLineReconciled"]
-        D_State[("Payment: reconcileCaptureSettlement<br/>(Status: SETTLED)")]:::branch
-        D_Tx[("Tx: SettleTx<br/>Status: SUCCESS")]:::branch
-        D_Ledger["JournalEntry: settlementLineItem<br/>(DR: Cash & Fee Exp / CR: PSP Recv)"]:::branch
-        D_Outbox["Outbox: JournalEntriesRecorded"]:::branch
+    subgraph B4["processSettlementLineReconciled ⟵ settlement_received"]
+        direction TB
+        S1["Payment: reconcile, status SETTLED"]
+        S2["SettleTx: SUCCESS, settle_status MATCHED"]
+        S3["Journal SETTLEMENT: DR PLATFORM_CASH + PSP_FEE_EXPENSE / CR PSP_RECEIVABLES"]
+        S4{{"append outbox: journal_entries_recorded"}}:::topic
+        S1 --- S2 --- S3 --- S4
     end
 
-    %% Persistence
-    Persistence[("Atomic Commit (CentralDb)")]:::atomic
+    CONS --> B1
+    CONS --> B2
+    CONS --> B3
+    CONS --> B4
 
-    %% Link all branches to persistence
-    AuthBranch --> Persistence
-    CaptureBranch --> Persistence
-    TransferBranch --> Persistence
-    SettleBranch --> Persistence
-
-    %% Connections within branches (example for Auth)
-    A_State & A_Tx & A_Ledger & A_Outbox --> Persistence
-    B_State & B_Tx & B_Ledger & B_Outbox --> Persistence
-    C_State & C_Tx & C_Ledger & C_Outbox --> Persistence
-    D_State & D_Tx & D_Ledger & D_Outbox --> Persistence
+    COMMIT[("central-db «database»<br/>ONE atomic commit per consumed event<br/>(rows + journal + outbox together)")]:::db
+    B1 --> COMMIT
+    B2 --> COMMIT
+    B3 --> COMMIT
+    B4 --> COMMIT
 ```
 
 
@@ -683,23 +730,44 @@ If an incoming `/authorize` request is routed to the wrong pod (e.g., round-robi
 Rather than introducing application-level routing tables, distributed caches, or shared databases (which violate cell isolation), routing is solved purely mathematically at the network boundary using a **Snowflake-Aware Lua Router** running inside the NGINX Ingress Controller.
 
 ```mermaid
-graph TB
-    subgraph Client["Client (Merchant App)"]
-        APP["Checkout Flow<br/>1. POST /api/v1/payments<br/>2. POST /api/v1/payments/pi_XXX/authorize"]
+flowchart TB
+    classDef webapi fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef job fill:#ffedd5,stroke:#c2410c,stroke-width:2px
+    classDef consumer fill:#ede9fe,stroke:#6d28d9,stroke-width:2px
+    classDef db fill:#dcfce7,stroke:#15803d,stroke-width:2px
+    classDef topic fill:#fef9c3,stroke:#a16207,stroke-width:2px
+    classDef external fill:#f3f4f6,stroke:#6b7280,stroke-width:2px,stroke-dasharray:5 5
+    classDef infra fill:#ccfbf1,stroke:#0f766e,stroke-width:2px
+
+    APP(["Merchant checkout flow «external»<br/>1· POST /api/v1/payments — round-robin<br/>2· POST /api/v1/payments/pi_XXX/authorize — cell-routed"]):::external
+
+    subgraph GW["NGINX Ingress Controller"]
+        LUA[/"Snowflake Lua router «edge-infra»<br/>① match /pi_([A-Za-z0-9_%-]+)<br/>② Base64URL → 8-byte long<br/>③ nodeId = (lo >> 12) & 31<br/>④ proxy_pass → payment-edge-cell-N"/]:::infra
+    end
+    APP --> LUA
+
+    subgraph SS["StatefulSet: payment-edge-cell — every /authorize lands on the cell that created the intent"]
+        direction LR
+        subgraph P0["pod: payment-edge-cell-0"]
+            direction TB
+            C0["payment-service «web-api»"]:::webapi
+            D0[("edge-db-0 «database»")]:::db
+            C0 --> D0
+        end
+        subgraph P1["pod: payment-edge-cell-1"]
+            direction TB
+            C1["payment-service «web-api»"]:::webapi
+            D1[("edge-db-1 «database»")]:::db
+            C1 --> D1
+        end
+        subgraph P2["pod: payment-edge-cell-2"]
+            direction TB
+            C2["payment-service «web-api»"]:::webapi
+            D2[("edge-db-2 «database»")]:::db
+            C2 --> D2
+        end
     end
 
-    subgraph Gateway["NGINX Ingress Controller"]
-        LUA["ngx_lua module<br/>① Match pattern '/pi_([A-Za-z0-9_%-]+)'<br/>② Decode Base64URL to 8-byte Long<br/>③ Extract nodeId: (lo >> 12) & 31<br/>④ Target pod DNS: payment-edge-cell-N"]
-    end
-
-    subgraph Cells["StatefulSet: payment-edge-cell"]
-        C0["payment-edge-cell-0<br/>(edge-db-0)"]
-        C1["payment-edge-cell-1<br/>(edge-db-1)"]
-        C2["payment-edge-cell-2<br/>(edge-db-2)"]
-    end
-
-    APP --> NGINX
-    NGINX --> LUA
     LUA -->|"node_id=0"| C0
     LUA -->|"node_id=1"| C1
     LUA -->|"node_id=2"| C2

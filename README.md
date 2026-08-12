@@ -19,7 +19,43 @@ The goal is not feature completeness — it is **correctness, architectural inte
 fault-tolerant coordination across bounded contexts**.
 
 Shopper Journey
-![Architecture](docs/architecture/idempotency-sequence-diagram.png)
+```mermaid
+sequenceDiagram
+    autonumber
+    participant M as Merchant / Checkout
+    participant GW as NGINX (Lua router)
+    participant PS as payment-service «web-api»
+    participant DB as edge-db (intents · idempotency · outbox)
+    participant PSP as Stripe / PSP
+
+    Note over M,PSP: 1 — createPayment (idempotent)
+    M->>GW: POST /api/v1/payments (Idempotency-Key: UUIDv7)
+    GW->>PS: round-robin to any cell
+    PS->>DB: SELECT idempotency_keys WHERE key = ?
+    alt first request
+        PS->>DB: INSERT payment_intent (CREATED_PENDING)
+        PS->>PSP: create PaymentIntent (≤3s budget)
+        PSP-->>PS: id + clientSecret
+        PS->>DB: intent → CREATED · store response under key (COMPLETED)
+        PS-->>M: 201 { paymentIntentId pi_… , clientSecret }
+    else retry, same key
+        DB-->>PS: stored response
+        PS-->>M: 200 (replayed, no side effects)
+    else PSP slower than 3s
+        PS-->>M: 202 Accepted (poll GET /payments/{id})
+        PSP--)PS: late result → intent CREATED (background)
+    end
+
+    Note over M,PSP: 2 — authorize (cell-routed, one atomic write)
+    M->>GW: POST /api/v1/payments/pi_XXX/authorize
+    GW->>PS: Lua decodes pi_XXX → owning cell N
+    PS->>PSP: confirm (synchronous)
+    PSP-->>PS: AUTHORIZED
+    PS->>DB: ONE tx: intent → AUTHORIZED + append LOCAL outbox(payment_authorized)
+    PS-->>M: 200 AUTHORIZED
+    Note over DB: async from here: edge-worker → central outbox → relay → Kafka → consumers → SETTLED
+
+```
 
 
 At the domain layer, the system follows **DDD principles** with clear aggregate boundaries
