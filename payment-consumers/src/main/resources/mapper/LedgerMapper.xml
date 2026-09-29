@@ -5,31 +5,6 @@
 
 <mapper namespace="com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.LedgerMapper">
 
-    <resultMap id="JournalEntryResultMap"
-               type="com.dogancaglar.common.db.entity.JournalEntryEntity">
-        <id property="id" column="id"/>
-        <result property="globalJournalEntryId" column="global_journal_entry_id"/>
-        <result property="journalType" column="journal_type"/>
-        <result property="name" column="name"/>
-        <result property="paymentId" column="payment_id"/>
-        <result property="txId" column="tx_id"/>
-        <result property="createdAt" column="created_at"
-                typeHandler="com.dogancaglar.common.db.typehandler.InstantTypeHandler"/>
-    </resultMap>
-
-    <resultMap id="PostingResultMap"
-               type="com.dogancaglar.common.db.entity.PostingEntity">
-        <id property="id" column="id"/>
-        <result property="journalId" column="journal_id"/>
-        <result property="accountCode" column="account_code"/>
-        <result property="accountType" column="account_type"/>
-        <result property="amount" column="amount"/>
-        <result property="direction" column="direction"/>
-        <result property="currency" column="currency"/>
-        <result property="createdAt" column="created_at"
-                typeHandler="com.dogancaglar.common.db.typehandler.InstantTypeHandler"/>
-    </resultMap>
-
     <insert id="insertJournalEntry" parameterType="com.dogancaglar.common.db.entity.JournalEntryEntity">
         INSERT INTO journal_entries (id, global_journal_entry_id, journal_type, name, payment_id, tx_id, created_at)
         VALUES (#{id}, #{globalJournalEntryId}, #{journalType}, #{name}, #{paymentId}, #{txId}, #{createdAt})
@@ -41,16 +16,4 @@
         VALUES (#{journalId}, #{accountCode}, #{accountType}, #{amount}, #{direction}, #{currency}, #{createdAt})
         ON CONFLICT (journal_id, account_code) DO NOTHING
     </insert>
-
-    <select id="findByJournalId" resultMap="JournalEntryResultMap">
-        SELECT id, global_journal_entry_id, journal_type, name, payment_id, tx_id, created_at
-        FROM journal_entries
-        WHERE id = #{journalId}
-    </select>
-
-    <select id="findPostingsByJournalId" resultMap="PostingResultMap">
-        SELECT id, journal_id, account_code, account_type, amount, direction, currency, created_at
-        FROM postings
-        WHERE journal_id = #{journalId}
-    </select>
 </mapper>

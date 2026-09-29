@@ -45,9 +45,9 @@ data class PaymentSplitDto(
 
         fun fromDomain(split: PaymentSplit): PaymentSplitDto {
             val typeStr = when(split.accountType.name) {
-                "MARKETPLACE_SELLER_BALANCE_ACCOUNT" -> "BalanceAccount"
-                "MARKETPLACE_COMMISSION_REVENUE_BALANCE_ACCOUNT" -> "Commission"
-                "MERCHANT_GROSS_CAPTURE_SUSPENSE" -> "Operator"
+                "SELLER_PAYABLE" -> "BalanceAccount"
+                "MERCHANT_COMMISSION_PAYABLE" -> "Commission"
+                "CAPTURE_SUSPENSE" -> "Operator"
                 else -> split.accountType.name
             }
             return PaymentSplitDto(
@@ -61,18 +61,17 @@ data class PaymentSplitDto(
 
     fun toDomain(): PaymentSplit {
         // We must map it back to AccountType
-        // using reflection or direct matching so we don't need AccountType enum here
+        val accountTypeName = when(accountType) {
+            "BalanceAccount", "BALANCE_ACCOUNT" -> "SELLER_PAYABLE"
+            "Commission" -> "MERCHANT_COMMISSION_PAYABLE"
+            "Operator", "MARKETPLACE_OPERATOR" -> "CAPTURE_SUSPENSE"
+            else -> accountType
+        }
+        // An unknown type must fail. It must never silently become a seller split.
         val mappedAccountType = try {
-            com.dogancaglar.paymentservice.domain.model.ledger.AccountType.valueOf(
-                when(accountType) {
-                    "BalanceAccount", "BALANCE_ACCOUNT" -> "MARKETPLACE_SELLER_BALANCE_ACCOUNT"
-                    "Commission", "MARKETPLACE_COMMISSION_REVENUE_BALANCE_ACCOUNT" -> "MARKETPLACE_COMMISSION_REVENUE_BALANCE_ACCOUNT"
-                    "Operator", "MARKETPLACE_OPERATOR" -> "MERCHANT_GROSS_CAPTURE_SUSPENSE"
-                    else -> accountType
-                }
-            )
-        } catch (e: Exception) {
-            com.dogancaglar.paymentservice.domain.model.ledger.AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT
+            com.dogancaglar.paymentservice.domain.model.ledger.AccountType.valueOf(accountTypeName)
+        } catch (e: IllegalArgumentException) {
+            throw IllegalArgumentException("Unknown split accountType: '$accountType'", e)
         }
 
         return PaymentSplit.of(

@@ -129,6 +129,19 @@
             <artifactId>mockk-jvm</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Integration tests: WireMock plays the PSP over real HTTP (standalone jar: no Jetty clash with Spring Boot) -->
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <version>3.9.1</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Integration tests: a mocked JWT through the real security filter chain -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
 
@@ -147,6 +160,17 @@
                 </includes>
             </resource>
         </resources>
+        <testResources>
+            <testResource>
+                <directory>${project.basedir}/src/test/resources</directory>
+            </testResource>
+            <!-- The real edge-db changelog, so integration tests build their schema with Liquibase
+                 from classpath:db/changelog/changelog.edge.xml -->
+            <testResource>
+                <directory>${project.basedir}/../charts/payment-edge-cell/db</directory>
+                <targetPath>db/changelog</targetPath>
+            </testResource>
+        </testResources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

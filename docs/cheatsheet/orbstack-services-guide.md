@@ -23,23 +23,31 @@ Here is your standardized cheat sheet for reaching all infrastructure components
 
 ## 🗄️ 2. Databases
 
+Passwords live in the sops-encrypted files at the repo root. `sops -d --extract '["KEY"]'` decrypts a single key
+and passes it straight to `psql`, so the password is never printed (run from the repo root).
+
 ### Central DB (PostgreSQL)
 - **Host**: `central-db-postgresql.payment.svc.cluster.local`
 - **Port**: `5432`
-- **Database**: `payment_db` (or as configured)
-- **CLI Connection**: 
+- **Database**: `central-db`
+- **User**: `postgres` (password key `CENTRAL_DB_POSTGRES_PASSWORD` in `central-db-sops-secrets.yaml`)
+- **CLI Connection**:
   ```bash
-  psql -h central-db-postgresql.payment.svc.cluster.local -p 5432 -U postgres
+  PGPASSWORD="$(sops -d --extract '["CENTRAL_DB_POSTGRES_PASSWORD"]' central-db-sops-secrets.yaml)" \
+    psql -h central-db-postgresql.payment.svc.cluster.local -p 5432 -U postgres -d central-db
   ```
 
 ### Edge DB (PostgreSQL)
-The Edge DB runs alongside the payment application logic.
-- **Host**: `payment-edge-cell.payment.svc.cluster.local`
+The Edge DB is a `postgres:15` sidecar (`edge-db` container) inside each `payment-edge-cell-N` pod.
+- **Host**: `payment-edge-cell.payment.svc.cluster.local` (one specific cell: `payment-edge-cell-N.payment-edge-cell-headless.payment.svc.cluster.local`)
 - **Port**: `5432`
-- **Database**: `payment_db`
+- **Database**: `edge-db`
+- **User**: `postgres` (password key `EDGE_DB_POSTGRES_PASSWORD` in `edge-cell-sops-secrets.yaml`).
+  For day-to-day data checks you can also use the duty user (`EDGE_DB_DUTY_USERNAME` / `EDGE_DB_DUTY_PASSWORD`).
 - **CLI Connection**:
   ```bash
-  psql -h payment-edge-cell.payment.svc.cluster.local -p 5432 -U payment -d payment_db
+  PGPASSWORD="$(sops -d --extract '["EDGE_DB_POSTGRES_PASSWORD"]' edge-cell-sops-secrets.yaml)" \
+    psql -h payment-edge-cell.payment.svc.cluster.local -p 5432 -U postgres -d edge-db
   ```
 ---
 

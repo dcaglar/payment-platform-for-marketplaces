@@ -183,7 +183,7 @@ class AccountBalanceRedisCacheAdapterIntegrationTest {
         val accountCodes = setOf(
             "MERCHANT_PAYABLE.seller-5",
             "MERCHANT_PAYABLE.seller-6",
-            "PSP_RECEIVABLES.GLOBAL"
+            "PSP_RECEIVABLE.GLOBAL"
         )
 
         // When

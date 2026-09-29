@@ -3,6 +3,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { PaymentForm } from './components/PaymentElement';
 import { createPayment, pollPaymentStatus, authorizePayment } from './services/paymentService';
+import { uuidV7 } from './services/uuidv7';
 import './index.css';
 
 const stripePromise = loadStripe(
@@ -18,14 +19,38 @@ const STEPS = {
   ERROR: 'error'
 };
 
+/**
+ * Options for Stripe's card form.
+ * A simulated client secret (sim_cs_..., from payment-service with psp.gateway.type=SIMULATED,
+ * or from the mock) is unknown to Stripe, so the form is shown in deferred mode instead: only the
+ * publishable key, the amount and the currency are needed. The page never confirms with Stripe
+ * itself; it only validates the card fields (elements.submit) and then calls our authorize endpoint.
+ */
+function stripeElementsOptions(clientSecret, paymentData) {
+  if (clientSecret && clientSecret.startsWith('sim_cs_') && paymentData && paymentData.totalAmount) {
+    return {
+      mode: 'payment',
+      amount: paymentData.totalAmount.quantity,
+      currency: paymentData.totalAmount.currency.toLowerCase()
+    };
+  }
+  return { clientSecret: clientSecret };
+}
+
 function App() {
   // Form state
-  const [orderId, setOrderId] = useState('1700');
-  const [buyerId, setBuyerId] = useState('1700');
-  const [totalAmount, setTotalAmount] = useState('1700');
+  const [orderId, setOrderId] = useState('ORDER-1');
+  const [buyerId, setBuyerId] = useState('BUYER-1');
+  const [merchantAccount, setMerchantAccount] = useState('MARKETPLACE-5');
+  const [processingModel, setProcessingModel] = useState('MARKETPLACE');
+  const [totalAmount, setTotalAmount] = useState('3000');
   const [currency, setCurrency] = useState('EUR');
-  const [paymentOrders, setPaymentOrders] = useState([
-    { id: 1, sellerId: 'SELLER-111', amount: '1700' }
+  // type is 'BalanceAccount' (a seller, needs an account) or 'Commission' (the marketplace's cut)
+  const [splits, setSplits] = useState([
+    { id: 1, type: 'BalanceAccount', account: 'SELLER-5-1', amount: '1400' },
+    { id: 2, type: 'Commission', account: '', amount: '100' },
+    { id: 3, type: 'BalanceAccount', account: 'SELLER-5-2', amount: '1400' },
+    { id: 4, type: 'Commission', account: '', amount: '100' }
   ]);
 
   // Payment flow state
@@ -38,25 +63,31 @@ function App() {
   const retryTimeoutRef = useRef(null);
   const retryIntervalRef = useRef(null);
 
-  // Payment order management
-  const addPaymentOrder = () => {
-    const newId = Math.max(...paymentOrders.map(po => po.id), 0) + 1;
-    setPaymentOrders([...paymentOrders, { id: newId, sellerId: '', amount: '' }]);
+  // One idempotency key per checkout attempt. It is reused for every resend of the same
+  // request (second click, retry after a timeout, a network error or a 409), and dropped only
+  // after a final answer: the payment intent was created, or 422 (key reused with another body).
+  const checkoutKeyRef = useRef(null);
+  const checkoutBodyRef = useRef(null);
+
+  // Split management
+  const addSplit = () => {
+    const newId = Math.max(...splits.map(sp => sp.id), 0) + 1;
+    setSplits([...splits, { id: newId, type: 'BalanceAccount', account: '', amount: '' }]);
   };
 
-  const removePaymentOrder = (id) => {
-    if (paymentOrders.length > 1) {
-      setPaymentOrders(paymentOrders.filter(po => po.id !== id));
+  const removeSplit = (id) => {
+    if (splits.length > 1) {
+      setSplits(splits.filter(sp => sp.id !== id));
     }
   };
 
-  const updatePaymentOrder = (id, field, value) => {
-    setPaymentOrders(paymentOrders.map(po => 
-      po.id === id ? { ...po, [field]: value } : po
+  const updateSplit = (id, field, value) => {
+    setSplits(splits.map(sp =>
+      sp.id === id ? { ...sp, [field]: value } : sp
     ));
   };
 
-  const totalCalculated = paymentOrders.reduce((sum, po) => sum + (parseInt(po.amount) || 0), 0);
+  const totalCalculated = splits.reduce((sum, sp) => sum + (parseInt(sp.amount) || 0), 0);
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -134,18 +165,14 @@ function App() {
   };
 
   /**
-   * Handles 409 CONFLICT with Retry-After header (temporary conflict)
-   * Retries the createPayment call after the delay
-   * Note: Uses same idempotency key for retry (idempotency purpose)
+   * Handles 409 CONFLICT: the first request with this key is still being processed.
+   * Waits Retry-After seconds (2 if the header is missing) and sends the SAME request
+   * with the SAME key again.
    */
-  const handleTemporaryConflict = (retryAfterSeconds, paymentRequest) => {
-    // Ensure idempotency key exists (should already be set, but fallback for safety)
-    if (!paymentRequest._idempotencyKey) {
-      paymentRequest._idempotencyKey = crypto.randomUUID();
-    }
+  const handleInProgress = (retryAfterSeconds, paymentRequest, idempotencyKey) => {
     setRetryCountdown(retryAfterSeconds);
     setError(`Payment is still being processed. Retrying in ${retryAfterSeconds} seconds...`);
-    
+
     // Clear any existing retry
     if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
     if (retryIntervalRef.current) clearInterval(retryIntervalRef.current);
@@ -170,20 +197,7 @@ function App() {
       setRetryCountdown(null);
       setError(null);
       setStep(STEPS.CREATING);
-      
-      try {
-        // Use same idempotency key for retry (idempotency purpose)
-        await processPaymentRequest(paymentRequest, paymentRequest._idempotencyKey);
-      } catch (retryErr) {
-        // If retry also gets 409 with Retry-After, schedule another retry
-        if (retryErr.status === 409 && retryErr.data?.headers?.['retry-after']) {
-          const newRetryAfter = parseInt(retryErr.data.headers['retry-after']) || 2;
-          handleTemporaryConflict(newRetryAfter, paymentRequest);
-        } else {
-          setError(getErrorMessage(retryErr));
-          setStep(STEPS.ERROR);
-        }
-      }
+      await sendCreatePayment(paymentRequest, idempotencyKey);
     }, retryAfterSeconds * 1000);
   };
 
@@ -191,24 +205,42 @@ function App() {
    * Extracts error message from error object
    */
   const getErrorMessage = (err) => {
-    return err.data?.message || err.data?.error || err.message || 'An error occurred';
+    return err.data?.details?.message || err.data?.message || err.data?.error || err.message || 'An error occurred';
   };
 
   /**
-   * Handles 409 CONFLICT without Retry-After (permanent conflict)
+   * Sends create payment and handles every answer.
+   *   201 / 200 / 202 -> intent exists; the checkout attempt is finished, drop the key
+   *   409             -> first request still running; retry with the same key
+   *   422             -> this key was used with a different body; drop the key
+   *   anything else   -> keep the key, so "Proceed to Checkout" again resends with it
    */
-  const handlePermanentConflict = () => {
-    setError('This idempotency key was already used with a different request. Please use a new idempotency key.');
-    setStep(STEPS.ERROR);
-  };
+  const sendCreatePayment = async (paymentRequest, idempotencyKey) => {
+    let result;
+    try {
+      result = await createPayment(paymentRequest, idempotencyKey);
+    } catch (err) {
+      if (err.status === 409) {
+        const retrySeconds = parseInt(err.data?.headers?.['retry-after']) || 2;
+        handleInProgress(retrySeconds, paymentRequest, idempotencyKey);
+        return;
+      }
+      if (err.status === 422) {
+        checkoutKeyRef.current = null;
+        checkoutBodyRef.current = null;
+        setError('This idempotency key was already used with a different request. Submit again to start a new checkout.');
+        setStep(STEPS.ERROR);
+        return;
+      }
+      setError(getErrorMessage(err) || 'Failed to create payment');
+      setStep(STEPS.ERROR);
+      return;
+    }
 
-  /**
-   * Processes payment creation request
-   * Uses HTTP status codes as primary decision point
-   */
-  const processPaymentRequest = async (paymentRequest, idempotencyKey) => {
-    const result = await createPayment(paymentRequest, idempotencyKey);
     const { payment, status } = result;
+    // the payment intent exists: this checkout attempt is done
+    checkoutKeyRef.current = null;
+    checkoutBodyRef.current = null;
     setPaymentData(payment);
 
     // HTTP 202 ACCEPTED → Always poll (payment is processing asynchronously)
@@ -224,8 +256,32 @@ function App() {
       return;
     }
 
-    // Unexpected status
-    throw new Error(`Unexpected HTTP status: ${status}`);
+    setError(`Unexpected HTTP status: ${status}`);
+    setStep(STEPS.ERROR);
+  };
+
+  /** The request body payment-service expects (CreatePaymentIntentRequestDTO). */
+  const buildPaymentRequest = () => {
+    const paymentRequest = {
+      orderId: orderId.trim(),
+      buyerId: buyerId.trim(),
+      merchantAccount: merchantAccount.trim(),
+      processingModel: processingModel,
+      totalAmount: { quantity: parseInt(totalAmount), currency }
+    };
+    // DIRECT_MERCHANT must have no splits; MARKETPLACE must have splits
+    if (processingModel === 'MARKETPLACE') {
+      const requestSplits = [];
+      for (const sp of splits) {
+        const split = { type: sp.type, amount: { quantity: parseInt(sp.amount), currency } };
+        if (sp.type === 'BalanceAccount') {
+          split.account = sp.account.trim();
+        }
+        requestSplits.push(split);
+      }
+      paymentRequest.splits = requestSplits;
+    }
+    return paymentRequest;
   };
 
   // Payment creation entry point
@@ -234,42 +290,17 @@ function App() {
     setError(null);
     setStep(STEPS.CREATING);
 
-    // Generate idempotency key (browser responsibility)
-    const idempotencyKey = crypto.randomUUID();
+    const paymentRequest = buildPaymentRequest();
+    const body = JSON.stringify(paymentRequest);
 
-    const paymentRequest = {
-      orderId: orderId.trim(),
-      buyerId: buyerId.trim(),
-      totalAmount: { quantity: parseInt(totalAmount), currency },
-      paymentOrders: paymentOrders.map(po => ({
-        sellerId: po.sellerId.trim(),
-        amount: { quantity: parseInt(po.amount), currency }
-      }))
-    };
-
-    // Store idempotency key in request object for retries
-    paymentRequest._idempotencyKey = idempotencyKey;
-
-    try {
-      await processPaymentRequest(paymentRequest, idempotencyKey);
-    } catch (err) {
-      // Handle 409 CONFLICT errors
-      if (err.status === 409) {
-        const retryAfter = err.data?.headers?.['retry-after'];
-        
-        if (retryAfter) {
-          // Temporary conflict → retry createPayment after delay (uses same idempotency key)
-          const retrySeconds = parseInt(retryAfter) || 2;
-          handleTemporaryConflict(retrySeconds, paymentRequest);
-        } else {
-          // Permanent conflict → show error
-          handlePermanentConflict();
-        }
-      } else {
-        setError(getErrorMessage(err) || 'Failed to create payment');
-        setStep(STEPS.ERROR);
-      }
+    // Same request as the unfinished attempt → same key (the server answers it at most once).
+    // Different request → a new checkout attempt → a new key.
+    if (checkoutKeyRef.current === null || checkoutBodyRef.current !== body) {
+      checkoutKeyRef.current = uuidV7();
+      checkoutBodyRef.current = body;
     }
+
+    await sendCreatePayment(paymentRequest, checkoutKeyRef.current);
   };
 
   // Payment authorization
@@ -342,6 +373,20 @@ function App() {
                 <input type="text" value={buyerId} onChange={(e) => setBuyerId(e.target.value)} required />
               </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Merchant Account *</label>
+                  <input type="text" value={merchantAccount} onChange={(e) => setMerchantAccount(e.target.value)} required />
+                </div>
+                <div className="form-group">
+                  <label>Processing Model *</label>
+                  <select value={processingModel} onChange={(e) => setProcessingModel(e.target.value)}>
+                    <option value="MARKETPLACE">MARKETPLACE (with splits)</option>
+                    <option value="DIRECT_MERCHANT">DIRECT_MERCHANT (no splits)</option>
+                  </select>
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
                 <div className="form-group">
                   <label>Total Amount (cents) *</label>
@@ -352,9 +397,11 @@ function App() {
                     min="1" 
                     required 
                   />
-                  <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
-                    Calculated: {totalCalculated}
-                  </small>
+                  {processingModel === 'MARKETPLACE' && (
+                    <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                      Sum of splits: {totalCalculated}
+                    </small>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Currency *</label>
@@ -366,54 +413,67 @@ function App() {
                 </div>
               </div>
 
-              <h3 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '16px' }}>Payment Orders</h3>
-              
-              {paymentOrders.map((po, index) => (
-                <div key={po.id} className="seller-line">
-                  <div className="seller-line-header">
-                    <h3>Order #{index + 1}</h3>
-                    {paymentOrders.length > 1 && (
-                      <button 
-                        type="button" 
-                        onClick={() => removePaymentOrder(po.id)}
-                        className="remove-btn"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                  <div className="seller-line-fields">
-                    <div className="form-group">
-                      <label>Seller ID *</label>
-                      <input
-                        type="text"
-                        value={po.sellerId}
-                        onChange={(e) => updatePaymentOrder(po.id, 'sellerId', e.target.value)}
-                        placeholder="SELLER-111"
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Amount (cents) *</label>
-                      <input
-                        type="number"
-                        value={po.amount}
-                        onChange={(e) => updatePaymentOrder(po.id, 'amount', e.target.value)}
-                        min="1"
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {processingModel === 'MARKETPLACE' && (
+                <>
+                  <h3 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '16px' }}>Splits</h3>
 
-              <button 
-                type="button" 
-                onClick={addPaymentOrder} 
-                className="add-seller-btn"
-              >
-                + Add Payment Order
-              </button>
+                  {splits.map((sp, index) => (
+                    <div key={sp.id} className="seller-line">
+                      <div className="seller-line-header">
+                        <h3>Split #{index + 1}</h3>
+                        {splits.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeSplit(sp.id)}
+                            className="remove-btn"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <div className="seller-line-fields">
+                        <div className="form-group">
+                          <label>Type *</label>
+                          <select value={sp.type} onChange={(e) => updateSplit(sp.id, 'type', e.target.value)}>
+                            <option value="BalanceAccount">Seller (BalanceAccount)</option>
+                            <option value="Commission">Commission</option>
+                          </select>
+                        </div>
+                        {sp.type === 'BalanceAccount' && (
+                          <div className="form-group">
+                            <label>Seller ID *</label>
+                            <input
+                              type="text"
+                              value={sp.account}
+                              onChange={(e) => updateSplit(sp.id, 'account', e.target.value)}
+                              placeholder="SELLER-5-1"
+                              required
+                            />
+                          </div>
+                        )}
+                        <div className="form-group">
+                          <label>Amount (cents) *</label>
+                          <input
+                            type="number"
+                            value={sp.amount}
+                            onChange={(e) => updateSplit(sp.id, 'amount', e.target.value)}
+                            min="1"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addSplit}
+                    className="add-seller-btn"
+                  >
+                    + Add Split
+                  </button>
+                </>
+              )}
 
               <button type="submit" className="submit-btn">Proceed to Checkout</button>
             </form>
@@ -442,7 +502,7 @@ function App() {
               </div>
             )}
             {error && <div className="error-message">{error}</div>}
-            <Elements stripe={stripePromise} options={{ clientSecret }}>
+            <Elements stripe={stripePromise} options={stripeElementsOptions(clientSecret, paymentData)}>
               <PaymentForm onPaymentSubmit={handleAuthorize} onError={(err) => setError(err.message)} />
             </Elements>
           </div>

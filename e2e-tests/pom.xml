@@ -30,6 +30,9 @@
         <awaitility.version>4.2.1</awaitility.version>
         <!-- This module has no unit tests; only container integration tests. -->
         <skipUnitTests>true</skipUnitTests>
+        <!-- Local-only name of the images built from the working tree (see exec-maven-plugin). -->
+        <e2e.image.repo>payment-platform-e2e</e2e.image.repo>
+        <e2e.image.tag>local</e2e.image.tag>
     </properties>
 
     <dependencies>
@@ -155,6 +158,94 @@
             </testResource>
         </testResources>
         <plugins>
+            <!--
+              Always test the working tree: before the tests run, build the 4 service images from
+              each module's Dockerfile (repo root as build context). Docker's layer cache keeps this
+              fast when nothing changed. The tag is local-only, so the published
+              dcaglar1987/*:latest images are never used or overwritten. A failed build stops the run.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <executable>docker</executable>
+                    <workingDirectory>${project.basedir}/..</workingDirectory>
+                    <environmentVariables>
+                        <DOCKER_BUILDKIT>1</DOCKER_BUILDKIT>
+                    </environmentVariables>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>build-payment-service-image</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>
+                                <argument>build</argument>
+                                <argument>-f</argument>
+                                <argument>payment-service/Dockerfile</argument>
+                                <argument>-t</argument>
+                                <argument>${e2e.image.repo}/payment-service:${e2e.image.tag}</argument>
+                                <argument>.</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>build-payment-edge-workers-image</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>
+                                <argument>build</argument>
+                                <argument>-f</argument>
+                                <argument>payment-edge-workers/Dockerfile</argument>
+                                <argument>-t</argument>
+                                <argument>${e2e.image.repo}/payment-edge-workers:${e2e.image.tag}</argument>
+                                <argument>.</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>build-payment-central-relay-image</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>
+                                <argument>build</argument>
+                                <argument>-f</argument>
+                                <argument>payment-central-relay/Dockerfile</argument>
+                                <argument>-t</argument>
+                                <argument>${e2e.image.repo}/payment-central-relay:${e2e.image.tag}</argument>
+                                <argument>.</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>build-payment-consumers-image</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>
+                                <argument>build</argument>
+                                <argument>-f</argument>
+                                <argument>payment-consumers/Dockerfile</argument>
+                                <argument>-t</argument>
+                                <argument>${e2e.image.repo}/payment-consumers:${e2e.image.tag}</argument>
+                                <argument>.</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>

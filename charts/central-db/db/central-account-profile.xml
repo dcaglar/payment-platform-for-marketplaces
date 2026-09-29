@@ -5,6 +5,11 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
 
+    <!-- account_directory: one row per ledger account.
+         account_type        = the role of the account (AccountType enum)
+         master_account_code = the merchant that owns it, or GLOBAL for platform-wide accounts
+         sub_entity_id       = the seller id for seller accounts; NULL for every other account
+         account_code        = ACCOUNT_TYPE.MASTER.[SUB_ENTITY].CURRENCY, the id stored on postings -->
     <changeSet id="20251104-create-account-directory" author="dogancaglar">
         <createTable tableName="account_directory">
             <column name="account_code" type="VARCHAR(128)">
@@ -16,6 +21,7 @@
             <column name="master_account_code" type="VARCHAR(64)">
                 <constraints nullable="false"/>
             </column>
+            <column name="sub_entity_id" type="VARCHAR(64)"/>
             <column name="currency" type="CHAR(3)">
                 <constraints nullable="false"/>
             </column>
@@ -35,6 +41,18 @@
         <createIndex tableName="account_directory" indexName="idx_account_directory_entity">
             <column name="master_account_code"/>
         </createIndex>
+
+        <!-- Raw SQL: an expression index and a partial index cannot be written with createIndex -->
+        <sql>
+            -- One account per role, per merchant, per seller (when present), per currency
+            CREATE UNIQUE INDEX uq_account_directory_lookup
+                ON account_directory (account_type, master_account_code, COALESCE(sub_entity_id, ''), currency);
+
+            -- A seller id is unique across the whole platform
+            CREATE UNIQUE INDEX uq_account_directory_sub_entity
+                ON account_directory (account_type, sub_entity_id, currency)
+                WHERE sub_entity_id IS NOT NULL;
+        </sql>
     </changeSet>
 
     <!-- ========== SEED DATA ========== -->

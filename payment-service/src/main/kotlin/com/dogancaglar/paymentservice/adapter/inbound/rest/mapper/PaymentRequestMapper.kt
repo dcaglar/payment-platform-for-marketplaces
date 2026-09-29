@@ -35,12 +35,12 @@ object PaymentRequestMapper {
             paymentSplits = dto.splits?.map { split ->
                 when (split) {
                     is PaymentSplitRequestDTO.BalanceAccount -> PaymentSplit.of(
-                        accountType = AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT,
+                        accountType = AccountType.SELLER_PAYABLE,
                         account = split.account,
                         amount = Amount.of(split.amount.quantity, Currency(split.amount.currency.name))
                     )
                     is PaymentSplitRequestDTO.Commission -> PaymentSplit.of(
-                        accountType = AccountType.MARKETPLACE_COMMISSION_REVENUE_BALANCE_ACCOUNT,
+                        accountType = AccountType.MERCHANT_COMMISSION_PAYABLE,
                         account = dto.merchantAccount,
                         amount = Amount.of(split.amount.quantity, Currency(split.amount.currency.name))
                     )

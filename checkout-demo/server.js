@@ -25,7 +25,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+// Expose the payment-service headers, otherwise the browser cannot read them on a cross-origin response
+app.use(cors({ exposedHeaders: ['Retry-After', 'Location', 'Idempotent-Replayed'] }));
 app.use(express.json());
 
 // Helper to read .env file values
@@ -57,7 +58,7 @@ function readEnvFile() {
 const envFile = readEnvFile();
 
 // Read configuration from environment variables, .env file, or defaults
-const KEYCLOAK_URL = process.env.KEYCLOAK_URL || envFile.KEYCLOAK_URL || 'http://127.0.0.1:32080';
+const KEYCLOAK_URL = process.env.KEYCLOAK_URL || envFile.KEYCLOAK_URL || 'http://keycloak.payment.svc.cluster.local:8080';
 const REALM = process.env.KEYCLOAK_REALM || envFile.KEYCLOAK_REALM || 'ecommerce-platform';
 const CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || envFile.KEYCLOAK_CLIENT_ID || 'payment-service';
 
@@ -388,6 +389,11 @@ app.post('/api/checkout/process-payment', async (req, res) => {
       console.error(`   [${requestId}] ❌ Payment service returned error:`);
       console.error(`   [${requestId}]    Status: ${paymentResponse.status} ${paymentResponse.statusText}`);
       console.error(`   [${requestId}]    Response:`, JSON.stringify(paymentResponseData, null, 2));
+      // Forward Retry-After (sent with 409 "still processing") so the browser can retry with the same key
+      const errorRetryAfter = paymentResponse.headers['retry-after'] || paymentResponse.headers['Retry-After'];
+      if (errorRetryAfter) {
+        res.set('retry-after', errorRetryAfter);
+      }
       return res.status(paymentResponse.status).json({
         error: 'Payment service request failed',
         status: paymentResponse.status,

@@ -39,8 +39,8 @@ object JournalEntryTestHelper {
     ): JournalEntry {
         val authReceivable = Account.create(AccountType.AUTH_RECEIVABLE, "GLOBAL")
         val authLiability = Account.create(AccountType.AUTH_LIABILITY, "GLOBAL")
-        val merchantGrossPool = Account.create(AccountType.MERCHANT_GROSS_CAPTURE_SUSPENSE, merchantId)
-        val pspReceivable = Account.create(AccountType.PSP_RECEIVABLES, "GLOBAL")
+        val merchantGrossPool = Account.create(AccountType.CAPTURE_SUSPENSE, merchantId)
+        val pspReceivable = Account.create(AccountType.PSP_RECEIVABLE, "GLOBAL")
         val poId = paymentOrderId.filter { it.isDigit() }.toLongOrNull() ?: 200L
         val result = JournalEntry.captureGrossAsset(
             globalJournalEntryId = 2L,

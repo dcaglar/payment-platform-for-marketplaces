@@ -6,5 +6,3 @@ sealed class PaymentValidationException(message: String) : RuntimeException(mess
 class PspInvalidPaymentException(mesage:String) : PaymentValidationException(mesage)
 
 class PaymentNotReadyException(mesage:String) : PaymentValidationException(mesage)
-
-class PaymentIntentNotReadyException(message: String) : PaymentValidationException(message)

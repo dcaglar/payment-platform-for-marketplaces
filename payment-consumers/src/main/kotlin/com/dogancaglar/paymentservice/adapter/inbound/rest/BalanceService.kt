@@ -28,8 +28,17 @@ class BalanceService(
     fun getSellerBalance(sellerId: String): BalanceDto {
         logger.debug("Retrieving balance for seller: {}", sellerId)
         
-        // Get account profile to determine account code and currency
-        val profile = accountDirectory.getAccountProfile(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, sellerId)
+        // Get account profile to determine account code and currency.
+        // A seller id is unique across the platform, so the seller id alone finds the account.
+        val profiles = accountDirectory.getAccountProfilesBySubEntity(AccountType.SELLER_PAYABLE, sellerId)
+        if (profiles.isEmpty()) {
+            throw IllegalArgumentException("Account not found: ${AccountType.SELLER_PAYABLE.name} for seller $sellerId")
+        }
+        if (profiles.size > 1) {
+            // This endpoint returns a single balance; a seller with several currencies is not supported yet
+            throw IllegalStateException("Seller $sellerId has ${profiles.size} accounts (one per currency); expected exactly one")
+        }
+        val profile = profiles[0]
         val accountCode = profile.accountCode
         
         // Get real-time balance (snapshot + Redis delta)

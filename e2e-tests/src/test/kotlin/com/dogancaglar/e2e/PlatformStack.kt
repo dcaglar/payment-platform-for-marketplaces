@@ -21,7 +21,7 @@ import java.util.Properties
  *   1. start infra: keycloak, edge-db, central-db, kafka, redis
  *   2. migrate edge-db + central-db from the REAL charts chart-db Liquibase changelogs
  *   3. create the core Kafka topics (gateway.capture.requested is NOT in any app spec)
- *   4. start the 4 services (images built from each module's Dockerfile)
+ *   4. start the 4 services (images built from the working tree by the e2e pom before the tests)
  *
  * The test JVM (host) reaches DBs / keycloak / payment-service via mapped ports;
  * the services reach each other via in-network aliases.
@@ -95,11 +95,14 @@ object PlatformStack {
         .withNetworkAliases("redis-master")
 
     // -------------------------------------------------------------- services
-    // Reuse the already-published images as-is (no in-test build, no app-source e2e config).
+    // Images built from the working tree by e2e-tests/pom.xml (exec-maven-plugin, pre-integration-test),
+    // under a local-only name so the published dcaglar1987/*:latest images are never used.
+    // Keep in sync with <e2e.image.repo>/<e2e.image.tag> in e2e-tests/pom.xml.
     // They contain application-local.yml; we run SPRING_PROFILES_ACTIVE=local and override only the
     // infra addresses/creds below to point the app at this Testcontainers network.
-    private const val IMAGE_REPO = "dcaglar1987"
-    private fun imageTag(module: String) = DockerImageName.parse("$IMAGE_REPO/$module:latest")
+    private const val IMAGE_REPO = "payment-platform-e2e"
+    private const val IMAGE_TAG = "local"
+    private fun imageTag(module: String) = DockerImageName.parse("$IMAGE_REPO/$module:$IMAGE_TAG")
 
     val paymentService: GenericContainer<*> = GenericContainer(imageTag("payment-service"))
         .withNetwork(network)

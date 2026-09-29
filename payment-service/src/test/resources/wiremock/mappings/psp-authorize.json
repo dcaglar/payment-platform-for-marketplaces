@@ -1,0 +1,285 @@
+{
+  "mappings": [
+    {
+      "priority": 10,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*[^/]*/authorize"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "id": "{{request.pathSegments.[2]}}",
+          "status": "AUTHORIZED"
+        },
+        "transformers": [
+          "response-template"
+        ]
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-DECLINE-402[^/]*/authorize"
+      },
+      "response": {
+        "status": 402,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "error": {
+            "code": "card_declined"
+          }
+        }
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-PENDING[^/]*/authorize"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "id": "{{request.pathSegments.[2]}}",
+          "status": "PENDING"
+        },
+        "transformers": [
+          "response-template"
+        ]
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-400[^/]*/authorize"
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "error": {
+            "code": "invalid_request"
+          }
+        }
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-503[^/]*/authorize"
+      },
+      "response": {
+        "status": 503
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-RESET[^/]*/authorize"
+      },
+      "response": {
+        "fault": "CONNECTION_RESET_BY_PEER"
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-500[^/]*/authorize"
+      },
+      "response": {
+        "status": 500
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-502[^/]*/authorize"
+      },
+      "response": {
+        "status": 502
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-504[^/]*/authorize"
+      },
+      "response": {
+        "status": 504
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-429[^/]*/authorize"
+      },
+      "response": {
+        "status": 429
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-NOT-JSON[^/]*/authorize"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/html"
+        },
+        "body": "<html>oops</html>"
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-HANG[^/]*/authorize"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "id": "{{request.pathSegments.[2]}}",
+          "status": "AUTHORIZED"
+        },
+        "transformers": [
+          "response-template"
+        ],
+        "fixedDelayMilliseconds": 9000
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-429[^/]*/authorize"
+      },
+      "response": {
+        "status": 429,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "error": {
+            "code": "rate_limited"
+          }
+        }
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-SLOW[^/]*/authorize"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "id": "{{request.pathSegments.[2]}}",
+          "status": "AUTHORIZED"
+        },
+        "transformers": [
+          "response-template"
+        ],
+        "fixedDelayMilliseconds": 5000
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-LATE-DECLINE[^/]*/authorize"
+      },
+      "response": {
+        "status": 402,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "error": {
+            "code": "card_declined"
+          }
+        },
+        "fixedDelayMilliseconds": 5000
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-LATE-REFUSE[^/]*/authorize"
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "error": {
+            "code": "invalid_request"
+          }
+        },
+        "fixedDelayMilliseconds": 5000
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-LATE-503[^/]*/authorize"
+      },
+      "response": {
+        "status": 503,
+        "fixedDelayMilliseconds": 4000
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-LATE-500[^/]*/authorize"
+      },
+      "response": {
+        "status": 500,
+        "fixedDelayMilliseconds": 4000
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/v1/intents/[^/]*PSP-AUTH-LATE-RESET[^/]*/authorize"
+      },
+      "response": {
+        "fault": "CONNECTION_RESET_BY_PEER",
+        "fixedDelayMilliseconds": 4000
+      }
+    }
+  ]
+}

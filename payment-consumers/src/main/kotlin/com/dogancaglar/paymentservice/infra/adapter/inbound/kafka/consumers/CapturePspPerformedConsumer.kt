@@ -31,7 +31,7 @@ class CapturePspPerformedConsumer(
         val envelope = record.value()
         EventLogContext.with(envelope) {
             val eventId = envelope.data.deterministicEventId()
-            if (dedupe.exists(eventId)) {
+            if (dedupe.exists(CONSUMER_GROUPS.CAPTURE_SUBMITTED_CONSUMER, eventId)) {
                 logger.warn("⚠️ Event is processed already, skipping eventId=\$eventId")
                 return@with
             }
@@ -44,7 +44,7 @@ class CapturePspPerformedConsumer(
                     event = eventData,
                     parentEventId = envelope.eventId
                 )
-                dedupe.markProcessed(eventId, 3600)
+                dedupe.markProcessed(CONSUMER_GROUPS.CAPTURE_SUBMITTED_CONSUMER, eventId, 3600)
                 logger.info("Capture PSP performed consumer executed successfully for paymentIntentId=${eventData.publicPaymentIntentId}")
             } catch (e: Exception) {
                 logger.error("❌ Failed to process capture PSP performed event", e)

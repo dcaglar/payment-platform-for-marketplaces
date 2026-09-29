@@ -98,7 +98,7 @@
 
     <update id="updatePaymentIntentWithPspResponse" parameterType="map">
         UPDATE payment_intents
-        SET psp_reference = #{pspReference},
+        SET psp_reference = #{pspReference, jdbcType=VARCHAR},
         status = #{status},
         updated_at = #{updatedAt, typeHandler=com.dogancaglar.common.db.typehandler.InstantTypeHandler}
         WHERE payment_intent_id = #{paymentIntentId}

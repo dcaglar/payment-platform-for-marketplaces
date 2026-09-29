@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -41,8 +42,13 @@ class ResilientExecutionAdapter(
             //    execute on resilientExecutor once the PSP task eventually completes.
             future.whenCompleteAsync({ result, error ->
                 if (error != null) {
-                    logger.error("Background task failed after timeout", error)
-                    onBackgroundFailure(error)
+                    // the future wraps the task's exception in a CompletionException: pass on the real one.
+                    // Logged by the caller's onBackgroundFailure.
+                    var cause = error
+                    if (error is CompletionException && error.cause != null) {
+                        cause = error.cause!!
+                    }
+                    onBackgroundFailure(cause)
                 } else {
                     logger.info("Background task completed successfully after timeout")
                     onBackgroundSuccess(result)
@@ -53,8 +59,8 @@ class ResilientExecutionAdapter(
 
             onTimeoutFallback()
         } catch (e: Exception) {
+            // not logged here: the layer that handles it logs it once
             val cause = e.cause ?: e
-            logger.error("Task failed immediately: ${cause.message}")
             throw cause
         }
     }

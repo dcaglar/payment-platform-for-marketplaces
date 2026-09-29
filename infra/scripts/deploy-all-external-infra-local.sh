@@ -51,7 +51,6 @@ helm upgrade --install redis bitnami/redis \
   -f "$REPO_ROOT/infra/helm-values/redis-values-local.yaml"
 
 
-
 INGRESS_CONTROLLER_VALUES_FILE="$REPO_ROOT/infra/helm-values/ingress-nginx-values-local.yaml"
 
 echo "======================================================="

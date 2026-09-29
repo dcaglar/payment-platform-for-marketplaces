@@ -6,6 +6,8 @@
     "dev": "npm-run-all --parallel dev:server dev:client",
     "dev:client": "vite",
     "dev:server": "node server.js",
+    "dev:mock": "npm-run-all --parallel mock:server dev:client",
+    "mock:server": "node mock-server.js",
     "build": "vite build",
     "preview": "vite preview",
     "setup-env": "node generate-env.cjs"

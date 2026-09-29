@@ -10,18 +10,19 @@ class RedisEventDedupAdapter(
     private val redis: StringRedisTemplate
 ) : EventDeduplicationPort {
 
-    override fun exists(eventId: String): Boolean {
-        return redis.hasKey(dedupKey(eventId)) == true
+    override fun exists(prefix: String, eventId: String): Boolean {
+        return redis.hasKey(dedupKey(prefix, eventId))
     }
 
-    override fun markProcessed(eventId: String, ttlSeconds: Long) {
+    override fun markProcessed(prefix: String, eventId: String, ttlSeconds: Long) {
         redis.opsForValue().set(
-            dedupKey(eventId),
+            dedupKey(prefix, eventId),
             "1",
             ttlSeconds,
             TimeUnit.SECONDS
         )
     }
 
-    private fun dedupKey(eventId: String) = "dedup:event:$eventId"
+    // One record per prefix (mqybe. consumer group), so groups reading the same topic never skip each other's events.
+    private fun dedupKey(prefix: String, eventId: String) = "dedup:$prefix:$eventId"
 }

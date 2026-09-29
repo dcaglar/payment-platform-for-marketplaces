@@ -43,7 +43,7 @@ class PspResultConsumer(
         EventLogContext.with(envelope) {
 
            val eventId = envelope.data.deterministicEventId()
-            if (dedupe.exists(eventId)) {
+            if (dedupe.exists(CONSUMER_GROUPS.PSP_RESULT_CONSUMER, eventId)) {
                 logger.warn("⚠️ Event is processed already, skipping eventId=$eventId")
                 return@with
             }
@@ -80,7 +80,7 @@ class PspResultConsumer(
                 }
 
                 logger.info("PSP result consumer executed successfully for event type=${event.javaClass.simpleName}")
-                dedupe.markProcessed(eventId, 3600)
+                dedupe.markProcessed(CONSUMER_GROUPS.PSP_RESULT_CONSUMER, eventId, 3600)
             } catch (e: Exception) {
                 logger.error(
                     "❌ Failed to process event ${event.javaClass.simpleName} with eventId: ${record.value().eventId}",

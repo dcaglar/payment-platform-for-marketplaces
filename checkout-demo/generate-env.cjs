@@ -7,6 +7,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const SECRETS_FILE = path.join(PROJECT_ROOT, 'keycloak', 'output', 'secrets.txt');
@@ -15,7 +16,7 @@ const ENV_EXAMPLE = path.join(__dirname, '.env.example');
 
 // Default values
 const defaults = {
-  VITE_KEYCLOAK_URL: 'http://127.0.0.1:32080',
+  VITE_KEYCLOAK_URL: 'http://keycloak.payment.svc.cluster.local:8080',
   VITE_KEYCLOAK_REALM: 'ecommerce-platform',
   VITE_KEYCLOAK_CLIENT_ID: 'payment-service',
   VITE_KEYCLOAK_CLIENT_SECRET: '',
@@ -48,6 +49,25 @@ function readSecrets() {
 }
 
 
+
+/**
+ * Load-balancer IP of a service, found the same way as the terminal commands in
+ * docs/how-to-start.md and keycloak/get-token.sh. Returns null when kubectl cannot tell.
+ */
+function loadBalancerIp(namespace, service) {
+  try {
+    const ip = execSync(
+      `kubectl get svc ${service} -n ${namespace} -o jsonpath='{.status.loadBalancer.ingress[0].ip}'`,
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 10000 }
+    ).trim();
+    if (ip) {
+      return ip;
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
 
 function readExistingEnv() {
   const env = {};
@@ -93,6 +113,21 @@ function generateEnv() {
     VITE_KEYCLOAK_CLIENT_ID: defaults.VITE_KEYCLOAK_CLIENT_ID,
   };
 
+  // Addresses come from the running cluster, like the curl commands in how-to-start.md.
+  // They replace older values in .env, because a redeploy can change them.
+  const keycloakIp = loadBalancerIp('payment', 'keycloak');
+  if (keycloakIp) {
+    env.VITE_KEYCLOAK_URL = `http://${keycloakIp}:8080`;
+  } else {
+    console.warn(`⚠️  Could not get the Keycloak IP from kubectl, using ${env.VITE_KEYCLOAK_URL}`);
+  }
+  const ingressIp = loadBalancerIp('ingress-controller', 'ingress-nginx-controller');
+  if (ingressIp) {
+    env.VITE_API_BASE_URL = `http://${ingressIp}`;
+  } else {
+    console.warn(`⚠️  Could not get the ingress IP from kubectl, using ${env.VITE_API_BASE_URL}`);
+  }
+
 
 
   // Generate .env content
@@ -105,6 +140,9 @@ function generateEnv() {
     '',
     '# Payment API Configuration',
     `VITE_API_BASE_URL=${env.VITE_API_BASE_URL}`,
+    '',
+    '# Stripe publishable key (browser only; never put a secret key sk_... here)',
+    `VITE_STRIPE_PUBLISHABLE_KEY=${env.VITE_STRIPE_PUBLISHABLE_KEY || ''}`,
     ''
   ];
 

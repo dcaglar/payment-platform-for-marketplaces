@@ -8,8 +8,4 @@ import org.apache.ibatis.annotations.Mapper
 interface LedgerMapper {
     fun insertJournalEntry(entry: JournalEntryEntity): Int
     fun insertPosting(posting: PostingEntity): Int
-
-    // Query methods for testing
-    fun findByJournalId(journalId: String): JournalEntryEntity?
-    fun findPostingsByJournalId(journalId: String): List<PostingEntity>
 }

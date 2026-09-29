@@ -61,10 +61,34 @@ helm upgrade --install tempo grafana/tempo \
   -f "$REPO_ROOT/infra/helm-values/tempo-values-local.yaml"
 
 echo "========================================================"
-echo "🚀 Ensuring application ServiceMonitors are DISABLED (We use OpenTelemetry Push Model!)..."
-yq -i '.controller.metrics.serviceMonitor.enabled = true' "$REPO_ROOT/infra/helm-values/ingress-nginx-values-local.yaml" || true
-yq -i '.serviceMonitor.enabled = false' "$REPO_ROOT/charts/payment-edge-cell/local/values.yaml" || true
-yq -i '.serviceMonitor.enabled = false' "$REPO_ROOT/charts/payment-consumers/local/values.yaml" || true
-yq -i '.serviceMonitor.enabled = false' "$REPO_ROOT/charts/payment-central-relay/local/values.yaml" || true
-yq -i '.serviceMonitor.enabled = false' "$REPO_ROOT/charts/payment-edge-workers/local/values.yaml" || true
-echo "✅ OpenTelemetry is active! Prometheus scraping (ServiceMonitors) is turned off for applications."
+# Apps push metrics via OpenTelemetry; their ServiceMonitors are off in their charts' values.
+# Only ingress-nginx is scraped by Prometheus (NGINX can't push OTel), so enable its ServiceMonitor
+# in the running release now that the Prometheus Operator CRDs exist.
+echo "🔌 Enabling Prometheus scraping for ingress-nginx..."
+
+# Only "release not found" means "not installed yet"; any other error (cluster unreachable, auth, ...) must fail loudly.
+if status_out=$(helm status ingress-nginx -n ingress-controller 2>&1); then
+  helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx >/dev/null 2>&1 || true
+  if ! repo_out=$(helm repo update ingress-nginx 2>&1); then
+    log_error "ingress-nginx (helm repo update)" "$repo_out"
+    exit 1
+  fi
+
+  if ! upgrade_out=$(helm upgrade ingress-nginx ingress-nginx/ingress-nginx -n ingress-controller \
+      --reuse-values --set controller.metrics.serviceMonitor.enabled=true 2>&1); then
+    log_error "ingress-nginx (enable ServiceMonitor)" "$upgrade_out"
+    exit 1
+  fi
+
+  # Verify the ServiceMonitor really exists; don't trust the upgrade alone.
+  if ! sm_out=$(kubectl get servicemonitor -n ingress-controller -l app.kubernetes.io/name=ingress-nginx -o name 2>&1) || [[ -z "$sm_out" ]]; then
+    log_error "ingress-nginx ServiceMonitor" "upgrade succeeded but no ServiceMonitor found in namespace ingress-controller. ${sm_out}"
+    exit 1
+  fi
+  log_success "ingress-nginx ServiceMonitor (${sm_out})"
+elif echo "$status_out" | grep -qi "release: not found"; then
+  echo "ℹ️  ingress-nginx is not installed yet. After deploy-all-external-infra-local.sh, re-run this script to enable its ServiceMonitor."
+else
+  log_error "ingress-nginx (helm status)" "$status_out"
+  exit 1
+fi

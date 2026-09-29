@@ -12,6 +12,7 @@ import com.dogancaglar.paymentservice.domain.model.payment.PaymentMethod
 import com.dogancaglar.paymentservice.ports.outbound.PspAuthorizationGatewayPort
 import com.stripe.StripeClient
 import com.stripe.exception.ApiConnectionException
+import com.stripe.exception.CardException
 import com.stripe.exception.StripeException
 import com.stripe.net.RequestOptions
 import com.stripe.param.PaymentIntentConfirmParams
@@ -60,19 +61,15 @@ class StripePspAuthorizationGatewayAdapter(
         /*Returns a new CompletableFuture that is asynchronously completed by a task( callCreatePaymentIntentApi(paymentIntent)) running in the given
          executor(pspAuthExecutor) with the value obtained by calling the given Supplier.
         */
-        val futurePaymentIntent = CompletableFuture.supplyAsync({
-            //actual task to be execited
+        return submit(createPaymentIntentExecutor) {
             callCreatePaymentIntentApi(paymentIntent)
-        }, createPaymentIntentExecutor)
-        return futurePaymentIntent
+        }
     }
 
     override fun authorizePaymentIntent(paymentIntent: PaymentIntent, token: PaymentMethod?): CompletableFuture<PaymentIntent> {
-        val futureAuthorizedPaymentIntent = CompletableFuture.supplyAsync({
+        return submit(authorizePaymentIntentExecutor) {
             callConfirmPaymentIntentApi(paymentIntent, token)
-        }, authorizePaymentIntentExecutor)
-
-        return futureAuthorizedPaymentIntent
+        }
     }
 
     private fun callCreatePaymentIntentApi(paymentIntent: PaymentIntent): PaymentIntent {
@@ -100,13 +97,16 @@ class StripePspAuthorizationGatewayAdapter(
             val confirmedStripePaymentIntent = stripeClient.v1().paymentIntents()
                 .confirm(paymentIntent.pspReferenceOrThrow(), paymentIntentConfirmParams, stripeOptions)
             updatePaymentIntentStatus(paymentIntent, confirmedStripePaymentIntent.status)
+        } catch (e: CardException) {
+            // Stripe reports a card decline as an exception; for us a decline is a result
+            paymentIntent.markDeclined()
         } catch (e: Exception) {
             throw handleException("confirmation", e)
         }
     }
 
     override fun retrieveClientSecret(pspReference: String): CompletableFuture<String>? {
-        return CompletableFuture.supplyAsync({
+        return submit(createPaymentIntentExecutor) {
             try {
                 val retrieved = stripeClient.v1().paymentIntents().retrieve(pspReference)
                 logger.debug(
@@ -117,7 +117,19 @@ class StripePspAuthorizationGatewayAdapter(
             } catch (e: Exception) {
                 throw handleException("retrieval", e)
             }
-        }, createPaymentIntentExecutor)
+        }
+    }
+
+    /**
+     * Hands the PSP call to its thread pool. A full pool means the call was never sent:
+     * not done, try again later.
+     */
+    private fun <T> submit(executor: ThreadPoolTaskExecutor, task: () -> T): CompletableFuture<T> {
+        try {
+            return CompletableFuture.supplyAsync({ task() }, executor)
+        } catch (e: RejectedExecutionException) {
+            throw PspTransientException("PSP call not sent: thread pool is full", e)
+        }
     }
 
     private fun handleException(action: String, e: Exception): Exception {
@@ -203,7 +215,7 @@ class StripePspAuthorizationGatewayAdapter(
         when (stripeStatus?.uppercase()) {
             "REQUIRES_CAPTURE", "SUCCEEDED" -> paymentIntent.markAuthorized()
             "CANCELED", "CANCELLED" -> paymentIntent.markCancelled()
-            "PROCESSING", "REQUIRES_ACTION" -> paymentIntent.markAuthorizedPending() // 3DS/SCA needs action -> Pending
+            "PROCESSING", "REQUIRES_ACTION" -> paymentIntent // not decided yet: stays PENDING_AUTH
             "REQUIRES_CONFIRMATION", "REQUIRES_PAYMENT_METHOD" -> paymentIntent.markDeclined()
             else -> paymentIntent.markDeclined()
         }

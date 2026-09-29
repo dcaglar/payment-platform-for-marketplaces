@@ -8,12 +8,23 @@ import org.apache.ibatis.annotations.Param
 interface AccountDirectoryMapper {
     fun findByEntityAndType(
         @Param("accountType") accountType: String,
-        @Param("masterAccountCode") masterAccountCode: String
+        @Param("masterAccountCode") masterAccountCode: String,
+        @Param("currency") currency: String
     ): AccountProfile?
+
+    fun findBySubEntity(
+        @Param("accountType") accountType: String,
+        @Param("masterAccountCode") masterAccountCode: String,
+        @Param("subEntityId") subEntityId: String,
+        @Param("currency") currency: String
+    ): AccountProfile?
+
+    fun findAllBySubEntity(
+        @Param("accountType") accountType: String,
+        @Param("subEntityId") subEntityId: String
+    ): List<AccountProfile>
 
     fun findByAccountCode(
         @Param("accountCode") accountCode: String
     ): AccountProfile?
-
-    fun insertAccount(params: Map<String, Any>)
 }

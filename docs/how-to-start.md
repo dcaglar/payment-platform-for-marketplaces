@@ -138,104 +138,20 @@ curl -i -X POST "${AUTHORIZATION_ENDPOINT}" \
 
 > **Production Flow**: In the actual checkout flow, Stripe Payment Element collects payment details client-side and attaches the payment method to the PaymentIntent. The backend then confirms the payment using the stored PaymentIntent ID without receiving any card data.
 
-### Option B: Using Checkout Demo Page (Deprecated)
+### Option B: Using the Checkout Demo Page
 
-A developer-friendly web interface for testing the complete end-to-end payment flow with Stripe Payment Element.
+A developer page (`checkout-demo/`) for the same flow in the browser. Against the local platform
+(sections 0 and 1 done):
 
-**Prerequisites:**
-- Node.js 18+ installed
-- Steps 1-9 completed (infrastructure, Keycloak provisioning)
-- Stripe account (for Stripe publishable key)
-
-**Setup:**
-
-1. Install dependencies:
 ```bash
 cd checkout-demo
 npm install
-```
-
-2. Generate environment configuration:
-```bash
-# Make sure you've run step 9 (provision-keycloak.sh) first
 npm run setup-env
-```
-
-This automatically:
-- Reads client secret from `keycloak/output/secrets.txt`
-- Reads API endpoints from `infra/endpoints.json`
-- Creates `.env` file with all configuration
-
-3. Configure Stripe publishable key:
-```bash
-# Add your Stripe publishable key to .env file
-echo "VITE_STRIPE_PUBLISHABLE_KEY=pk_test_your_key_here" >> checkout-demo/.env
-```
-
-4. Start the demo:
-```bash
 npm run dev
 ```
 
-This starts both:
-- Frontend server at `http://localhost:3000` (Vite)
-- Backend proxy server at `http://localhost:3001` (simulates order-service/checkout-service)
-
-The app will automatically open at `http://localhost:3000`
-
-**Usage:**
-
-The payment flow follows the complete end-to-end Stripe Payment Element flow:
-
-1. **Fill Order Details:**
-    - Order ID (e.g., `ORDER-TEST-001`)
-    - Buyer ID (e.g., `BUYER-123`)
-    - Total amount (in smallest currency unit, e.g., cents)
-    - Select currency
-    - Add one or more payment splits with target entity IDs and amounts
-    - Click "Proceed to Checkout"
-
-2. **Payment Creation:**
-    - Frontend calls your backend to create payment
-    - Backend creates payment record and calls Stripe to create PaymentIntent
-    - Backend returns `paymentIntentId` and `clientSecret`
-    - If Stripe call is pending (202), frontend polls for client secret
-
-3. **Payment Details Collection (Stripe Payment Element):**
-    - Stripe Payment Element is initialized with `clientSecret`
-    - Shopper enters card details in Payment Element
-    - **Card data goes directly to Stripe** (never touches your servers)
-    - Click "Pay Now" to submit payment details to Stripe
-
-4. **Payment Authorization:**
-    - Frontend calls authorize endpoint with payment ID only
-    - **No payment details are sent** - backend uses stored PaymentIntent ID
-    - Backend confirms payment with Stripe
-    - Frontend displays success/error result
-
-The backend proxy automatically handles token acquisition and payment-service calls - no manual token management needed!
-
-**Architecture:**
-
-The checkout demo uses a production-like flow with Stripe Payment Element:
-- **Frontend** (React) → calls **Backend Proxy** (Node.js/Express) to create payment
-- **Backend Proxy** → gets token from Keycloak (server-to-server)
-- **Backend Proxy** → calls payment-service with token (server-to-server)
-- **Frontend** ← receives `paymentIntentId` and `clientSecret`
-- **Frontend** → initializes Stripe Payment Element with `clientSecret`
-- **Shopper** → enters card details in Payment Element
-- **Payment Element** → sends card data directly to Stripe (browser → Stripe, never touches your servers)
-- **Frontend** → calls **Backend Proxy** to authorize payment (no payment details sent)
-- **Backend Proxy** → calls payment-service authorize endpoint
-- **Backend** → confirms payment with Stripe using stored PaymentIntent ID
-- **Frontend** ← receives authorization result
-
-**Data Flow:**
-- **Card data**: Browser → Stripe (never touches your servers)
-- **Order data**: Browser → Your Backend → Database
-- **Payment control**: Browser → Your Backend → Stripe → Your Backend → Browser
-
-> 💡 **Note**: The backend proxy simulates a production backend (order-service/checkout-service) and needs CORS enabled because the browser calls it directly (browser → proxy is cross-origin).
+Open `http://localhost:3000`. To run it without a backend (mock), to configure scenarios (PSP timeout,
+same key twice, retry after an error), and for the card step, see [`checkout-demo/README.md`](../checkout-demo/README.md).
 
 
 **Test Organization:**

@@ -30,18 +30,19 @@ class BalanceServiceTest {
     fun `getSellerBalance should return BalanceDto with correct values`() {
         // Given
         val sellerId = "seller-123"
-        val accountCode = "MERCHANT_PAYABLE.seller-123.EUR"
+        val accountCode = "SELLER_PAYABLE.MARKETPLACE-1.seller-123.EUR"
         val balance = 50000L // €500.00
 
-        every { accountDirectory.getAccountProfile(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, sellerId) } returns AccountProfile(
+        every { accountDirectory.getAccountProfilesBySubEntity(AccountType.SELLER_PAYABLE, sellerId) } returns listOf(AccountProfile(
             accountCode = accountCode,
-            type = AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT,
-            masterAccountCode = sellerId,
+            type = AccountType.SELLER_PAYABLE,
+            masterAccountCode = "MARKETPLACE-1",
+            subEntityId = sellerId,
             currency = Currency("EUR"),
             category = AccountCategory.LIABILITY,
             country = "NL",
             status = AccountStatus.ACTIVE
-        )
+        ))
         every { accountBalanceReadUseCase.getRealTimeBalance(accountCode) } returns balance
 
         // When
@@ -54,7 +55,7 @@ class BalanceServiceTest {
         assertEquals(accountCode, result.accountCode)
         assertEquals(sellerId, result.sellerId)
 
-        verify(exactly = 1) { accountDirectory.getAccountProfile(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, sellerId) }
+        verify(exactly = 1) { accountDirectory.getAccountProfilesBySubEntity(AccountType.SELLER_PAYABLE, sellerId) }
         verify(exactly = 1) { accountBalanceReadUseCase.getRealTimeBalance(accountCode) }
     }
 
@@ -62,18 +63,19 @@ class BalanceServiceTest {
     fun `getSellerBalance should handle USD currency correctly`() {
         // Given
         val sellerId = "seller-456"
-        val accountCode = "MERCHANT_PAYABLE.seller-456.USD"
+        val accountCode = "SELLER_PAYABLE.MARKETPLACE-1.seller-456.USD"
         val balance = 123456L // $1,234.56
 
-        every { accountDirectory.getAccountProfile(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, sellerId) } returns AccountProfile(
+        every { accountDirectory.getAccountProfilesBySubEntity(AccountType.SELLER_PAYABLE, sellerId) } returns listOf(AccountProfile(
             accountCode = accountCode,
-            type = AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT,
-            masterAccountCode = sellerId,
+            type = AccountType.SELLER_PAYABLE,
+            masterAccountCode = "MARKETPLACE-1",
+            subEntityId = sellerId,
             currency = Currency("USD"),
             category = AccountCategory.LIABILITY,
             country = "US",
             status = AccountStatus.ACTIVE
-        )
+        ))
         every { accountBalanceReadUseCase.getRealTimeBalance(accountCode) } returns balance
 
         // When
@@ -90,18 +92,19 @@ class BalanceServiceTest {
     fun `getSellerBalance should handle zero balance`() {
         // Given
         val sellerId = "seller-789"
-        val accountCode = "MERCHANT_PAYABLE.seller-789.EUR"
+        val accountCode = "SELLER_PAYABLE.MARKETPLACE-1.seller-789.EUR"
         val balance = 0L
 
-        every { accountDirectory.getAccountProfile(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, sellerId) } returns AccountProfile(
+        every { accountDirectory.getAccountProfilesBySubEntity(AccountType.SELLER_PAYABLE, sellerId) } returns listOf(AccountProfile(
             accountCode = accountCode,
-            type = AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT,
-            masterAccountCode = sellerId,
+            type = AccountType.SELLER_PAYABLE,
+            masterAccountCode = "MARKETPLACE-1",
+            subEntityId = sellerId,
             currency = Currency("EUR"),
             category = AccountCategory.LIABILITY,
             country = "NL",
             status = AccountStatus.ACTIVE
-        )
+        ))
         every { accountBalanceReadUseCase.getRealTimeBalance(accountCode) } returns balance
 
         // When
@@ -116,18 +119,19 @@ class BalanceServiceTest {
     fun `getSellerBalance should handle negative balance`() {
         // Given
         val sellerId = "seller-999"
-        val accountCode = "MERCHANT_PAYABLE.seller-999.EUR"
+        val accountCode = "SELLER_PAYABLE.MARKETPLACE-1.seller-999.EUR"
         val balance = -5000L // -€50.00 (overdraft scenario)
 
-        every { accountDirectory.getAccountProfile(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, sellerId) } returns AccountProfile(
+        every { accountDirectory.getAccountProfilesBySubEntity(AccountType.SELLER_PAYABLE, sellerId) } returns listOf(AccountProfile(
             accountCode = accountCode,
-            type = AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT,
-            masterAccountCode = sellerId,
+            type = AccountType.SELLER_PAYABLE,
+            masterAccountCode = "MARKETPLACE-1",
+            subEntityId = sellerId,
             currency = Currency("EUR"),
             category = AccountCategory.LIABILITY,
             country = "NL",
             status = AccountStatus.ACTIVE
-        )
+        ))
         every { accountBalanceReadUseCase.getRealTimeBalance(accountCode) } returns balance
 
         // When
@@ -143,8 +147,7 @@ class BalanceServiceTest {
         // Given
         val sellerId = "non-existent-seller"
 
-        every { accountDirectory.getAccountProfile(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, sellerId) } throws
-            IllegalArgumentException("Account not found: MERCHANT_PAYABLE.$sellerId")
+        every { accountDirectory.getAccountProfilesBySubEntity(AccountType.SELLER_PAYABLE, sellerId) } returns emptyList()
 
         // When/Then
         val exception = assertThrows(IllegalArgumentException::class.java) {
@@ -152,7 +155,7 @@ class BalanceServiceTest {
         }
         assertTrue(exception.message?.contains("Account not found") == true)
 
-        verify(exactly = 1) { accountDirectory.getAccountProfile(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, sellerId) }
+        verify(exactly = 1) { accountDirectory.getAccountProfilesBySubEntity(AccountType.SELLER_PAYABLE, sellerId) }
         verify(exactly = 0) { accountBalanceReadUseCase.getRealTimeBalance(any()) }
     }
 
@@ -160,18 +163,19 @@ class BalanceServiceTest {
     fun `getSellerBalance should handle GBP currency correctly`() {
         // Given
         val sellerId = "seller-GBP"
-        val accountCode = "MERCHANT_PAYABLE.seller-GBP.GBP"
+        val accountCode = "SELLER_PAYABLE.MARKETPLACE-1.seller-GBP.GBP"
         val balance = 75000L // £750.00
 
-        every { accountDirectory.getAccountProfile(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, sellerId) } returns AccountProfile(
+        every { accountDirectory.getAccountProfilesBySubEntity(AccountType.SELLER_PAYABLE, sellerId) } returns listOf(AccountProfile(
             accountCode = accountCode,
-            type = AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT,
-            masterAccountCode = sellerId,
+            type = AccountType.SELLER_PAYABLE,
+            masterAccountCode = "MARKETPLACE-1",
+            subEntityId = sellerId,
             currency = Currency("GBP"),
             category = AccountCategory.LIABILITY,
             country = "GB",
             status = AccountStatus.ACTIVE
-        )
+        ))
         every { accountBalanceReadUseCase.getRealTimeBalance(accountCode) } returns balance
 
         // When
@@ -188,18 +192,19 @@ class BalanceServiceTest {
     fun `getSellerBalance should use real-time balance from use case`() {
         // Given
         val sellerId = "seller-123"
-        val accountCode = "MERCHANT_PAYABLE.seller-123.EUR"
+        val accountCode = "SELLER_PAYABLE.MARKETPLACE-1.seller-123.EUR"
         val realTimeBalance = 123456L
 
-        every { accountDirectory.getAccountProfile(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, sellerId) } returns AccountProfile(
+        every { accountDirectory.getAccountProfilesBySubEntity(AccountType.SELLER_PAYABLE, sellerId) } returns listOf(AccountProfile(
             accountCode = accountCode,
-            type = AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT,
-            masterAccountCode = sellerId,
+            type = AccountType.SELLER_PAYABLE,
+            masterAccountCode = "MARKETPLACE-1",
+            subEntityId = sellerId,
             currency = Currency("EUR"),
             category = AccountCategory.LIABILITY,
             country = "NL",
             status = AccountStatus.ACTIVE
-        )
+        ))
         every { accountBalanceReadUseCase.getRealTimeBalance(accountCode) } returns realTimeBalance
 
         // When
@@ -210,5 +215,32 @@ class BalanceServiceTest {
         verify(exactly = 1) { accountBalanceReadUseCase.getRealTimeBalance(accountCode) }
         // Verify it's using getRealTimeBalance, not getStrongBalance
         verify(exactly = 0) { accountBalanceReadUseCase.getStrongBalance(any()) }
+    }
+
+    @Test
+    fun `getSellerBalance should throw when the seller has accounts in more than one currency`() {
+        // Given
+        val sellerId = "seller-123"
+        val eurProfile = AccountProfile(
+            accountCode = "SELLER_PAYABLE.MARKETPLACE-1.seller-123.EUR",
+            type = AccountType.SELLER_PAYABLE,
+            masterAccountCode = "MARKETPLACE-1",
+            subEntityId = sellerId,
+            currency = Currency("EUR"),
+            category = AccountCategory.LIABILITY,
+            country = "NL",
+            status = AccountStatus.ACTIVE
+        )
+        val usdProfile = eurProfile.copy(
+            accountCode = "SELLER_PAYABLE.MARKETPLACE-1.seller-123.USD",
+            currency = Currency("USD")
+        )
+        every { accountDirectory.getAccountProfilesBySubEntity(AccountType.SELLER_PAYABLE, sellerId) } returns listOf(eurProfile, usdProfile)
+
+        // When/Then
+        assertThrows(IllegalStateException::class.java) {
+            balanceService.getSellerBalance(sellerId)
+        }
+        verify(exactly = 0) { accountBalanceReadUseCase.getRealTimeBalance(any()) }
     }
 }

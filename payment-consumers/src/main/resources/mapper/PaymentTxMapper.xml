@@ -57,43 +57,6 @@
          WRITE
          ================================================================ -->
 
-    <!--
-        INSERT covers all four subclass variants (AUTHORIZATION, CAPTURE, REFUND, SETTLE).
-        Nullable columns (parent_tx_id, settle_status, acquirer_batch_ref,
-        settled_amount_value) are passed as NULL from PaymentTxAdapter for rows
-        where they do not apply.
-    -->
-    <insert id="insert"
-            parameterType="com.dogancaglar.common.db.entity.PaymentTxEntity">
-        INSERT INTO payment_tx (
-            tx_id,
-            tx_type,
-            payment_id,
-            payment_intent_id,
-            parent_tx_id,
-            acquirer_reference,
-            amount_value,
-            amount_currency,
-            status,
-            settle_status,
-            acquirer_batch_ref,
-            settled_amount_value
-        ) VALUES (
-            #{txId},
-            #{txType},
-            #{paymentId},
-            #{paymentIntentId},
-            #{parentTxId},
-            #{acquirerReference},
-            #{amountValue},
-            #{amountCurrency},
-            #{status},
-            #{settleStatus},
-            #{acquirerBatchRef},
-            #{settledAmountValue}
-        )
-    </insert>
-
     <insert id="upsert"
             parameterType="com.dogancaglar.common.db.entity.PaymentTxEntity">
         INSERT INTO payment_tx (
@@ -129,28 +92,5 @@
             acquirer_batch_ref = EXCLUDED.acquirer_batch_ref,
             settled_amount_value = EXCLUDED.settled_amount_value
     </insert>
-
-    <!--
-        UPDATE settle_status: called by the settlement batch job when a CAPTURE row
-        is matched against an incoming acquirer settlement file.
-    -->
-    <update id="updateSettleStatus">
-        UPDATE payment_tx
-        SET settle_status          = #{settleStatus},
-            settled_amount_value   = #{settledAmountValue},
-            acquirer_batch_ref     = #{acquirerBatchRef}
-        WHERE tx_id = #{txId}
-          AND tx_type = 'CAPTURE'
-    </update>
-
-    <!--
-        UPDATE status: called when a PENDING CAPTURE or REFUND is confirmed
-        or failed by a PSP webhook event.
-    -->
-    <update id="updateStatus">
-        UPDATE payment_tx
-        SET status = #{status}
-        WHERE tx_id = #{txId}
-    </update>
 
 </mapper>

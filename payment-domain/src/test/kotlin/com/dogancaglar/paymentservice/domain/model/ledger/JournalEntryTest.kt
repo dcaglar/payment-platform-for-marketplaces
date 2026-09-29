@@ -27,7 +27,7 @@ class JournalEntryTest {
     // === MOCK ACCOUNT DIRECTORY ===
     // Assets (Normal Balance: DEBIT)
     private val platformCashAccount = Account.create(AccountType.PLATFORM_CASH, "PLATFORM_CASH.GLOBAL.EUR")
-    private val pspReceivableAccount = Account.create(AccountType.PSP_RECEIVABLES, "PSP_RECEIVABLES.GLOBAL.EUR")
+    private val pspReceivableAccount = Account.create(AccountType.PSP_RECEIVABLE, "PSP_RECEIVABLE.GLOBAL.EUR")
     private val authReceivableAccount = Account.create(AccountType.AUTH_RECEIVABLE, "AUTH_RECEIVABLE.GLOBAL.EUR")
 
     // Expenses (Normal Balance: DEBIT)
@@ -35,13 +35,13 @@ class JournalEntryTest {
 
     // Liabilities (Normal Balance: CREDIT)
     private val authLiabilityAccount = Account.create(AccountType.AUTH_LIABILITY, "AUTH_LIABILITY.GLOBAL.EUR")
-    private val merchantSuspenseAccount = Account.create(AccountType.MERCHANT_GROSS_CAPTURE_SUSPENSE, "SUSPENSE.M-1.EUR")
-    private val operatorCommissionAccount = Account.create(AccountType.MARKETPLACE_COMMISSION_REVENUE_BALANCE_ACCOUNT, "COMMISSION.M-1.EUR")
-    private val subSellerAccount = Account.create(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, "SELLER.S-1.EUR")
-    private val commissionEscrowAccount = Account.create(AccountType.PLATFORM_COMMISSION_ESCROW, "ESCROW.M-1.EUR")
+    private val merchantSuspenseAccount = Account.create(AccountType.CAPTURE_SUSPENSE, "CAPTURE_SUSPENSE.M-1.EUR")
+    private val operatorCommissionAccount = Account.create(AccountType.MERCHANT_COMMISSION_PAYABLE, "MERCHANT_COMMISSION_PAYABLE.M-1.EUR")
+    private val subSellerAccount = Account.create(AccountType.SELLER_PAYABLE, "SELLER_PAYABLE.M-1.S-1.EUR")
+    private val feeReserveAccount = Account.create(AccountType.PLATFORM_FEE_RESERVE, "PLATFORM_FEE_RESERVE.M-1.EUR")
 
     // Revenue (Normal Balance: CREDIT)
-    private val platformOperationalRevenueAccount = Account.create(AccountType.PLATFORM_OPERATIONAL_REVENUE, "REVENUE.GLOBAL.EUR")
+    private val platformRevenueAccount = Account.create(AccountType.PLATFORM_REVENUE, "PLATFORM_REVENUE.GLOBAL.EUR")
 
     // === HELPER ASSERTIONS ===
 
@@ -148,32 +148,32 @@ class JournalEntryTest {
     }
 
     @Test
-    fun `commissionFeeRegistered - isolates Mor-DC's infrastructure cut into safety escrow`() {
+    fun `commissionFeeRegistered - isolates Mor-DC's infrastructure cut into the fee reserve`() {
         /*
          * SCENARIO: Mor-DC charges a €2 platform fee to the marketplace operator.
          * * RULE:
          * - DR Operator Commission Account (-Liability): We reduce the operator's payable earnings by €2.(LIAbility means should beon right but we put left becasuse it needs to reduce,
          *  on the ohter hand, we do increase a special temp accopunt which will potential be in our commission in future)
-         * * - CR Platform Commission Escrow (+Liability): We lock that €2 into an escrow safety cage.
+         * * - CR Platform Fee Reserve (+Liability): We lock that €2 into the fee reserve.
          * (Still a liability because chargebacks could force us to return it) THAT MAKES IT NOT AN ASSET OR REVENUE YET,BECAUSE WE MIGHT HAVE TO PAY BACK IF 14 DAYS ARE NOT PASSED AFTER AUTH
          */
         val amount = Amount.of(200, eur)
 
-        val entries = JournalEntry.commissionFeeRegistered(5L, paymentId, journalId, amount, commissionEscrowAccount, operatorCommissionAccount)
+        val entries = JournalEntry.commissionFeeRegistered(5L, paymentId, journalId, amount, feeReserveAccount, operatorCommissionAccount)
         val entry = entries.first()
 
         assertBalanced(entry)
         assertEquals(JournalType.COMMISSION_FEE, entry.journalType)
         assertPostingContains(entry, operatorCommissionAccount, isDebit = true, expectedAmount = 200)
-        assertPostingContains(entry, commissionEscrowAccount, isDebit = false, expectedAmount = 200)
+        assertPostingContains(entry, feeReserveAccount, isDebit = false, expectedAmount = 200)
     }
 
     @Test
-    fun `recognizePlatformRevenue - move money in escrow account into  confirmed earnings, so it was a liability,now a revenue`() {
+    fun `recognizePlatformRevenue - move money in fee reserve account into  confirmed earnings, so it was a liability,now a revenue`() {
         /*
          * SCENARIO: 14 days have passed. The risk window is closed. Mor-DC officially claims the €2 fee as profit.
          * * RULE:
-         * - DR Platform Commission Escrow (-Liability,This account is a de): Remove the funds from the safety cage.
+         * - DR Platform Fee Reserve (-Liability,This account is a de): Remove the funds from the safety cage.
          * - CR Platform Operational Revenue (+Revenue): Officially record the €2 as company profit.
          *
 
@@ -181,13 +181,13 @@ class JournalEntryTest {
          */
         val amount = Amount.of(200, eur)
 
-        val entries = JournalEntry.recognizePlatformRevenue(6L, journalId, amount, commissionEscrowAccount, platformOperationalRevenueAccount)
+        val entries = JournalEntry.recognizePlatformRevenue(6L, journalId, amount, feeReserveAccount, platformRevenueAccount)
         val entry = entries.first()
 
         assertBalanced(entry)
         assertEquals(JournalType.REVENUE_RECOGNITION, entry.journalType)
-        assertPostingContains(entry, commissionEscrowAccount, isDebit = true, expectedAmount = 200)
-        assertPostingContains(entry, platformOperationalRevenueAccount, isDebit = false, expectedAmount = 200)
+        assertPostingContains(entry, feeReserveAccount, isDebit = true, expectedAmount = 200)
+        assertPostingContains(entry, platformRevenueAccount, isDebit = false, expectedAmount = 200)
     }
 
     @Test
