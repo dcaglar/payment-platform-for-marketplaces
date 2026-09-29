@@ -1,0 +1,306 @@
+{
+  "mappings": [
+    {
+      "priority": 10,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "id": "psp_{{jsonPath request.body '$.orderId'}}",
+          "clientSecret": "cs_{{randomValue type='UUID'}}",
+          "status": "CREATED"
+        },
+        "transformers": [
+          "response-template"
+        ]
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-REFUSE"
+          }
+        ]
+      },
+      "response": {
+        "status": 422,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "error": {
+            "code": "invalid_request"
+          }
+        }
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-503"
+          }
+        ]
+      },
+      "response": {
+        "status": 503
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-RESET"
+          }
+        ]
+      },
+      "response": {
+        "fault": "CONNECTION_RESET_BY_PEER"
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-SLOW"
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "id": "psp_{{jsonPath request.body '$.orderId'}}",
+          "clientSecret": "cs_{{randomValue type='UUID'}}",
+          "status": "CREATED"
+        },
+        "transformers": [
+          "response-template"
+        ],
+        "fixedDelayMilliseconds": 5000
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-500"
+          }
+        ]
+      },
+      "response": {
+        "status": 500
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-502"
+          }
+        ]
+      },
+      "response": {
+        "status": 502
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-504"
+          }
+        ]
+      },
+      "response": {
+        "status": 504
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-429"
+          }
+        ]
+      },
+      "response": {
+        "status": 429
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-NOT-JSON"
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/html"
+        },
+        "body": "<html>oops</html>"
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-HANG"
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "id": "psp_{{jsonPath request.body '$.orderId'}}",
+          "clientSecret": "cs_{{randomValue type='UUID'}}",
+          "status": "CREATED"
+        },
+        "transformers": [
+          "response-template"
+        ],
+        "fixedDelayMilliseconds": 9000
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-429"
+          }
+        ]
+      },
+      "response": {
+        "status": 429,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "error": {
+            "code": "rate_limited"
+          }
+        }
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-LATE-REFUSE"
+          }
+        ]
+      },
+      "response": {
+        "status": 422,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "error": {
+            "code": "invalid_request"
+          }
+        },
+        "fixedDelayMilliseconds": 5000
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-LATE-503"
+          }
+        ]
+      },
+      "response": {
+        "status": 503,
+        "fixedDelayMilliseconds": 4000
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-LATE-500"
+          }
+        ]
+      },
+      "response": {
+        "status": 500,
+        "fixedDelayMilliseconds": 4000
+      }
+    },
+    {
+      "priority": 1,
+      "request": {
+        "method": "POST",
+        "url": "/v1/intents",
+        "bodyPatterns": [
+          {
+            "contains": "PSP-CREATE-LATE-RESET"
+          }
+        ]
+      },
+      "response": {
+        "fault": "CONNECTION_RESET_BY_PEER",
+        "fixedDelayMilliseconds": 4000
+      }
+    }
+  ]
+}

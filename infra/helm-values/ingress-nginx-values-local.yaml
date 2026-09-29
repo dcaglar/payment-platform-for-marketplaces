@@ -3,7 +3,9 @@ controller:
   metrics:
     enabled: true
     serviceMonitor:
-      enabled: true
+      # Off here so external infra deploys without the monitoring stack (ServiceMonitor is a Prometheus Operator CRD).
+      # deploy-monitoring-stack-local.sh turns it on in the running release once Prometheus exists.
+      enabled: false
       namespace: ingress-controller # or wherever your operator is
       additionalLabels:
         release: prometheus-stack # Match the label your operator looks for

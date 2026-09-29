@@ -5,44 +5,62 @@
 
 <mapper namespace="com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.AccountDirectoryMapper">
 
-    <select id="findByEntityAndType"
-            parameterType="map"
-            resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
-        SELECT
+    <!-- Column order must match the AccountProfile constructor -->
+    <sql id="accountProfileColumns">
         account_code,
         account_type AS type,
         master_account_code,
+        sub_entity_id,
         currency,
         category,
         country,
         status
+    </sql>
+
+    <!-- Platform-wide and per-merchant accounts (no sub entity) -->
+    <select id="findByEntityAndType"
+            parameterType="map"
+            resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
+        SELECT
+        <include refid="accountProfileColumns"/>
         FROM account_directory
         WHERE account_type = #{accountType}
         AND master_account_code = #{masterAccountCode}
+        AND sub_entity_id IS NULL
+        AND currency = #{currency}
+    </select>
+
+    <!-- The account of one sub entity (seller) under a merchant -->
+    <select id="findBySubEntity"
+            parameterType="map"
+            resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
+        SELECT
+        <include refid="accountProfileColumns"/>
+        FROM account_directory
+        WHERE account_type = #{accountType}
+        AND master_account_code = #{masterAccountCode}
+        AND sub_entity_id = #{subEntityId}
+        AND currency = #{currency}
+    </select>
+
+    <!-- All accounts of one sub entity (seller), one row per currency -->
+    <select id="findAllBySubEntity"
+            parameterType="map"
+            resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
+        SELECT
+        <include refid="accountProfileColumns"/>
+        FROM account_directory
+        WHERE account_type = #{accountType}
+        AND sub_entity_id = #{subEntityId}
+        ORDER BY currency
     </select>
 
     <select id="findByAccountCode"
             parameterType="string"
             resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
         SELECT
-        account_code,
-        account_type AS type,
-        master_account_code,
-        currency,
-        category,
-        country,
-        status
+        <include refid="accountProfileColumns"/>
         FROM account_directory
         WHERE account_code = #{accountCode}
     </select>
-
-    <insert id="insertAccount" parameterType="map">
-        INSERT INTO account_directory(
-        account_code, account_type, master_account_code, currency, category, country, status
-        )
-        VALUES (
-        #{accountCode}, #{accountType}, #{masterAccountCode}, #{currency}, #{category}, #{country}, 'ACTIVE'
-        )
-        ON CONFLICT (account_code) DO NOTHING
-    </insert>
 </mapper>

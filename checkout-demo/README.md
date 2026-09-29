@@ -1,144 +1,193 @@
 # Payment Checkout Demo
 
-A developer-facing internal demo page for testing payment creation requests without using curl or manually managing JWT tokens.
+A developer page that sends create payment and authorize the way a checkout service would, so you can
+try the payment flow and its idempotency behaviour without writing curl commands or handling tokens.
 
-## Features
+It runs in two ways:
+- **Mock** (`npm run dev:mock`): no Keycloak, payment-service or Kubernetes needed
+- **Local platform** (`npm run dev`): against the platform running in OrbStack
 
-- ✅ Interactive form to build payment requests with multiple sellers
-- ✅ Automatic JWT token generation and payment processing via backend proxy
-- ✅ Automatic Idempotency-Key generation (UUID) for each request
-- ✅ Real-time validation and total calculation
-- ✅ Send POST requests to `/api/v1/payments`
-- ✅ Display JSON response and equivalent curl command
-- ✅ Error handling and validation
+> ⚠️ Developer tool only, not for production.
 
-## Prerequisites
+## How it is built
 
-- Node.js 18+ and npm/yarn
-- Keycloak running and provisioned (see main project docs)
-- Payment service API accessible
+| Part | Port | Role |
+|---|---|---|
+| React page (`src/`, Vite) | 3000 | The checkout form, Stripe's card form, the payment flow |
+| Proxy (`server.js`) | 3001 | Plays the order/checkout service: gets a Keycloak token, calls payment-service, passes status codes and the `Retry-After`, `Location` and `Idempotent-Replayed` headers back (exposed via CORS) |
+| Mock (`mock-server.js`) | 3001 | Replaces the proxy **and** payment-service for `dev:mock` |
 
-> ⚠️ **Security Note**: This is a **developer demo tool only**, not for production use. The backend proxy handles all authentication and API calls server-side, keeping the client secret secure (not exposed in browser).
+### How the page uses the Idempotency-Key
 
-## Setup
+One key (UUIDv7, `src/services/uuidv7.js`) per checkout attempt, kept in memory in `src/App.jsx`:
 
-1. **Install dependencies:**
-   ```bash
-   cd checkout-demo
-   npm install
-   ```
+| When you click "Proceed to Checkout" | Key |
+|---|---|
+| No key yet, or the form content changed | New key |
+| Same form content as the unfinished attempt | Same key |
 
-2. **Configure environment:**
-   
-   **Option A - Automatic (Recommended):**
-   
-   Run the helper script to automatically generate `.env` from your Keycloak secrets:
-   ```bash
-   npm run setup-env
-   ```
-   
-   This script will:
-   - Read the client secret from `keycloak/output/secrets.txt`
-   - Uses default http://localhost for API calls
-   - Generate a `.env` file with all required configuration
-   
-   **Option B - Manual:**
-   
-   Create a `.env` file manually:
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Edit `.env` and set:
-   - `VITE_KEYCLOAK_CLIENT_SECRET`: Get this from `keycloak/output/secrets.txt` after running `./keycloak/provision-keycloak.sh`
-   
-   The other values have sensible defaults:
-   - `VITE_KEYCLOAK_URL`: Defaults to `http://127.0.0.1:32080` (native NodePort)
-   - `VITE_API_BASE_URL`: Defaults to `http://payment.k8s.orb.local`
+| Answer from create payment | What the page does |
+|---|---|
+| `201` / `200` / `202` | Payment intent exists: continue (poll on `202`), drop the key |
+| `409` (still processing) | Wait `Retry-After` seconds, send again with the same key |
+| `422` (key used with a different body) | Show the error, drop the key |
+| Network error, timeout, `5xx`, `400` | Show the error, keep the key: clicking again with the same form resends it |
 
-3. **Start the development servers:**
-   ```bash
-   npm run dev
-   ```
+The key lives only in the page's memory: reloading the page starts a new key.
 
-   This will start both:
-   - Frontend server at `http://localhost:3000` (Vite dev server)
-   - Backend proxy server at `http://localhost:3001` (simulates order-service/checkout-service)
-   
-   The app will automatically open at `http://localhost:3000`
-   
-   **Note**: The backend proxy simulates a production backend service (order-service/checkout-service) that:
-   - Gets JWT tokens from Keycloak (server-to-server, no CORS needed)
-   - Calls payment-service with the token (server-to-server, no CORS needed)
-   - The proxy needs CORS enabled because the browser calls it directly (browser → proxy is cross-origin)
+### How the card step works
 
-## Usage
+Locally, payment-service runs with `psp.gateway.type: SIMULATED` and returns a simulated client secret
+(`sim_cs_...`); the mock does the same. Stripe does not know that secret, so the page shows Stripe's card
+form in **deferred mode**: only the publishable key, the amount and the currency are needed. No Stripe
+secret key and no Stripe PaymentIntent are involved. "Pay Now" checks the card fields
+(`elements.submit()`) and calls our authorize endpoint.
 
-1. **Fill Payment Form**:
-   - Enter Order ID (e.g., `ORDER-12345`)
-   - Enter Buyer ID (e.g., `BUYER-123`)
-   - Set total amount (quantity in smallest currency unit, e.g., cents)
-   - Select currency
-   - Add one or more payment orders with seller ID and amounts
-   - The calculated total updates automatically
+Use a Stripe test card: `4242 4242 4242 4242`, any future date, any CVC.
 
-2. **Send Request**: Click "Send Payment Request". The app will:
-   - Validate the form
-   - Send request to backend proxy
-   - Backend proxy automatically:
-     - Gets JWT token from Keycloak (server-to-server)
-     - Generates a unique Idempotency-Key (UUID) for this request
-     - Calls payment-service with the token and idempotency key (server-to-server)
-     - Returns the payment result
-   - Display the response and equivalent curl command (including the idempotency key)
-   
-   **Note**: Everything is handled automatically - just fill the form and submit! The idempotency key is automatically generated. You can use the same key from the curl command for retries to test idempotent behavior.
+## Setup (once)
 
-## Example Request
-
+```bash
+cd checkout-demo
+npm install
 ```
-Order ID: ORDER-20240508-XYZ
-Buyer ID: BUYER-123
-Total Amount: 19949 (EUR)
 
-Payment Orders:
-- SELLER-111: 4999 EUR
-- SELLER-222: 2950 EUR  
-- SELLER-333: 12000 EUR
+Add your Stripe **publishable** key to `.env` (needed for the card form in both modes):
+
+```bash
+echo "VITE_STRIPE_PUBLISHABLE_KEY=pk_test_your_key_here" >> .env
 ```
+
+Never put a secret key (`sk_...`) in `.env`: every `VITE_` value ends up in the browser.
+
+## Run without a backend (mock)
+
+```bash
+npm run dev:mock
+```
+
+The mock follows payment-service's idempotency rules (`IdempotencyService`):
+
+| What you send | Mock answers |
+|---|---|
+| New key | `201`. If the Order ID contains `TIMEOUT`: `202`, and polling finds the client secret on the 3rd poll |
+| Same key + same body while the first is still running | `409` + `Retry-After: 2` |
+| Same key + same body after it finished | `200`, stored response replayed, `Idempotent-Replayed: true` |
+| Same key + different body | `422` |
+
+| Setting | Default | Effect |
+|---|---|---|
+| `MOCK_CREATE_DELAY_MS` | `1500` | How long a create stays `PENDING` |
+| `MOCK_STRICT` | `true` | Validate like payment-service: UUIDv7 key, `merchantAccount`, `processingModel`, split rules. `false` skips it |
+
+- See the keys and payment intents it created: `http://localhost:3001/__mock/state`
+- Clear them: `curl -X POST http://localhost:3001/__mock/reset`
+
+## Run against the local platform
+
+Prerequisites: the platform is running and Keycloak is provisioned (`docs/how-to-start.md`, sections 0 and 1).
+
+```bash
+npm run setup-env
+npm run dev
+```
+
+`setup-env` writes `.env`:
+- the client secret from `keycloak/output/secrets.txt`
+- the Keycloak and payment API addresses, found with `kubectl` (load-balancer IPs of `keycloak` and
+  `ingress-nginx-controller`, the same lookups as the curl commands in `docs/how-to-start.md`)
+- it keeps `VITE_STRIPE_PUBLISHABLE_KEY`
+
+Run it again after a redeploy or a new `provision-keycloak.sh`: the secret and the addresses can change.
+
+The form is prefilled with the marketplace payment used by the e2e test (`MARKETPLACE-5`, 3000 EUR,
+`SELLER-5-1` 1400, Commission 100, `SELLER-5-2` 1400, Commission 100). `MARKETPLACE-5` is the
+simulator target, so after "Pay Now" the payment runs on to `SETTLED`.
+For a direct sale choose `DIRECT_MERCHANT` (no splits).
+
+## Test scenarios
+
+### Two requests with the same key at once (`409`), replay (`200`), reuse (`422`)
+
+The page hides the form after the first click, so a double click sends only one request. Send the
+requests with curl instead.
+
+**Against the mock:**
+```bash
+KEY=$(node -e "import('./src/services/uuidv7.js').then(m => console.log(m.uuidV7()))")
+BODY='{"orderId":"ORDER-IDEM-1","buyerId":"BUYER-1","merchantAccount":"MARKETPLACE-5","processingModel":"DIRECT_MERCHANT","totalAmount":{"quantity":3000,"currency":"EUR"}}'
+send() { curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:3001/api/checkout/process-payment -H "Content-Type: application/json" -H "Idempotency-Key: $KEY" -d "$1"; }
+send "$BODY" & send "$BODY" & wait          # one 201, one 409
+send "$BODY"                                # 200 (replayed)
+send "${BODY/ORDER-IDEM-1/ORDER-IDEM-2}"    # 422
+curl -s http://localhost:3001/__mock/state  # one payment intent
+```
+
+**Against the local platform** (from the project root):
+```bash
+./keycloak/get-token.sh
+API=$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+TOKEN=$(cat ./keycloak/output/jwt/payment-service.token)
+KEY=$(printf '%08x-%04x-7%03x-8%03x-%04x%08x' $((RANDOM*RANDOM)) $((RANDOM)) $((RANDOM%4096)) $((RANDOM%4096)) $((RANDOM)) $((RANDOM*RANDOM)))
+BODY='{"orderId":"ORDER-IDEM-1","buyerId":"BUYER-1","merchantAccount":"MARKETPLACE-5","processingModel":"DIRECT_MERCHANT","totalAmount":{"quantity":3000,"currency":"EUR"}}'
+send() { curl -s -o /dev/null -w "%{http_code}\n" -X POST "http://$API/api/v1/payments" -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -H "Idempotency-Key: $KEY" -d "$1"; }
+send "$BODY" & send "$BODY" & wait          # one 201, one 409
+send "$BODY"                                # 200 (replayed)
+send "${BODY/ORDER-IDEM-1/ORDER-IDEM-2}"    # 422
+```
+The simulator takes 300–500 ms to create a payment; if both parallel requests return `201`, the second
+came too late, run it again with a new `KEY`. Check that only one payment intent exists:
+```bash
+kubectl exec -n payment payment-edge-cell-0 -c edge-db -- psql -U postgres -d edge-db -c \
+  "SELECT status, payment_intent_id FROM idempotency_keys WHERE idempotency_key='$KEY';"
+kubectl exec -n payment payment-edge-cell-0 -c edge-db -- psql -U postgres -d edge-db -c \
+  "SELECT count(*) FROM payment_intents WHERE order_id='ORDER-IDEM-1';"
+```
+
+### Retry after an error (from the page, same key reused)
+
+Run the page and the backend in separate terminals so you can stop only the backend:
+
+| | Mock | Local platform |
+|---|---|---|
+| Terminal A | `npm run dev:client` | `npm run dev:client` |
+| Terminal B | `npm run mock:server` | `npm run dev:server` |
+
+Stop terminal B, click "Proceed to Checkout" (network error), start terminal B again, click again without
+changing the form. The same key is sent and one payment intent is created (`201`).
+
+### PSP timeout (`202`, then polling)
+
+**Mock:** use an Order ID containing `TIMEOUT`.
+
+**Local platform:** the simulator never times out by default (`timeouts.probability: 0`). Set it to 100
+(the simulator then waits 10 s, create payment answers `202` after its 3 s limit):
+```bash
+kubectl set env statefulset/payment-edge-cell -n payment -c payment-service \
+  SPRING_APPLICATION_JSON='{"psp":{"authorization":{"simulation":{"scenarios":{"NORMAL":{"timeouts":{"probability":100}}}}}}}'
+```
+The pod restarts. The page gets `202` and polls; after about 10 s the card form appears. Authorize goes
+through the same simulator, so expect it to be slow too. Undo:
+```bash
+kubectl set env statefulset/payment-edge-cell -n payment -c payment-service SPRING_APPLICATION_JSON-
+```
+(`SPRING_APPLICATION_JSON` is used because a plain variable such as `PSP_..._NORMAL_...` would be bound
+to a lowercased map key `normal`, not the `NORMAL` scenario.)
 
 ## Troubleshooting
 
-**Payment Request Errors:**
-- Ensure both servers are running (frontend on 3000, proxy on 3001 - check console)
-- Ensure Keycloak is running and reachable: `http://127.0.0.1:32080`
-- Check that `./keycloak/provision-keycloak.sh` was run
-- Verify proxy console shows "Client Secret: ✅ Configured"
-- Check proxy console for detailed error messages (it logs token and payment-service call errors)
+| Problem | Check |
+|---|---|
+| `EADDRINUSE :3001` or `:3000` | An earlier `npm run dev` is still running: stop it (`lsof -nP -iTCP:3001 -sTCP:LISTEN` shows the PID) |
+| "Cannot reach Keycloak" | Run `npm run setup-env` again; check `kubectl get svc keycloak -n payment` |
+| Keycloak answers 404 for the realm | Keycloak is not provisioned: `./keycloak/provision-keycloak.sh`, then `npm run setup-env` |
+| `400` with "Must be a valid UUIDv7 format" | The Idempotency-Key is not a UUIDv7 |
+| `400` validation errors | MARKETPLACE: splits must add up to the total; DIRECT_MERCHANT: no splits; one currency |
+| Card form does not appear | `VITE_STRIPE_PUBLISHABLE_KEY` missing in `.env`; restart `npm run dev` after changing `.env` |
 
-**API Connection Error:**
-- Check that payment service is running and accessible
-- The proxy uses `http://payment.k8s.orb.local` natively
-- For Kubernetes: Ensure the payment-edge-cell ingress is successfully deployed
-- Check proxy console logs for the exact URL being used
-
-**Validation Errors:**
-- Total amount must equal the sum of all payment orders
-- All currencies must match
-- All required fields must be filled
+The proxy logs every step (token, request, response) in its terminal.
 
 ## Development
 
-- Built with React 18 + Vite
-- Pure JavaScript (no TypeScript per design doc)
-- No build step required for development
-- Uses Fetch API for HTTP requests
-
-## Production Build
-
-```bash
-npm run build
-```
-
-Output will be in `dist/` directory.
-
+- React 18 + Vite, plain JavaScript
+- `npm run build` writes a production build to `dist/`

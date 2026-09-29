@@ -32,7 +32,7 @@ object PaymentTestHelper {
             totalAmount = amount,
             splits = if (processingModel == ProcessingModel.MARKETPLACE) listOf(
                 PaymentSplit.of(
-                    accountType = AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT,
+                    accountType = AccountType.SELLER_PAYABLE,
                     account = sellerId,
                     amount = amount
                 )

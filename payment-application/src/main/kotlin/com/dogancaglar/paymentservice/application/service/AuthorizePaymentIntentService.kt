@@ -3,18 +3,30 @@ package com.dogancaglar.paymentservice.application.service
 import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.application.command.AuthorizePaymentIntentCommand
 import com.dogancaglar.paymentservice.application.events.PaymentAuthorized
+import com.dogancaglar.paymentservice.domain.exception.PaymentIntentNotFoundException
 import com.dogancaglar.paymentservice.domain.exception.PaymentNotReadyException
+import com.dogancaglar.paymentservice.domain.exception.PspInvalidPaymentException
 import com.dogancaglar.paymentservice.domain.exception.PspPermanentException
 import com.dogancaglar.paymentservice.domain.exception.PspTransientException
+import com.dogancaglar.paymentservice.domain.exception.PspUnknownException
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntentStatus
 
 import com.dogancaglar.paymentservice.ports.inbound.usecases.AuthorizePaymentIntentUseCase
 import com.dogancaglar.paymentservice.ports.outbound.*
 import org.slf4j.LoggerFactory
-import java.util.concurrent.CompletionException
-import java.util.concurrent.RejectedExecutionException
 
+/**
+ * What the buyer's money is after authorize, and what we store:
+ * - PSP answered AUTHORIZED / DECLINED / CANCELLED -> stored as answered (DECLINED is final)
+ * - PSP answered "not decided yet" -> stays PENDING_AUTH (202)
+ * - PSP refused our request for good (or the payment method cannot be sent) -> FAILED, final (422)
+ * - PSP had a temporary problem, or we got no usable answer -> back to CREATED, the exception goes to the
+ *   caller (503). Authorizing again is safe: every PSP call carries the same idempotency key for this
+ *   payment, so the PSP authorizes it at most once.
+ * - PSP answered but saving it failed -> stays PENDING_AUTH, returned as pending (202)
+ * - any other error -> stays PENDING_AUTH, the exception goes to the caller
+ */
 class AuthorizePaymentIntentService(
     private val idGeneratorPort: IdGeneratorPort,
     private  val outboxEventFactoryPort: OutboxEventFactoryPort,
@@ -27,13 +39,9 @@ class AuthorizePaymentIntentService(
 
     private val logger = LoggerFactory.getLogger(javaClass)
     override fun authorize(cmd: AuthorizePaymentIntentCommand): PaymentIntent {
-        logger.debug("AuthorizePaymentIntentService.authorize  started for long numeric paymentintentid ,${cmd.paymentIntentId.value}")
-        val start = System.currentTimeMillis()
         val paymentIntent = paymentIntentRepository.findById(cmd.paymentIntentId)
-            ?: error("PaymentIntent ${cmd.paymentIntentId.value} not found")
-        val finish = System.currentTimeMillis()
+            ?: throw PaymentIntentNotFoundException("PaymentIntent ${cmd.paymentIntentId.value} not found")
         // 1) Idempotent behavior first (NO domain transition before this)
-        logger.debug("AuthorizePaymentIntentService.findbyId(${cmd.paymentIntentId.value} TOOK ${finish-start} MSreturned a $paymentIntent)")
         when (paymentIntent.status) {
             PaymentIntentStatus.CREATED_PENDING -> {
                 // Payment not ready for authorization yet
@@ -42,6 +50,7 @@ class AuthorizePaymentIntentService(
 
             PaymentIntentStatus.AUTHORIZED,
             PaymentIntentStatus.DECLINED,
+            PaymentIntentStatus.FAILED,
             PaymentIntentStatus.CANCELLED -> return paymentIntent
 
             PaymentIntentStatus.PENDING_AUTH -> return paymentIntent // controller maps to 202
@@ -52,123 +61,120 @@ class AuthorizePaymentIntentService(
         }
         // 2) Concurrency gate: only ONE request may flip CREATED -> PENDING_AUTH
         val now = Utc.nowInstant()
-        val start2 = System.currentTimeMillis()
         val won = paymentIntentRepository.tryMarkPendingAuth(cmd.paymentIntentId, now)
-        val end2 = System.currentTimeMillis()
-        logger.debug("What is win returns $won and paymentIntentRepository.tryMarkPendingAuth( TOOK ${end2 - start2} MS")
         if (!won) {
             // someone else started authorization; return latest state
-            val start1 = System.currentTimeMillis()
             return paymentIntentRepository.findById(cmd.paymentIntentId)
-                ?: error("PaymentIntent not found ${cmd.paymentIntentId.value}")
-            val end1 = System.currentTimeMillis()
-            logger.debug("paymentIntentRepositoryRepository.findByI TOOK ${end1 - start1}  MS")
-
-
-
+                ?: throw PaymentIntentNotFoundException("PaymentIntent ${cmd.paymentIntentId.value} not found")
         }
 
         // 3) We "own" the authorization attempt; update in-memory state before psp call
         val authPendingPaymentIntent = paymentIntent.markAuthorizedPending(Utc.fromInstant(now))
         // No redundant DB update here - tryMarkPendingAuth already secured the state in the database
 
-        //call the actual psp
         // For Stripe Payment Element, paymentMethod is optional - payment method is already attached to PaymentIntent
-        return try {
-            val startPspCall = System.currentTimeMillis()
-            logger.debug("📡 [AuthorizeService] Initiating resilient PSP authorization for ${cmd.paymentIntentId.value}")
-            val finalPaymentIntent = resilientExecutionPort.executeWithTimeoutAndBackgroundFallback(
-                primaryTask ={
-                    pspAuthGatewayPort.authorizePaymentIntent(authPendingPaymentIntent,cmd.paymentMethod)
+        val result: PaymentIntent
+        try {
+            result = resilientExecutionPort.executeWithTimeoutAndBackgroundFallback(
+                primaryTask = {
+                    pspAuthGatewayPort.authorizePaymentIntent(authPendingPaymentIntent, cmd.paymentMethod)
                 },
                 timeoutMs = 3000,
                 onTimeoutFallback = {
-                    logger.warn(
+                    logger.info(
                         "Payment authorization timed out for {}, returning PENDING_AUTH and continuing in background",
                         paymentIntent.paymentIntentId.value
                     )
                     authPendingPaymentIntent // Returns PENDING_AUTH status, mapping to 202 in controller
                 },
-                onBackgroundSuccess = { resultFromCallStripeApi ->
-                    handleBackgroundPaymentIntentAuthorizationSuccess(
-                        resultFromCallStripeApi
-                    )
-                },
-                onBackgroundFailure = { error -> handleBackgroundFailure(paymentIntent, error) }
+                onBackgroundSuccess = { backgroundResult -> saveResult(backgroundResult) },
+                onBackgroundFailure = { error -> handleBackgroundFailure(authPendingPaymentIntent, error) }
             )
-            val finishPspCall = System.currentTimeMillis()
-            logger.debug("Authorize took {} ms", finishPspCall - startPspCall)
-            if (finalPaymentIntent.status == PaymentIntentStatus.AUTHORIZED) {
-                handleAuthorizedPaymentResult(finalPaymentIntent)
+        } catch (e: Exception) {
+            if (refusedForGood(e)) {
+                return markFailed(authPendingPaymentIntent, e)
             }
-            finalPaymentIntent
-        } catch (e: Exception){
-            handleImmediateFailure(paymentIntent,e)
+            if (safeToAuthorizeAgain(e)) {
+                revertToCreated(authPendingPaymentIntent)
+            }
+            throw e
+        }
+
+        // 4) The PSP answered; store it. If storing fails, the PSP may have authorized: "still confirming" (202)
+        try {
+            saveResult(result)
+        } catch (e: Exception) {
+            logger.error(
+                "PSP answered {} for {} but saving it failed, left PENDING_AUTH",
+                result.status, authPendingPaymentIntent.paymentIntentId.value, e
+            )
+            return authPendingPaymentIntent
+        }
+        return result
+    }
+
+    /** Stores the PSP's answer. PENDING_AUTH (not decided yet) is already stored by tryMarkPendingAuth. */
+    private fun saveResult(result: PaymentIntent) {
+        when (result.status) {
+            PaymentIntentStatus.AUTHORIZED -> handleAuthorizedPaymentResult(result)
+            PaymentIntentStatus.DECLINED,
+            PaymentIntentStatus.CANCELLED -> paymentIntentRepository.updatePaymentIntent(result)
+            else -> {}
         }
     }
 
-
-
-    private fun handleBackgroundPaymentIntentAuthorizationSuccess(authorizedPaymentIntent: PaymentIntent) {
-        logger.debug("Background payment intent authorization successful for ${authorizedPaymentIntent.paymentIntentId.value}, promoting to status authorized and generating orders")
-        handleAuthorizedPaymentResult(authorizedPaymentIntent)
+    /** The PSP refused our request (or we cannot send the payment method): sending it again gets the same answer. */
+    private fun refusedForGood(error: Throwable): Boolean {
+        return error is PspPermanentException || error is PspInvalidPaymentException
     }
 
+    /**
+     * Not done yet, or we don't know: authorizing again is safe, because the PSP call carries the same
+     * idempotency key for this payment (the PSP authorizes it at most once).
+     */
+    private fun safeToAuthorizeAgain(error: Throwable): Boolean {
+        return error is PspTransientException || error is PspUnknownException
+    }
 
-    private fun handleBackgroundFailure(paymentIntent: PaymentIntent, error: Throwable) {
-        logger.error("Background payment intent authorization failed for ${paymentIntent.paymentIntentId.value} , mark as declined", error)
-        if (error is PspPermanentException || error !is PspTransientException) {
-            //decline it
-            val canceledPaymentIntent = paymentIntent.markDeclined()
-            val startUpdate = System.currentTimeMillis()
-            paymentIntentRepository.updatePaymentIntent(canceledPaymentIntent)
-            val finishUpdate = System.currentTimeMillis()
-            logger.debug("db.updatePaymentIntent (failure) took {} ms", finishUpdate - startUpdate)
+    /** Final: nothing was charged. Logged as error: a refusal of our request needs attention. */
+    private fun markFailed(authPendingPaymentIntent: PaymentIntent, error: Throwable): PaymentIntent {
+        logger.error(
+            "PSP refused the authorization of {} for good, marking FAILED",
+            authPendingPaymentIntent.paymentIntentId.value, error
+        )
+        val failed = authPendingPaymentIntent.markFailed()
+        paymentIntentRepository.updatePaymentIntent(failed)
+        return failed
+    }
+
+    /** Back to CREATED: authorize can run again (safely, see safeToAuthorizeAgain). */
+    private fun revertToCreated(authPendingPaymentIntent: PaymentIntent) {
+        paymentIntentRepository.updatePaymentIntent(authPendingPaymentIntent.revertToCreated())
+    }
+
+    /** Runs after we already answered 202, so nobody else will log or handle this error. */
+    private fun handleBackgroundFailure(authPendingPaymentIntent: PaymentIntent, error: Throwable) {
+        if (refusedForGood(error)) {
+            markFailed(authPendingPaymentIntent, error)
+        } else if (safeToAuthorizeAgain(error)) {
+            logger.warn(
+                "Background authorization for {} not done or outcome unknown, back to CREATED: {}",
+                authPendingPaymentIntent.paymentIntentId.value, error.message
+            )
+            revertToCreated(authPendingPaymentIntent)
+        } else {
+            // not a PSP answer (e.g. our database failed while saving it): leave PENDING_AUTH
+            logger.error(
+                "Background authorization for {} failed, left PENDING_AUTH",
+                authPendingPaymentIntent.paymentIntentId.value, error
+            )
         }
     }
-
-    private fun handleImmediateFailure(paymentIntent: PaymentIntent, error: Throwable): PaymentIntent {
-        logger.error("Immediate exceptiuon occurred  :$error")
-        val cause = if (error is CompletionException) error.cause ?: error else error
-        return when (cause) {
-            is PspTransientException -> {
-                logger.warn("Transient failure during payment authorization for ${paymentIntent.paymentIntentId.value} : ${cause.message} ")
-                paymentIntent
-            }
-            is RejectedExecutionException -> {
-                logger.warn("PSP thread pool saturated for ${paymentIntent.paymentIntentId.value}, returning pending status (backpressure)")
-                paymentIntent // Return CREATED_PENDING status, mapping to 202 in controller
-            }
-            is PspPermanentException -> {
-                logger.error("Permanent failure during payment intent authorization for ${paymentIntent.paymentIntentId.value} , marking as DECLINED", cause)
-                val cancelled = paymentIntent.markDeclined()
-                val startUpdate = System.currentTimeMillis()
-                paymentIntentRepository.updatePaymentIntent(cancelled)
-                val finishUpdate = System.currentTimeMillis()
-                logger.debug("db.updatePaymentIntent (immediate failure) TOOK {} MS", finishUpdate - startUpdate)
-                cancelled
-            }
-            else -> {
-                logger.error("Unexpected failure during payment intent authoirzation for {}", paymentIntent.paymentIntentId.value, cause)
-                throw RuntimeException("Unexpected failure", cause)
-            }
-        }
-    }
-
-
-
 
     private fun handleAuthorizedPaymentResult(confirmedPaymentIntent : PaymentIntent){
-        if(confirmedPaymentIntent.status == PaymentIntentStatus.AUTHORIZED){
-            //generate outbox<paymentauthorized> +  from paymentintent objefct which is just authorized
-            val paymentAuthorizedEvent = PaymentAuthorized.from(confirmedPaymentIntent,Utc.nowInstant())
-            val outboxEventPaymentAuthorizedEvent = outboxEventFactoryPort.create(paymentAuthorizedEvent)
-            val startUpdate = System.currentTimeMillis()
-            paymentTransactionalFacadePort.handleAuthorized(confirmedPaymentIntent,outboxEventPaymentAuthorizedEvent)
-            val finishUpdate = System.currentTimeMillis()
-            logger.debug("paymentTransactionalFacadePort.handleAuthorize TOOK{} MS", finishUpdate - startUpdate)
-        }
+        //generate outbox<paymentauthorized> +  from paymentintent objefct which is just authorized
+        val paymentAuthorizedEvent = PaymentAuthorized.from(confirmedPaymentIntent,Utc.nowInstant())
+        val outboxEventPaymentAuthorizedEvent = outboxEventFactoryPort.create(paymentAuthorizedEvent)
+        paymentTransactionalFacadePort.handleAuthorized(confirmedPaymentIntent,outboxEventPaymentAuthorizedEvent)
     }
-
-
 }

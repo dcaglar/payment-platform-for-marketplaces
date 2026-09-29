@@ -42,7 +42,7 @@ class AccountBalanceConsumer(
         val newRecords = records.filter { record ->
             val envelope = record.value() as EventEnvelope<JournalEntriesRecorded>
             val singleDedupeKey = envelope.data.deterministicEventId()
-            val exists = dedupe.exists(singleDedupeKey)
+            val exists = dedupe.exists(CONSUMER_GROUPS.ACCOUNT_BALANCE_CONSUMER, singleDedupeKey)
             if (exists) {
                 logger.warn(
                     "⚠️ Event is processed already, skipping deterministing eventid $singleDedupeKey eventId=${record.value().eventId}, aggregateId=${record.value().aggregateId}"
@@ -65,7 +65,7 @@ class AccountBalanceConsumer(
         newRecords.forEach {
             val currentEventEnvelope = it.value()
             val currentDedupeKey =   currentEventEnvelope.data.deterministicEventId()
-            dedupe.markProcessed(currentDedupeKey , 3600)
+            dedupe.markProcessed(CONSUMER_GROUPS.ACCOUNT_BALANCE_CONSUMER, currentDedupeKey , 3600)
         }
 
         logger.info("Account balance consumer executed successfully for batch size=${records.size}")

@@ -6,6 +6,7 @@ data class AccountProfile(
     val accountCode: String,
     val type: AccountType,
     val masterAccountCode: String,
+    val subEntityId: String?,
     val currency: Currency,
     val category: AccountCategory,
     val country: String?,

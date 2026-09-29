@@ -60,10 +60,10 @@ open class ProcessPspResultProcessingService(
     override fun processAuthorized(event: PaymentAuthorized) {
         val amount = Amount.of(event.totalAmountValue, Currency(event.currency))
         val authReceivable = Account.fromProfile(
-            accountDirectory.getAccountProfile(AccountType.AUTH_RECEIVABLE, "GLOBAL.${event.currency}")
+            accountDirectory.getAccountProfile(AccountType.AUTH_RECEIVABLE, "GLOBAL", Currency(event.currency))
         )
         val authLiability = Account.fromProfile(
-            accountDirectory.getAccountProfile(AccountType.AUTH_LIABILITY, "GLOBAL.${event.currency}")
+            accountDirectory.getAccountProfile(AccountType.AUTH_LIABILITY, "GLOBAL", Currency(event.currency))
         )
 
         val paymentIdValue = idGeneratorPort.generateId()
@@ -159,16 +159,18 @@ open class ProcessPspResultProcessingService(
             status = SUCCESS
         )
         // Commit gross ledger distributions
-        val merchantGrossPool = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.MERCHANT_GROSS_CAPTURE_SUSPENSE, "${event.merchantAccountId}.${event.currency}"))
-        val authReceivable = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.AUTH_RECEIVABLE, "GLOBAL.${event.currency}"))
-        val authLiability = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.AUTH_LIABILITY, "GLOBAL.${event.currency}"))
-        val pspReceivable = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.PSP_RECEIVABLES, "GLOBAL.${event.currency}"))
+        val merchantGrossPool = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.CAPTURE_SUSPENSE, event.merchantAccountId, Currency(event.currency)))
+        val authReceivable = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.AUTH_RECEIVABLE, "GLOBAL", Currency(event.currency)))
+        val authLiability = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.AUTH_LIABILITY, "GLOBAL", Currency(event.currency)))
+        val pspReceivable = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.PSP_RECEIVABLE, "GLOBAL", Currency(event.currency)))
 
         val journalEntries = JournalEntry.captureGrossAsset(
             globalJournalEntryId = idGeneratorPort.generateId(),
             paymentId = payment.paymentId,
             txId = captureTx.txId,
-            journalIdentifier = event.publicPaymentIntentId,
+            // One journal per capture: keyed by the capture tx id, so multiple (partial/manual) captures
+            // of one payment don't share an id, while a redelivery of the same capture still does.
+            journalIdentifier = "${event.publicPaymentIntentId}-${captureTx.txId.value}",
             capturedAmount = amount,
             authReceivable = authReceivable,
             authLiability = authLiability,
@@ -217,7 +219,9 @@ open class ProcessPspResultProcessingService(
         val updatedTransfer = transfer.markTransferred()
 
         val publicTransferId = PublicIdFactory.publicInternalTransferId(transferId.value)
-        val journalIdentifier = "${event.publicPaymentIntentId}-${event.sourceAccount}+${event.targetAccount}"
+        // One journal per transfer: keyed by the transfer id (stable on redelivery, unique per transfer).
+        // Source+target is not enough: two transfers on the same route in one payment would share the id.
+        val journalIdentifier = "${event.publicPaymentIntentId}-$publicTransferId"
 
         //  Polymorphic invocation selects exact journal factory profile structures cleanly!
         val journalEntries =
@@ -227,16 +231,16 @@ open class ProcessPspResultProcessingService(
                 paymentId = payment.paymentId,
                 journalIdentifier = journalIdentifier,
                 commissionFee = amount,
-                commissionEscrowAccount = targetAccount, // Maps explicitly based on design
-                merchantGrossPool = sourceAccount,
+                feeReserveAccount = targetAccount, // Maps explicitly based on design
+                merchantPayableAccount = sourceAccount,
             )
 
             JournalType.REVENUE_RECOGNITION -> JournalEntry.recognizePlatformRevenue(
                 globalJournalEntryId = idGeneratorPort.generateId(),
                 recognitionIdentifier = journalIdentifier,
                 maturedFeeAmount = amount,
-                commissionEscrowAccount = sourceAccount,
-                platformOperationalRevenue = targetAccount
+                feeReserveAccount = sourceAccount,
+                platformRevenue = targetAccount
             )
 
             JournalType.INTERNAL_TRANSFER -> JournalEntry.internalTransfer(
@@ -299,9 +303,9 @@ open class ProcessPspResultProcessingService(
         val settlementTxId = TxId(idGeneratorPort.generateId())
         val journalIdentifier = "SDR_RECON_LN_${settlementTxId.value}"
 
-        val platformCash = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.PLATFORM_CASH, "GLOBAL.${event.currency}"))
-        val pspReceivable = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.PSP_RECEIVABLES, "GLOBAL.${event.currency}"))
-        val pspFeeExpense = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.PSP_FEE_EXPENSE, "GLOBAL.${event.currency}"))
+        val platformCash = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.PLATFORM_CASH, "GLOBAL", Currency(event.currency)))
+        val pspReceivable = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.PSP_RECEIVABLE, "GLOBAL", Currency(event.currency)))
+        val pspFeeExpense = Account.fromProfile(accountDirectory.getAccountProfile(AccountType.PSP_FEE_EXPENSE, "GLOBAL", Currency(event.currency)))
 
         val netCashAmount = Amount.of(event.netCashAmountValue, Currency(event.currency))
         val feeAmount = Amount.of(event.pspFeeAmountValue, Currency(event.currency))

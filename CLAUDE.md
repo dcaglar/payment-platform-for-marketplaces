@@ -1,5 +1,5 @@
 ## Discovery Protocol (READ BEFORE EXPLORING)
-1. **Grounding, by need — not a ritual.** Per-module rules **auto-load** from each module's `CLAUDE.md` (`<module>/CLAUDE.md`); that covers single-module work — go straight to source. For **cross-module flow** ("what happens end-to-end"), read the **executable spec** `e2e-tests/.../PaymentFlowE2EIntegrationTest.kt` (milestones M0–M13, verified — it can't drift like prose). Use `docs/architecture/architecture.md` only for **topology diagrams + design rationale**, and `infra/scripts/deploy-all-local.sh` for infra wiring — both **on-demand, NOT mandatory prereads**. State grounding truthfully: if you go straight to source, say so — don't claim a doc you didn't open.
+1. **Grounding, by need — not a ritual.** Per-module rules **auto-load** from each module's `CLAUDE.md` (`<module>/CLAUDE.md`); that covers single-module work — go straight to source. For **cross-module flow** ("what happens end-to-end"), read the **executable spec** `e2e-tests/.../PaymentFlowE2EIntegrationTest.kt` (milestones M0–M15, verified — it can't drift like prose). Use `docs/architecture/architecture.md` only for **topology diagrams + design rationale**, and `infra/scripts/deploy-all-local.sh` for infra wiring — both **on-demand, NOT mandatory prereads**. State grounding truthfully: if you go straight to source, say so — don't claim a doc you didn't open.
 2. **Agent budget.** Prefer direct Read/Grep. Do NOT spawn Explore/general-purpose
    agents for anything findable in the docs or a targeted grep. Max ONE research
    agent without asking me first; never run overlapping agents; never let one re-run.
@@ -60,3 +60,19 @@ Deployable Spring Boot apps:
 ## 4. Testing Execution
 *   **Unit Tests (`*Test.kt`)**: Run via `mvn test`. Uses mocks, no external dependencies[cite: 3]. 
 *   **Integration Tests (`*IntegrationTest.kt`)**: Run via `mvn verify`. Uses TestContainers and requires the `@Tag("integration")` annotation[cite: 3].
+---
+
+## 5. Error Handling Standard
+Catch an exception only where you can do something useful with it; everywhere else let it propagate. Exactly three places catch:
+*   **Adapters (edge to the outside world: PSP, DB, HTTP):** translate foreign exceptions (Stripe, SQL/Spring, HTTP status, transport errors) into **our own** exception types. Classify by meaning — was it done? *yes / no-won't / no-but-might-next-time / don't-know / our-fault* — using exception type, HTTP status, transport error, and provider error code; **never message text**. Adapters never decide business state.
+*   **Application services:** catch only where the error decides what happens to our data (intent status, idempotency key). Otherwise throw our own typed exceptions.
+*   **Controller advice (`@RestControllerAdvice`):** the single place that maps our exception types to HTTP (status, stable body `code`, `Retry-After`) and logs **once**. It never references provider types.
+
+Never:
+*   catch-log-rethrow in every layer (log once, at the layer that handles it);
+*   catch and swallow — including async callbacks (`whenComplete*`): failures must be logged, alerted, and recoverable;
+*   wrap in a generic `RuntimeException` (it hides the type the advice needs);
+*   use exceptions for normal outcomes (a decline is a result, not an error);
+*   leave an entity in a waiting state that nothing will move (every pending state needs an owner: background call, client retry, provider callback, or status check).
+
+A 4xx from a provider means **we** (the caller) were wrong — never pass it through to our client unchanged; translate by what our client should do next.

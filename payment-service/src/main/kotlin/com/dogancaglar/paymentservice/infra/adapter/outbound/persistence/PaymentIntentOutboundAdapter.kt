@@ -39,8 +39,9 @@ class PaymentIntentOutboundAdapter(
         return paymentIntent
     }
     @WithSpan("PaymentIntentOutboundAdapter.findById")
-    override fun findById(paymentIntentId: PaymentIntentId): PaymentIntent {
-        val entity = paymentIntentMapper.findById(paymentIntentId.value)!!
+    override fun findById(paymentIntentId: PaymentIntentId): PaymentIntent? {
+        // not found is a normal answer: the caller decides (e.g. 404)
+        val entity = paymentIntentMapper.findById(paymentIntentId.value) ?: return null
         val splitsDelegate = lazy {
             if (entity.splitsJson.isNotBlank()) {
                 objectMapper.readValue(entity.splitsJson, splitsTypeRef)
@@ -59,7 +60,7 @@ class PaymentIntentOutboundAdapter(
 
     @WithSpan("PaymentIntentOutboundAdapter.updatePaymentIntent")
     override fun updatePaymentIntent(paymentIntent: PaymentIntent) {
-        paymentIntentMapper.updatePaymentIntentWithPspResponse(paymentIntentId = paymentIntent.paymentIntentId.value, pspReference = paymentIntent.pspReference!!,
+        paymentIntentMapper.updatePaymentIntentWithPspResponse(paymentIntentId = paymentIntent.paymentIntentId.value, pspReference = paymentIntent.pspReference,
             status = paymentIntent.status.name, updatedAt = Utc.nowInstant())
     }
 

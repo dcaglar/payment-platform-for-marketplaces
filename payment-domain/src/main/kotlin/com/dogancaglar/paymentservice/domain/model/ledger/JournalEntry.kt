@@ -160,7 +160,7 @@ class JournalEntry private constructor(
          * and debiting the merchant's gross pool.
          *
          * Postings:
-         *   DR MERCHANT_GROSS_POOL (reduces the merchant's balance)
+         *   DR CAPTURE_SUSPENSE    (reduces the merchant's balance)
          *   CR PSP_RECEIVABLE      (records the outbound refund to PSP)
          *   DR AUTH_LIABILITY      (re-opens the liability position)
          *   CR AUTH_RECEIVABLE     (reduces the receivable by refund amount)
@@ -216,7 +216,7 @@ class JournalEntry private constructor(
             netCashAmount: Amount,           // Cash deposited after fees (e.g., €2,940)
             pspFeeAmount: Amount,            // Exact fees taken out (e.g., €60)
             platformCash: Account,           // PLATFORM_CASH.GLOBAL.EUR
-            pspReceivable: Account,          // PSP_RECEIVABLES.GLOBAL.EUR
+            pspReceivable: Account,          // PSP_RECEIVABLE.GLOBAL.EUR
             pspFeeExpense: Account ,          // {PSP_FEE_EXPENSE}.GLOBAL.EUR
             reason : String?="CaptureClearedMoneyisInOurBank"
         ): List<JournalEntry> {
@@ -251,34 +251,34 @@ class JournalEntry private constructor(
          *        ▼ (Publishes Kafka Event)
          * 2. GrossCaptureAllocationConsumer wakes up
          *        │
-         *        ├──► Path A: Direct Sale -> Moves 100% to DIRECT_REVENUE
+         *        ├──► Path A: Direct Sale -> Moves 100% to MERCHANT_DIRECT_PAYABLE
          *        │                            │
          *        │                            ▼ (In same DB transaction)
          *        │                            ⚡ Run commissionFeeRegistered()
          *        │
-         *        └──► Path B: Marketplace -> Moves splits to BALANCE_ACCOUNTs
+         *        └──► Path B: Marketplace -> Moves splits to SELLER_PAYABLE / MERCHANT_COMMISSION_PAYABLE
          *                                     │
          *                                     ▼ (In same DB transaction)
          *                                     ⚡ Run commissionFeeRegistered()
          * commissionFeeRegistered
          *
-         * Carves out Mor-DC's infrastructure fee from the merchant's gross pool
-         * and locks it into a merchant-specific escrow container to manage chargeback risk.
+         * Carves out Mor-DC's infrastructure fee from the merchant's payable account
+         * and holds it in a merchant-specific fee reserve account to manage chargeback risk.
          *
-         * @param commissionEscrowAccount Must be AccountType.PLATFORM_COMMISSION_ESCROW for the tenant
-         * @param merchantGrossPool Must be AccountType.MERCHANT_GROSS_CAPTURE_SUSPENSE or MARKETPLACE_COMMISSION_REVENUE_BALANCE_ACCOUNT
+         * @param feeReserveAccount Must be AccountType.PLATFORM_FEE_RESERVE for the tenant
+         * @param merchantPayableAccount MERCHANT_DIRECT_PAYABLE (direct sale) or MERCHANT_COMMISSION_PAYABLE (marketplace)
          */
         fun commissionFeeRegistered(
             globalJournalEntryId: Long,
             paymentId: PaymentId,
             journalIdentifier: String,
             commissionFee: Amount,
-            commissionEscrowAccount: Account, // ◄ PLATFORM_COMMISSION_ESCROW.MARKETPLACE-1.EUR
-            merchantGrossPool: Account ,      // ◄ MARKETPLACE_COMMISSION_REVENUE_BALANCE_ACCOUNT.MARKETPLACE-1.EUR
+            feeReserveAccount: Account,       // ◄ PLATFORM_FEE_RESERVE.MARKETPLACE-1.EUR
+            merchantPayableAccount: Account , // ◄ MERCHANT_COMMISSION_PAYABLE.MARKETPLACE-1.EUR
             reason : String?="CommFeeRegistered"
         ): List<JournalEntry> {
-            require(commissionEscrowAccount.type == AccountType.PLATFORM_COMMISSION_ESCROW) {
-                "Target must be a tenant escrow account: ${commissionEscrowAccount.accountCode}"
+            require(feeReserveAccount.type == AccountType.PLATFORM_FEE_RESERVE) {
+                "Target must be a tenant fee reserve account: ${feeReserveAccount.accountCode}"
             }
 
 
@@ -287,12 +287,12 @@ class JournalEntry private constructor(
                     id             = "MOR_DC_COMMISSION:$journalIdentifier",
                     globalJournalEntryId = globalJournalEntryId,
                     journalType    = JournalType.COMMISSION_FEE,
-                    name           = "Mor-DC Platform Escrow Fee Charge — Tenant Isolated",
+                    name           = "Mor-DC Platform Fee Reserve Charge — Tenant Isolated",
                     paymentId      = paymentId,
                     txId           = null,
                     postings       = listOf(
-                        Posting.Debit.create(merchantGrossPool, commissionFee),       // Reduces the merchant's folder 🔴
-                        Posting.Credit.create(commissionEscrowAccount, commissionFee)   // Increases the merchant's specific escrow lock 🟢
+                        Posting.Debit.create(merchantPayableAccount, commissionFee),  // Reduces what we owe the merchant 🔴
+                        Posting.Credit.create(feeReserveAccount, commissionFee)       // Increases the merchant's specific fee reserve 🟢
                     ),
                     reason = reason
                 )
@@ -300,31 +300,31 @@ class JournalEntry private constructor(
         }
 
 // =====================================================================
-// 8. REVENUE RECOGNITION (Clearing Tenant Escrow to Corporate Profit)
+// 8. REVENUE RECOGNITION (Clearing Tenant Fee Reserve to Corporate Profit)
 // =====================================================================
         /**
          * recognizePlatformRevenue
          *
-         * Sweeps a specific tenant's matured escrow account after the refund safety window clears,
-         * moving those funds into Mor-DC's global corporate operational revenue.
+         * Sweeps a specific tenant's matured fee reserve account after the refund safety window clears,
+         * moving those funds into Mor-DC's global platform revenue.
          *
-         * @param commissionEscrowAccount Must be AccountType.PLATFORM_COMMISSION_ESCROW for the target tenant
-         * @param platformOperationalRevenue Must be AccountType.PLATFORM_OPERATIONAL_REVENUE for GLOBAL
+         * @param feeReserveAccount Must be AccountType.PLATFORM_FEE_RESERVE for the target tenant
+         * @param platformRevenue Must be AccountType.PLATFORM_REVENUE for GLOBAL
          */
         fun recognizePlatformRevenue(
             globalJournalEntryId: Long,
             recognitionIdentifier: String,
             maturedFeeAmount: Amount,
-            commissionEscrowAccount: Account,   // ◄ PLATFORM_COMMISSION_ESCROW.MARKETPLACE-1.EUR
-            platformOperationalRevenue: Account ,// ◄ PLATFORM_OPERATIONAL_REVENUE.GLOBAL.EUR
-            reason : String?="MovedFromEscrowToMorRevenue"
+            feeReserveAccount: Account,   // ◄ PLATFORM_FEE_RESERVE.MARKETPLACE-1.EUR
+            platformRevenue: Account ,    // ◄ PLATFORM_REVENUE.GLOBAL.EUR
+            reason : String?="MovedFromFeeReserveToMorRevenue"
 
         ): List<JournalEntry> {
-            require(commissionEscrowAccount.type == AccountType.PLATFORM_COMMISSION_ESCROW) {
-                "Source must be a tenant escrow account: ${commissionEscrowAccount.accountCode}"
+            require(feeReserveAccount.type == AccountType.PLATFORM_FEE_RESERVE) {
+                "Source must be a tenant fee reserve account: ${feeReserveAccount.accountCode}"
             }
-            require(platformOperationalRevenue.type == AccountType.PLATFORM_OPERATIONAL_REVENUE) {
-                "Destination must be global operational revenue: ${platformOperationalRevenue.accountCode}"
+            require(platformRevenue.type == AccountType.PLATFORM_REVENUE) {
+                "Destination must be global platform revenue: ${platformRevenue.accountCode}"
             }
 
             return listOf(
@@ -332,12 +332,12 @@ class JournalEntry private constructor(
                     id             = "REV_REC:$recognitionIdentifier",
                     globalJournalEntryId = globalJournalEntryId,
                     journalType    = JournalType.REVENUE_RECOGNITION,
-                    name           = "Platform Fee Release — Tenant: ${commissionEscrowAccount.accountCode}",
+                    name           = "Platform Fee Release — Tenant: ${feeReserveAccount.accountCode}",
                     paymentId      = PaymentId(0L), // System batch level
                     txId           = null,
                     postings       = listOf(
-                        Posting.Debit.create(commissionEscrowAccount, maturedFeeAmount),   // Frees the specific tenant hold 🔴
-                        Posting.Credit.create(platformOperationalRevenue, maturedFeeAmount) // Adds to Mor-DC's aggregate profit 🟢
+                        Posting.Debit.create(feeReserveAccount, maturedFeeAmount),   // Frees the specific tenant hold 🔴
+                        Posting.Credit.create(platformRevenue, maturedFeeAmount)     // Adds to Mor-DC's aggregate profit 🟢
                     ),
                     reason
                 )

@@ -40,7 +40,7 @@ Every aggregate (`PaymentIntent`, `Payment`, `JournalEntry`, `InternalTransfer`,
 - IDs are `@JvmInline value class XId(val value: Long)` (`PaymentIntentId`, `PaymentId`, `TxId`, `BuyerId`, `SellerId`, `OrderId`, `InternalTransferId`). Pass these, not raw `Long`, across signatures.
 
 ## State machines (guard source status in every transition)
-- `PaymentIntentStatus`: CREATED_PENDING → CREATED → PENDING_AUTH → AUTHORIZED | DECLINED | CANCELLED.
+- `PaymentIntentStatus`: CREATED_PENDING → CREATED → PENDING_AUTH → AUTHORIZED | DECLINED | CANCELLED; CREATED_PENDING → FAILED when creating the intent at the PSP was refused or nothing will retry it (no pspReference); PENDING_AUTH → FAILED when the PSP refused our authorize request for good; PENDING_AUTH → CREATED when the PSP had a temporary problem or gave no usable answer (authorizing again is safe: same PSP idempotency key). DECLINED (card decline) and FAILED are final.
 - `PaymentStatus`: AUTHORIZED → SENT_FOR_SETTLE → CAPTURED → SETTLED (also PARTIALLY_CAPTURED, VOIDED, PARTIALLY_REFUNDED, REFUNDED).
 
 ## `PaymentIntent.splits` — lazy delegate (know this before editing)

@@ -109,6 +109,19 @@ class PaymentIntent private constructor(
     }
 
     /**
+     * The PSP had a temporary problem, or we got no usable answer: authorizing again is safe
+     * (the PSP call carries the same idempotency key, so the PSP authorizes at most once).
+     * Not used for a decline or a refusal: DECLINED and FAILED are final.
+     * PENDING_AUTH -> CREATED
+     */
+    fun revertToCreated(now: LocalDateTime = Utc.nowLocalDateTime()): PaymentIntent {
+        require(status == PaymentIntentStatus.PENDING_AUTH) {
+            "Can only revert to CREATED from PENDING_AUTH (current=$status)"
+        }
+        return copy(status = PaymentIntentStatus.CREATED, updatedAt = now)
+    }
+
+    /**
      * Apply a declined authorization result from the PSP.
      * PENDING_AUTH -> DECLINED
      */
@@ -117,6 +130,20 @@ class PaymentIntent private constructor(
             "Can only mark DECLINED from PENDING_AUTH (current=$status)"
         }
         return copy(status = PaymentIntentStatus.DECLINED, updatedAt = now)
+    }
+
+    /**
+     * The PSP refused for good, nothing was charged and nothing will retry it:
+     * - creating it (the PSP refused it, or the background call failed after we answered 202)
+     *   CREATED_PENDING -> FAILED
+     * - authorizing it (the PSP refused our request; a card decline is DECLINED, not FAILED)
+     *   PENDING_AUTH -> FAILED
+     */
+    fun markFailed(now: LocalDateTime = Utc.nowLocalDateTime()): PaymentIntent {
+        require(status == PaymentIntentStatus.CREATED_PENDING || status == PaymentIntentStatus.PENDING_AUTH) {
+            "Can only mark FAILED from CREATED_PENDING or PENDING_AUTH (current=$status)"
+        }
+        return copy(status = PaymentIntentStatus.FAILED, updatedAt = now)
     }
 
     /**
@@ -184,14 +211,17 @@ class PaymentIntent private constructor(
         ): PaymentIntent {
             val now = Utc.nowLocalDateTime()
             
-            require(splits.isNotEmpty()) { "PaymentIntent must have at least one payment line" }
-            val lineCurrencies = splits.map { it.amount.currency }.distinct()
-            require(lineCurrencies.size == 1 && lineCurrencies.first() == totalAmount.currency) {
-                "All payment lines must use the same currency as total amount"
-            }
-            val sum = splits.sumOf { it.amount.quantity }
-            require(sum == totalAmount.quantity) {
-                "Total amount (${totalAmount.quantity}) must equal sum of payment lines ($sum)"
+            // Same rule as Payment: only a MARKETPLACE payment has splits (a DIRECT_MERCHANT sale has none)
+            if (processingModel == ProcessingModel.MARKETPLACE) {
+                require(splits.isNotEmpty()) { "MARKETPLACE PaymentIntent must have at least one payment line" }
+                val lineCurrencies = splits.map { it.amount.currency }.distinct()
+                require(lineCurrencies.size == 1 && lineCurrencies.first() == totalAmount.currency) {
+                    "All payment lines must use the same currency as total amount"
+                }
+                val sum = splits.sumOf { it.amount.quantity }
+                require(sum == totalAmount.quantity) {
+                    "Total amount (${totalAmount.quantity}) must equal sum of payment lines ($sum)"
+                }
             }
 
             return PaymentIntent(

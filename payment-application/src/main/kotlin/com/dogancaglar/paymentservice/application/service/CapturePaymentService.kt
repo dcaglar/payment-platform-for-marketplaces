@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.application.service
 
+import com.dogancaglar.paymentservice.domain.exception.PaymentIntentNotFoundException
 import com.dogancaglar.common.event.EventEnvelopeFactory
 import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.command.CapturePaymentCommand
@@ -29,7 +30,7 @@ class CapturePaymentService(
         logger.debug("CapturePaymentService.capture started for paymentIntentId=${cmd.paymentIntentId.value}")
         
         val paymentIntent = paymentIntentRepository.findById(cmd.paymentIntentId)
-            ?: throw IllegalArgumentException("PaymentIntent not found for ${cmd.paymentIntentId.value}")
+            ?: throw PaymentIntentNotFoundException("PaymentIntent not found for ${cmd.paymentIntentId.value}")
 
         val captureEvent = CaptureRequested.from(
             paymentIntent = paymentIntent,

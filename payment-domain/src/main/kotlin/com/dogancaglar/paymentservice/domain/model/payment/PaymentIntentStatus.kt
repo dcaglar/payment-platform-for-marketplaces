@@ -7,6 +7,7 @@ enum class PaymentIntentStatus {
     PENDING_AUTH,
     AUTHORIZED,
     DECLINED,
+    FAILED,     // the PSP refused creating or authorizing it for good (not a card decline); final, nothing charged
     CANCELLED
 }
 

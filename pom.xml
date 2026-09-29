@@ -304,15 +304,7 @@ Kotlin dependencies (keep versions here for consistent management) -->
                     <failIfNoTests>false</failIfNoTests>
                     <useFile>false</useFile>
                 </configuration>
-                <executions>
-                    <execution>
-                        <id>unit-tests</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>test</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                <!-- No <executions>: Maven already binds surefire:test to the test phase (id default-test) -->
             </plugin>
 
             <!-- ⚙️ INTEGRATION TESTS: Failsafe runs only *IntegrationTest.kt -->

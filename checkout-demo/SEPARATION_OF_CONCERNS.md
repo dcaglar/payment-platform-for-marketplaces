@@ -1,5 +1,10 @@
 # Separation of Concerns Analysis: Browser vs Proxy Server
 
+> **Status (2026-09-29):** the issues below are fixed. The proxy preserves status codes and
+> forwards Retry-After, Location and Idempotent-Replayed (also on errors) and exposes them via CORS;
+> the browser creates the Idempotency-Key (UUIDv7) once per checkout attempt. This document is kept
+> as the original analysis.
+
 ## Current Architecture
 
 ### Browser (React App) - `src/App.jsx` & `src/services/paymentService.js`

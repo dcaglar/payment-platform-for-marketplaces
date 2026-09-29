@@ -1,6 +1,7 @@
 package com.dogancaglar.paymentservice.application.service
 
-import com.dogancaglar.paymentservice.domain.exception.PaymentIntentNotReadyException
+import com.dogancaglar.paymentservice.domain.exception.IdempotencyKeyInProgressException
+import com.dogancaglar.paymentservice.domain.exception.IdempotencyKeyReusedException
 import com.dogancaglar.paymentservice.ports.outbound.HasherPort
 import com.dogancaglar.paymentservice.ports.outbound.IdempotencyStorePort
 import com.dogancaglar.paymentservice.ports.outbound.InitialRequestStatus
@@ -40,23 +41,29 @@ open class IdempotencyService(
 
                 return IdempotencyResult(response, IdempotencyExecutionStatus.CREATED)
             } catch (e: Exception) {
-                // If it fails, remove the "Lock" so the client can try again
-                store.deletePending(key)
+                // If it fails, remove the "Lock" so the client can try again.
+                // A failing delete must not hide the original error.
+                try {
+                    store.deletePending(key)
+                } catch (deleteError: Exception) {
+                    e.addSuppressed(deleteError)
+                }
                 throw e
             }
         }
 
         // 2. Handle Retries
         logger.debug("Idempotency RETRY request for key=$key")
+        // null: the first request failed and released the key between our insert and this read
         val record = store.findByKey(key)
-            ?: error("Inconsistent state: idempotency key exists but row missing")
+            ?: throw IdempotencyKeyInProgressException("Request with this key is still processing, retry later")
 
         if (record.requestHash != hash) {
-            throw IdempotencyConflictClientException("Request body mismatch for existing key")
+            throw IdempotencyKeyReusedException("Idempotency key already used with a different request body")
         }
 
         if (record.status == InitialRequestStatus.PENDING) {
-            throw PaymentIntentNotReadyException("Original request still processing. Please wait.")
+            throw IdempotencyKeyInProgressException("Request with this key is still processing, retry later")
         }
 
         // 3. Replay the Result
@@ -65,10 +72,6 @@ open class IdempotencyService(
         return IdempotencyResult(responseObj, IdempotencyExecutionStatus.REPLAYED)
     }
 }
-
-
-
-class IdempotencyConflictClientException(msg: String) : RuntimeException(msg)
 
 open class IdempotencyResult<RES>(
     val response: RES,
@@ -79,4 +82,3 @@ enum class IdempotencyExecutionStatus {
     CREATED,     // 201
     REPLAYED,    // 200
 }
-

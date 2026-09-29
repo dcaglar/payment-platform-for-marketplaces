@@ -33,7 +33,7 @@ class CaptureCommandExecutor(
         val envelope = record.value()
         EventLogContext.with(envelope) {
             val eventId = envelope.data.deterministicEventId()
-            if (dedupe.exists(eventId)) {
+            if (dedupe.exists(CONSUMER_GROUPS.CAPTURE_COMMAND_EXECUTOR, eventId)) {
                 logger.warn("⚠️ Event is processed already, skipping eventId=\$eventId")
                 return@with
             }
@@ -41,7 +41,7 @@ class CaptureCommandExecutor(
             val captureRequested = envelope.data
             try {
                 executeCaptureUseCase.execute(captureRequested)
-                dedupe.markProcessed(eventId, 3600)
+                dedupe.markProcessed(CONSUMER_GROUPS.CAPTURE_COMMAND_EXECUTOR, eventId, 3600)
                 logger.info("Capture command executor executed successfully for paymentIntentId=${captureRequested.publicPaymentIntentId}")
             } catch (e: Exception) {
                 logger.error("❌ Failed to process capture command for paymentIntentId: \${captureRequested.publicPaymentIntentId}", e)

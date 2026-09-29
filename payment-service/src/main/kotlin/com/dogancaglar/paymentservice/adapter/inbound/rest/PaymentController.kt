@@ -18,8 +18,8 @@ import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CaptureRequestDTO
-import com.dogancaglar.common.id.PublicIdFactory
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CaptureResponseDTO
+import com.dogancaglar.common.id.PublicIdFactory
 
 import org.springframework.validation.annotation.Validated
 import com.dogancaglar.paymentservice.adapter.inbound.rest.validation.ValidUuidV7
@@ -65,32 +65,23 @@ class PaymentController(
         )
 
         val responseDTO = result.response
-        // Return 201/200/202 Created with Location header (best practice for resource creation)
-        logger.info("paymentintent ${responseDTO.paymentIntentId} is created successfully")
-        return when (result.status) {
+        logger.debug("create payment answered status={} for {}", responseDTO.status, responseDTO.paymentIntentId)
 
-            IdempotencyExecutionStatus.CREATED -> {
-                // Check if payment is pending (Stripe timed out)
-                if (responseDTO.status == "CREATED_PENDING") {
-                    ResponseEntity
-                        .status(HttpStatus.ACCEPTED)  // 202
-                        .header("Location", "/api/v1/payments/${responseDTO.paymentIntentId}")
-                        .header("Retry-After", "2")
-                        .body(responseDTO)  // clientSecret will be null/empty
-                } else {
-                    ResponseEntity
-                        .status(HttpStatus.CREATED)  // 201
-                        .header("Location", "/api/v1/payments/${responseDTO.paymentIntentId}")
-                        .body(responseDTO)  // clientSecret should be present
-                }
-            }
-
-            IdempotencyExecutionStatus.REPLAYED -> ResponseEntity
-                .status(HttpStatus.OK)
-                .header("Idempotent-Replayed", "true")
-                .header("Location", "/api/v1/payments/${responseDTO.paymentIntentId}")
-                .body(responseDTO)
+        // The status follows from the payment's state, so a replay (from the stored answer) gets exactly
+        // the same answer as the first request: FAILED 422, CREATED_PENDING 202 (poll), else 201.
+        val response: ResponseEntity.BodyBuilder
+        if (responseDTO.status == "FAILED") {
+            response = ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+        } else if (responseDTO.status == "CREATED_PENDING") {
+            response = ResponseEntity.status(HttpStatus.ACCEPTED).header("Retry-After", "2")
+        } else {
+            response = ResponseEntity.status(HttpStatus.CREATED)
         }
+        response.header("Location", "/api/v1/payments/${responseDTO.paymentIntentId}")
+        if (result.status == IdempotencyExecutionStatus.REPLAYED) {
+            response.header("Idempotent-Replayed", "true")
+        }
+        return response.body(responseDTO)
     }
 
     /**
@@ -116,7 +107,21 @@ class PaymentController(
 
         val dto = paymentApiOrchestrator.authorizePayment(publicPaymentIntentId, request)
 
-        logger.info("payment ${publicPaymentIntentId} is authorized successfully")
+        logger.debug("authorize answered status={} for {}", dto.status, publicPaymentIntentId)
+        // FAILED: the PSP refused for good, nothing charged (same answer as a refused create)
+        if (dto.status == "FAILED") {
+            return ResponseEntity
+                .status(HttpStatus.UNPROCESSABLE_ENTITY)  // 422
+                .body(dto)
+        }
+        // not decided yet (PSP slow or pending): the checkout polls the Location
+        if (dto.status == "PENDING_AUTH") {
+            return ResponseEntity
+                .status(HttpStatus.ACCEPTED)  // 202
+                .header("Location", "/api/v1/payments/$publicPaymentIntentId")
+                .header("Retry-After", "2")
+                .body(dto)
+        }
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(dto)

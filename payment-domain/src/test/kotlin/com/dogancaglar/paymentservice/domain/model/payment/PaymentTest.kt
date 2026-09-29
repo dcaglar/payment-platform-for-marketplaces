@@ -10,8 +10,8 @@ class PaymentTest {
 
     private val currency = Currency("EUR")
     private val buyerId = BuyerId("b1")
-    private val line1 = PaymentSplit.of(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, "s1", Amount.of(500, currency))
-    private val line2 = PaymentSplit.of(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, "s2", Amount.of(500, currency))
+    private val line1 = PaymentSplit.of(AccountType.SELLER_PAYABLE, "s1", Amount.of(500, currency))
+    private val line2 = PaymentSplit.of(AccountType.SELLER_PAYABLE, "s2", Amount.of(500, currency))
     private val lines = listOf(line1, line2)
     private val totalAmount = Amount.of(1000, currency)
 

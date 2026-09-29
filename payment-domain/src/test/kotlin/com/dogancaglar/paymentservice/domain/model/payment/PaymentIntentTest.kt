@@ -12,8 +12,8 @@ class PaymentIntentTest {
     private val buyerId = BuyerId("buyer-1")
     private val orderId = OrderId("order-1")
     private val currency = Currency("EUR")
-    private val line1 = PaymentSplit.of(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, "s1", Amount.of(1000, currency))
-    private val line2 = PaymentSplit.of(AccountType.MARKETPLACE_SELLER_BALANCE_ACCOUNT, "s2", Amount.of(2000, currency))
+    private val line1 = PaymentSplit.of(AccountType.SELLER_PAYABLE, "s1", Amount.of(1000, currency))
+    private val line2 = PaymentSplit.of(AccountType.SELLER_PAYABLE, "s2", Amount.of(2000, currency))
     private val lines = listOf(line1, line2)
     private val totalAmount = Amount.of(3000, currency)
     private val processingModel = ProcessingModel.MARKETPLACE
@@ -166,6 +166,86 @@ class PaymentIntentTest {
 
         val declined = pending.markDeclined()
         assertEquals(PaymentIntentStatus.DECLINED, declined.status)
+    }
+
+    @Test
+    fun `markFailed transitions from CREATED_PENDING to FAILED without a pspReference`() {
+        val intent = PaymentIntent.createNew(
+            PaymentIntentId(1), buyerId, orderId, processingModel, merchantAccount, totalAmount, lines
+        )
+
+        val failed = intent.markFailed()
+
+        assertEquals(PaymentIntentStatus.FAILED, failed.status)
+        assertEquals(null, failed.pspReference)
+    }
+
+    @Test
+    fun `markFailed should fail when the PSP already created the intent`() {
+        val created = PaymentIntent.createNew(
+            PaymentIntentId(1), buyerId, orderId, processingModel, merchantAccount, totalAmount, lines
+        ).markAsCreatedWithPspReferenceAndClientSecret("ST_PI_1234","SECRET_FROM_STRIPE")
+
+        assertFailsWith<IllegalArgumentException> {
+            created.markFailed()
+        }
+    }
+
+    @Test
+    fun `createNew accepts a DIRECT_MERCHANT sale without splits`() {
+        val intent = PaymentIntent.createNew(
+            PaymentIntentId(1), buyerId, orderId, ProcessingModel.DIRECT_MERCHANT, merchantAccount, totalAmount, emptyList()
+        )
+
+        assertEquals(PaymentIntentStatus.CREATED_PENDING, intent.status)
+        assertEquals(0, intent.splits.size)
+    }
+
+    @Test
+    fun `createNew rejects a MARKETPLACE payment without splits`() {
+        assertFailsWith<IllegalArgumentException> {
+            PaymentIntent.createNew(
+                PaymentIntentId(1), buyerId, orderId, ProcessingModel.MARKETPLACE, merchantAccount, totalAmount, emptyList()
+            )
+        }
+    }
+
+    @Test
+    fun `revertToCreated moves PENDING_AUTH back to CREATED and keeps the pspReference`() {
+        val pendingAuth = PaymentIntent.createNew(
+            PaymentIntentId(1), buyerId, orderId, processingModel, merchantAccount, totalAmount, lines
+        ).markAsCreatedWithPspReferenceAndClientSecret("ST_PI_1234","SECRET_FROM_STRIPE")
+            .markAuthorizedPending()
+
+        val created = pendingAuth.revertToCreated()
+
+        assertEquals(PaymentIntentStatus.CREATED, created.status)
+        assertEquals("ST_PI_1234", created.pspReference)
+    }
+
+    @Test
+    fun `revertToCreated should fail after a decline because DECLINED is final`() {
+        val declined = PaymentIntent.createNew(
+            PaymentIntentId(1), buyerId, orderId, processingModel, merchantAccount, totalAmount, lines
+        ).markAsCreatedWithPspReferenceAndClientSecret("ST_PI_1234","SECRET_FROM_STRIPE")
+            .markAuthorizedPending()
+            .markDeclined()
+
+        assertFailsWith<IllegalArgumentException> {
+            declined.revertToCreated()
+        }
+    }
+
+    @Test
+    fun `markFailed transitions from PENDING_AUTH to FAILED when the PSP refuses the authorization for good`() {
+        val pendingAuth = PaymentIntent.createNew(
+            PaymentIntentId(1), buyerId, orderId, processingModel, merchantAccount, totalAmount, lines
+        ).markAsCreatedWithPspReferenceAndClientSecret("ST_PI_1234","SECRET_FROM_STRIPE")
+            .markAuthorizedPending()
+
+        val failed = pendingAuth.markFailed()
+
+        assertEquals(PaymentIntentStatus.FAILED, failed.status)
     }
 
     @Test

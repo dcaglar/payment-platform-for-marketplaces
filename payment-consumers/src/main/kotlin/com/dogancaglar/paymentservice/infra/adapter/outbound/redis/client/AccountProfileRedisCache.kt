@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.redis.client
 
+import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -16,8 +17,8 @@ class AccountProfileRedisCache(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    fun getProfile(accountType: AccountType, masterAccountCode: String): AccountProfile? {
-        val key = buildKey(accountType, masterAccountCode)
+    fun getProfile(accountType: AccountType, masterAccountCode: String, subEntityId: String?, currency: Currency): AccountProfile? {
+        val key = buildKey(accountType, masterAccountCode, subEntityId, currency)
         val json = redisTemplate.opsForValue().get(key)
         return if (json != null) {
             try {
@@ -32,7 +33,7 @@ class AccountProfileRedisCache(
     }
 
     fun saveProfile(profile: AccountProfile, ttl: Duration = Duration.ofHours(24)) {
-        val key = buildKey(profile.type, profile.masterAccountCode)
+        val key = buildKey(profile.type, profile.masterAccountCode, profile.subEntityId, profile.currency)
         try {
             val json = objectMapper.writeValueAsString(profile)
             redisTemplate.opsForValue().set(key, json, ttl)
@@ -41,7 +42,10 @@ class AccountProfileRedisCache(
         }
     }
 
-    private fun buildKey(accountType: AccountType, masterAccountCode: String): String {
-        return "account:profile:${accountType.name}:$masterAccountCode"
+    private fun buildKey(accountType: AccountType, masterAccountCode: String, subEntityId: String?, currency: Currency): String {
+        if (subEntityId == null) {
+            return "account:profile:${accountType.name}:$masterAccountCode:${currency.currencyCode}"
+        }
+        return "account:profile:${accountType.name}:$masterAccountCode:$subEntityId:${currency.currencyCode}"
     }
 }
