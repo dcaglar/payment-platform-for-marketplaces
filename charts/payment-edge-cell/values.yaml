@@ -2,6 +2,7 @@ spring:
   profile: "local"
 
 paymentService:
+  pspGatewayType: SIMULATED   # SIMULATED | STRIPE | HTTP
   image:
     repository: "dcaglar1987/payment-service"
     tag: "latest"

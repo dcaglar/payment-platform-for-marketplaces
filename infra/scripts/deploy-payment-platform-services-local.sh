@@ -30,6 +30,12 @@ helm secrets upgrade --install central-db "$REPO_ROOT/charts/central-db" \
 
 echo "========================================================"
 echo "📦 2. Deploying payment-edge-cell"
+# Local deploys authorize through Stripe test mode (charts/payment-edge-cell/local/values.yaml: pspGatewayType)
+# (key names in a SOPS file are plain text, so this check needs no decryption)
+if ! grep -q '^STRIPE_API_KEY:' "$REPO_ROOT/edge-cell-sops-secrets.yaml"; then
+  echo "⚠️  STRIPE_API_KEY is missing from edge-cell-sops-secrets.yaml: payment-service cannot use Stripe."
+  echo "   Add it with: sops -i edge-cell-sops-secrets.yaml"
+fi
 helm dependency update "$REPO_ROOT/charts/payment-edge-cell"
 helm secrets upgrade --install payment-edge-cell "$REPO_ROOT/charts/payment-edge-cell" \
   -n payment --create-namespace \

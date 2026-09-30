@@ -133,7 +133,7 @@ curl -sf -X POST "$KEYCLOAK_URL/admin/realms" \
 
 # --- Create Roles ---
 log "🛠️ Creating roles..."
-for role in "payment:write" "FINANCE" "ADMIN" "SELLER" "SELLER_API"; do
+for role in "payment:write" "FINANCE" "ADMIN" "SELLER" "SELLER_API" "MERCHANT"; do
   log "  Creating role '$role'..."
   curl -sf -X POST "$KEYCLOAK_URL/admin/realms/$REALM/roles" \
     -H "Authorization: Bearer $KC_TOKEN" \
@@ -216,6 +216,28 @@ assign_role_to_service_account() {
     log "⚠️ Role $role_name assignment may have failed - verify manually in Keycloak"
   fi
 }
+
+# Sellers come from central-db (account_directory, SELLER_PAYABLE), so every seller that has an
+# account gets an identity; nothing is hardcoded here. Read-only query inside the central-db pod.
+list_sellers() {
+  kubectl exec -n payment central-db-postgresql-0 -c postgresql -- sh -c \
+    'PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")" psql -U postgres -d central-db -At -c "SELECT DISTINCT sub_entity_id FROM account_directory WHERE account_type = '"'"'SELLER_PAYABLE'"'"' AND sub_entity_id IS NOT NULL ORDER BY 1"'
+}
+
+# Merchants: every master_account_code that owns a merchant payable account
+list_merchants() {
+  kubectl exec -n payment central-db-postgresql-0 -c postgresql -- sh -c \
+    'PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")" psql -U postgres -d central-db -At -c "SELECT DISTINCT master_account_code FROM account_directory WHERE account_type IN ('"'"'MERCHANT_DIRECT_PAYABLE'"'"', '"'"'MERCHANT_COMMISSION_PAYABLE'"'"') ORDER BY 1"'
+}
+
+SELLERS=$(list_sellers || true)
+if [[ -z "$SELLERS" ]]; then
+  log "❌ Could not read sellers from central-db (is central-db-postgresql-0 running?)."
+  exit 3
+fi
+log "📋 Sellers in central-db: $(echo "$SELLERS" | wc -l | tr -d ' ')"
+MERCHANTS=$(list_merchants || true)
+log "📋 Merchants in central-db: $(echo "$MERCHANTS" | grep -c . || true)"
 
 # --- Provision Clients & Roles ---
 # Use bash 3-compatible approach (macOS default bash version)
@@ -326,20 +348,27 @@ else
   log "  ℹ️ Backoffice-ui client already exists"
 fi
 
-# --- Create Merchant API Clients (Case 3: Machine-to-Machine merchant API) ---
-# One client per merchant, using Client Credentials flow with SELLER_API role
-log "🛠️ Creating merchant API clients (Case 3: M2M merchant API)..."
-create_merchant_api_client() {
-  local merchant_id="$1"
-  local client_id="merchant-api-${merchant_id}"
-  
-  log "  Creating merchant API client for $merchant_id..."
-  
+# --- Create Seller API Clients (Case 3: Machine-to-Machine seller API) ---
+# One client per seller, using Client Credentials flow with SELLER_API role and a fixed seller_id claim
+log "🛠️ Creating seller API clients (Case 3: M2M seller API)..."
+# One client_credentials client that acts for one owner (a seller or a merchant): role + a fixed
+# owner claim (seller_id / merchant_id) in every token, secret written to secrets.txt.
+# Args: client_id role claim_name owner_id secret_var
+create_owner_api_client() {
+  local client_id="$1"
+  local role="$2"
+  local claim_name="$3"
+  local owner_id="$4"
+  local secret_var="$5"
+  local mapper_name="${claim_name//_/-}-mapper"
+
+  log "  Creating API client $client_id ($role, $claim_name=$owner_id)..."
+
   local client_kc_id
   client_kc_id=$(get_client_id "$client_id")
-  
+
   if [[ -z "$client_kc_id" || "$client_kc_id" == "null" ]]; then
-    client_kc_id=$(curl -sf -X POST "$KEYCLOAK_URL/admin/realms/$REALM/clients" \
+    curl -sf -X POST "$KEYCLOAK_URL/admin/realms/$REALM/clients" \
       -H "Authorization: Bearer $KC_TOKEN" \
       -H "Content-Type: application/json" \
       -d '{
@@ -351,85 +380,94 @@ create_merchant_api_client() {
         "directAccessGrantsEnabled":false,
         "standardFlowEnabled":false,
         "attributes":{"access.token.lifespan":"2592000"}
-      }' | jq -r '.id // empty' || echo "")
-    
+      }' >/dev/null || true
+    # Keycloak answers 201 with an empty body (the id is only in the Location header): look it up by name
+    client_kc_id=$(get_client_id "$client_id")
+
     if [[ -n "$client_kc_id" && "$client_kc_id" != "null" ]]; then
-      log "  ✅ Created merchant API client: $client_id"
+      log "  ✅ Created API client: $client_id"
     fi
   else
-    log "  ℹ️ Merchant API client $client_id already exists"
+    log "  ℹ️ API client $client_id already exists"
   fi
-  
-  # Always get secret and write to file (even if client already existed)
-  if [[ -n "$client_kc_id" && "$client_kc_id" != "null" ]]; then
-    # Get client secret
-    local secret
-    secret=$(get_client_secret "$client_kc_id")
-    if [[ -n "$secret" && "$secret" != "null" ]]; then
-      log "  🔑 $client_id secret: $secret"
-      # Remove old entry if exists, then append new one
-      grep -v "^MERCHANT_API_${merchant_id}_CLIENT_SECRET=" "$SECRETS_OUT" > "${SECRETS_OUT}.tmp" 2>/dev/null || true
-      mv "${SECRETS_OUT}.tmp" "$SECRETS_OUT" 2>/dev/null || true
-      echo "MERCHANT_API_${merchant_id}_CLIENT_SECRET=$secret" >> "$SECRETS_OUT"
-    fi
-    
-    # Assign SELLER_API role to service account
-    assign_role_to_service_account "$client_kc_id" "SELLER_API"
-    
-    # Create protocol mapper to inject seller_id claim into token
-    log "  🛠️ Configuring seller_id mapper for $client_id..."
-    
-    # Check if mapper already exists
-    local mapper_exists
-    mapper_exists=$(curl -sf "$KEYCLOAK_URL/admin/realms/$REALM/clients/$client_kc_id/protocol-mappers/models" \
-      -H "Authorization: Bearer $KC_TOKEN" | jq -r '.[] | select(.name=="seller-id-mapper") | .id' | head -1)
-    
-    if [[ -n "$mapper_exists" && "$mapper_exists" != "null" ]]; then
-      # Update existing mapper
-      log "  🔄 Updating existing seller-id-mapper..."
-      curl -sf -X PUT "$KEYCLOAK_URL/admin/realms/$REALM/clients/$client_kc_id/protocol-mappers/models/$mapper_exists" \
-        -H "Authorization: Bearer $KC_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{
-          "id": "'"$mapper_exists"'",
-          "name": "seller-id-mapper",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-hardcoded-claim-mapper",
-          "config": {
-            "claim.value": "'"$merchant_id"'",
-            "claim.name": "seller_id",
-            "jsonType.label": "String",
-            "id.token.claim": "true",
-            "access.token.claim": "true",
-            "userinfo.token.claim": "true"
-          }
-        }' >/dev/null 2>&1 && log "  ✅ Mapper updated" || log "  ⚠️ Could not update mapper"
-    else
-      # Create new mapper
-      curl -sf -X POST "$KEYCLOAK_URL/admin/realms/$REALM/clients/$client_kc_id/protocol-mappers/models" \
-        -H "Authorization: Bearer $KC_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{
-          "name": "seller-id-mapper",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-hardcoded-claim-mapper",
-          "config": {
-            "claim.value": "'"$merchant_id"'",
-            "claim.name": "seller_id",
-            "jsonType.label": "String",
-            "id.token.claim": "true",
-            "access.token.claim": "true",
-            "userinfo.token.claim": "true"
-          }
-        }' >/dev/null 2>&1 && log "  ✅ Mapper created" || log "  ⚠️ Could not create mapper"
-    fi
+
+  if [[ -z "$client_kc_id" || "$client_kc_id" == "null" ]]; then
+    log "  ⚠️ Could not create or find client $client_id"
+    return 0
+  fi
+
+  # Always get the secret and write it to the file (even if the client already existed)
+  local secret
+  secret=$(get_client_secret "$client_kc_id")
+  if [[ -n "$secret" && "$secret" != "null" ]]; then
+    log "  🔑 $client_id secret written to secrets.txt"
+    grep -v "^${secret_var}=" "$SECRETS_OUT" > "${SECRETS_OUT}.tmp" 2>/dev/null || true
+    mv "${SECRETS_OUT}.tmp" "$SECRETS_OUT" 2>/dev/null || true
+    echo "${secret_var}=$secret" >> "$SECRETS_OUT"
+  fi
+
+  assign_role_to_service_account "$client_kc_id" "$role"
+
+  # Fixed owner claim in every token of this client
+  local mapper_json='{
+      "name": "'"$mapper_name"'",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-hardcoded-claim-mapper",
+      "config": {
+        "claim.value": "'"$owner_id"'",
+        "claim.name": "'"$claim_name"'",
+        "jsonType.label": "String",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "true"
+      }
+    }'
+  local mapper_id
+  mapper_id=$(curl -sf "$KEYCLOAK_URL/admin/realms/$REALM/clients/$client_kc_id/protocol-mappers/models" \
+    -H "Authorization: Bearer $KC_TOKEN" | jq -r '.[] | select(.name=="'"$mapper_name"'") | .id' | head -1)
+
+  if [[ -n "$mapper_id" && "$mapper_id" != "null" ]]; then
+    echo "$mapper_json" | jq --arg id "$mapper_id" '. + {id: $id}' | curl -sf -X PUT \
+      "$KEYCLOAK_URL/admin/realms/$REALM/clients/$client_kc_id/protocol-mappers/models/$mapper_id" \
+      -H "Authorization: Bearer $KC_TOKEN" -H "Content-Type: application/json" -d @- >/dev/null 2>&1 \
+      && log "  ✅ Mapper updated" || log "  ⚠️ Could not update mapper"
+  else
+    echo "$mapper_json" | curl -sf -X POST \
+      "$KEYCLOAK_URL/admin/realms/$REALM/clients/$client_kc_id/protocol-mappers/models" \
+      -H "Authorization: Bearer $KC_TOKEN" -H "Content-Type: application/json" -d @- >/dev/null 2>&1 \
+      && log "  ✅ Mapper created" || log "  ⚠️ Could not create mapper"
   fi
 }
 
-# Create merchant API clients for test sellers
-create_merchant_api_client "SELLER-1-1"
-create_merchant_api_client "SELLER-1-2"
-create_merchant_api_client "SELLER-1-3"
+create_seller_api_client() {
+  local seller_id="$1"
+
+  # Clients were called merchant-api-<seller> before; remove the old one so only seller-api-<seller> exists
+  local legacy_kc_id
+  legacy_kc_id=$(get_client_id "merchant-api-${seller_id}")
+  if [[ -n "$legacy_kc_id" && "$legacy_kc_id" != "null" ]]; then
+    curl -sf -X DELETE "$KEYCLOAK_URL/admin/realms/$REALM/clients/$legacy_kc_id" \
+      -H "Authorization: Bearer $KC_TOKEN" >/dev/null 2>&1 && log "  🧹 Removed legacy client merchant-api-${seller_id}"
+  fi
+
+  create_owner_api_client "seller-api-${seller_id}" "SELLER_API" "seller_id" "$seller_id" "SELLER_API_${seller_id}_CLIENT_SECRET"
+}
+
+create_merchant_api_client() {
+  local merchant_id="$1"
+  create_owner_api_client "merchant-api-${merchant_id}" "MERCHANT" "merchant_id" "$merchant_id" "MERCHANT_API_${merchant_id}_CLIENT_SECRET"
+}
+
+# One seller API client per seller in central-db
+for seller in $SELLERS; do
+  create_seller_api_client "$seller"
+done
+
+# --- Merchant API clients: one per merchant, role MERCHANT, merchant_id claim ---
+log "🛠️ Creating merchant API clients (role MERCHANT)..."
+for merchant in $MERCHANTS; do
+  create_merchant_api_client "$merchant"
+done
 
 # --- Legacy: Keep seller-client for backward compatibility (optional) ---
 # This can be removed if you want to fully migrate to customer-area-frontend
@@ -552,10 +590,11 @@ create_test_user() {
   fi
 }
 
-# Create test sellers (continue even if some fail)
-create_test_user "seller-1-1" "SELLER-1-1" "seller123" || log "  ⚠️ Failed to create seller-1-1, continuing..."
-create_test_user "seller-1-2" "SELLER-1-2" "seller123" || log "  ⚠️ Failed to create seller-1-2, continuing..."
-create_test_user "seller-1-3" "SELLER-1-3" "seller123" || log "  ⚠️ Failed to create seller-1-3, continuing..."
+# One login user per seller in central-db: SELLER-1-1 -> seller-1-1 (continue even if some fail)
+for seller in $SELLERS; do
+  username=$(echo "$seller" | tr '[:upper:]' '[:lower:]')
+  create_test_user "$username" "$seller" "seller123" || log "  ⚠️ Failed to create $username, continuing..."
+done
 
 log "🛠️ Creating internal finance/admin users..."
 create_internal_user "finance-ops" "finance123" "FINANCE" || log "  ⚠️ Failed to create finance-ops user"
@@ -563,10 +602,10 @@ create_internal_user "backoffice-admin" "admin123" "ADMIN" "FINANCE" || log "  �
 
 
 log "🔒 Client secrets written to $SECRETS_OUT"
-log "📝 Test users created:"
-log "   - seller-1-1 / seller123 (seller_id: SELLER-1-1)"
-log "   - seller-1-2 / seller123 (seller_id: SELLER-1-2)"
-log "   - seller-1-3 / seller123 (seller_id: SELLER-1-3)"
+log "📝 Per seller in central-db ($(echo "$SELLERS" | wc -l | tr -d ' ') sellers):"
+log "   - user seller-x-y / seller123 (role SELLER, seller_id SELLER-X-Y)   -> get-token-seller.sh seller-x-y"
+log "   - client seller-api-SELLER-X-Y (role SELLER_API, seller_id claim)   -> get-token-seller-api.sh SELLER-X-Y"
+log "📝 Per merchant in central-db: client merchant-api-MARKETPLACE-N (role MERCHANT, merchant_id claim) -> get-token-merchant-api.sh MARKETPLACE-N"
 log "📝 Internal users created:"
 log "   - finance-ops / finance123 (roles: FINANCE)"
 log "   - backoffice-admin / admin123 (roles: ADMIN, FINANCE)"

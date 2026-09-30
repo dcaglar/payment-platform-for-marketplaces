@@ -36,12 +36,7 @@ class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/api/v1/payments/*").hasAuthority("payment:write")
                     // internal system (checkout) authorizes payment intents
                     .requestMatchers(HttpMethod.POST, "/api/v1/payments/*/authorize").hasAuthority("payment:write")
-                    // seller self-balance (Case 1: user via frontend, Case 3: merchant API via client credentials)
-                    .requestMatchers(HttpMethod.GET, "/api/v1/sellers/me/balance").hasAnyRole("SELLER", "SELLER_API")
-                    // finance/admin back-office - balance queries
-                    .requestMatchers(HttpMethod.GET, "/api/v1/sellers/*/balance").hasAnyRole("FINANCE", "ADMIN")
-                    // finance/admin back-office - other seller endpoints
-                    .requestMatchers(HttpMethod.GET, "/api/v1/sellers/**").hasAnyRole("FINANCE", "ADMIN")
+                    // balances are served by payment-consumers (GET /api/v1/balances/...), not here
                     // default: deny everything else unless explicitly allowed
                     .anyRequest().denyAll()
             }

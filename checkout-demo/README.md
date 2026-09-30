@@ -37,13 +37,51 @@ The key lives only in the page's memory: reloading the page starts a new key.
 
 ### How the card step works
 
-Locally, payment-service runs with `psp.gateway.type: SIMULATED` and returns a simulated client secret
-(`sim_cs_...`); the mock does the same. Stripe does not know that secret, so the page shows Stripe's card
-form in **deferred mode**: only the publishable key, the amount and the currency are needed. No Stripe
-secret key and no Stripe PaymentIntent are involved. "Pay Now" checks the card fields
-(`elements.submit()`) and calls our authorize endpoint.
+The page uses Stripe's "finalize payments on the server" flow: the card form runs in **deferred mode**
+(publishable key, amount, currency, `captureMethod: 'manual'`, `paymentMethodCreation: 'manual'`).
+"Pay Now" checks the card fields (`elements.submit()`), sends the card to **Stripe only**
+(`stripe.createPaymentMethod`), and calls our authorize endpoint with the returned `pm_...` id.
+payment-service then confirms its Stripe PaymentIntent with that payment method, server-side.
+The card number never reaches our servers.
 
-Use a Stripe test card: `4242 4242 4242 4242`, any future date, any CVC.
+Which PSP decides the result depends on payment-service's `psp.gateway.type`:
+
+| Where it runs | PSP | Does the card matter? |
+|---|---|---|
+| Local cluster (`deploy-all-local.sh`, chart `local/values.yaml`: `pspGatewayType: STRIPE`) | **Stripe test mode** | yes, see the table below |
+| e2e tests, or `pspGatewayType: SIMULATED` | simulator | no: the scenario weights in `psp.authorization.simulation` decide (`NORMAL` approves everything) |
+
+Stripe mode needs the Stripe **secret test key** as `STRIPE_API_KEY` in the SOPS-encrypted
+`edge-cell-sops-secrets.yaml` (repo root). The local deploy passes it to payment-service through the
+`edge-cell-credentials` Secret. To add or change it:
+
+```bash
+sops -i edge-cell-sops-secrets.yaml   # opens decrypted in your editor; add STRIPE_API_KEY: sk_test_...; save to re-encrypt
+```
+
+### Test cards (Stripe test mode)
+
+Expiry: any future date · CVC: any 3 digits (4 for Amex) · postal code: any. The page shows the same list
+below the card form, with a copy button.
+
+| Card | Number | Stripe | Our API |
+|---|---|---|---|
+| Visa | `4242 4242 4242 4242` | approved (held, not captured) | 200 `AUTHORIZED` |
+| Mastercard | `5555 5555 5555 4444` | approved | 200 `AUTHORIZED` |
+| American Express | `3782 822463 10005` | approved | 200 `AUTHORIZED` |
+| Generic decline | `4000 0000 0000 0002` | `generic_decline` | 200 `DECLINED` |
+| Insufficient funds | `4000 0000 0000 9995` | `insufficient_funds` | 200 `DECLINED` |
+| Lost card | `4000 0000 0000 9987` | `lost_card` | 200 `DECLINED` |
+| Stolen card | `4000 0000 0000 9979` | `stolen_card` | 200 `DECLINED` |
+| Expired card | `4000 0000 0000 0069` | expired card | 200 `DECLINED` |
+| Incorrect CVC | `4000 0000 0000 0127` | incorrect CVC | 200 `DECLINED` |
+| Processing error | `4000 0000 0000 0119` | processing error | 200 `DECLINED` |
+| Blocked by Radar | `4100 0000 0000 0019` | highest fraud risk | 200 `DECLINED` |
+| 3-D Secure required | `4000 0000 0000 3220` | `requires_action` | 202 `PENDING_AUTH`, stays there: this demo has no 3-D Secure step |
+| 3-D Secure always | `4000 0027 6000 3184` | `requires_action` | 202 `PENDING_AUTH`, stays there |
+
+Source: https://docs.stripe.com/testing. "Our API" follows `StripePspAuthorizationGatewayAdapter`: a card
+decline is a result (`DECLINED`, 200), not an error.
 
 ## Setup (once)
 

@@ -261,6 +261,27 @@ class AccountDirectoryMapperIntegrationTest {
     // --------------------------------------------------------------- test helper
 
     /** Inserts a test record directly using JdbcTemplate. The mapper has no insert method. */
+    @Test
+    fun `should find all accounts of one merchant and type, one per currency`() {
+        insertAccount("MERCHANT_DIRECT_PAYABLE.MERCHANT-A.EUR", "MERCHANT_DIRECT_PAYABLE", "MERCHANT-A", null, "EUR")
+        insertAccount("MERCHANT_DIRECT_PAYABLE.MERCHANT-A.USD", "MERCHANT_DIRECT_PAYABLE", "MERCHANT-A", null, "USD")
+        insertAccount("MERCHANT_DIRECT_PAYABLE.MERCHANT-B.EUR", "MERCHANT_DIRECT_PAYABLE", "MERCHANT-B", null, "EUR")
+        insertAccount("MERCHANT_COMMISSION_PAYABLE.MERCHANT-A.EUR", "MERCHANT_COMMISSION_PAYABLE", "MERCHANT-A", null, "EUR")
+
+        val result = accountDirectoryMapper.findAllByMaster("MERCHANT_DIRECT_PAYABLE", "MERCHANT-A")
+
+        assertEquals(listOf("MERCHANT_DIRECT_PAYABLE.MERCHANT-A.EUR", "MERCHANT_DIRECT_PAYABLE.MERCHANT-A.USD"), result.map { it.accountCode })
+    }
+
+    @Test
+    fun `should not return seller accounts for a merchant accounts lookup`() {
+        insertAccount("SELLER_PAYABLE.MERCHANT-A.SELLER-A-1.EUR", "SELLER_PAYABLE", "MERCHANT-A", "SELLER-A-1", "EUR")
+
+        val result = accountDirectoryMapper.findAllByMaster("SELLER_PAYABLE", "MERCHANT-A")
+
+        assertEquals(0, result.size)
+    }
+
     private fun insertAccount(accountCode: String, accountType: String, merchant: String, subEntityId: String?, currency: String) {
         jdbcTemplate.update(
             """

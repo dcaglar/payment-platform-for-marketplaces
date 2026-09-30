@@ -15,13 +15,22 @@ export function PaymentForm({ onPaymentSubmit, onError }) {
     setError(null);
 
     try {
+      // 1. Check the card fields
       const { error: submitError } = await elements.submit();
       if (submitError) {
         setError(submitError.message);
         onError?.(submitError);
         return;
       }
-      onPaymentSubmit();
+      // 2. Send the card to Stripe (never to us) and get a PaymentMethod id back
+      const { error: createError, paymentMethod } = await stripe.createPaymentMethod({ elements });
+      if (createError) {
+        setError(createError.message);
+        onError?.(createError);
+        return;
+      }
+      // 3. Our authorize endpoint confirms the PaymentIntent with it (server-side)
+      onPaymentSubmit(paymentMethod.id);
     } catch (err) {
       setError(err.message || 'An error occurred');
       onError?.(err);

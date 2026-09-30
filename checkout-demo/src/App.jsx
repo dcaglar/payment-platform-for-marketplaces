@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { PaymentForm } from './components/PaymentElement';
+import { TestCards } from './components/TestCards';
 import { createPayment, pollPaymentStatus, authorizePayment } from './services/paymentService';
 import { uuidV7 } from './services/uuidv7';
 import './index.css';
@@ -20,21 +21,25 @@ const STEPS = {
 };
 
 /**
- * Options for Stripe's card form.
- * A simulated client secret (sim_cs_..., from payment-service with psp.gateway.type=SIMULATED,
- * or from the mock) is unknown to Stripe, so the form is shown in deferred mode instead: only the
- * publishable key, the amount and the currency are needed. The page never confirms with Stripe
- * itself; it only validates the card fields (elements.submit) and then calls our authorize endpoint.
+ * Options for Stripe's card form ("finalize payments on the server" flow).
+ * The form runs in deferred mode: it needs only the publishable key, the amount and the currency.
+ * On "Pay Now" the page creates a Stripe PaymentMethod from the card (paymentMethodCreation: 'manual')
+ * and sends its id to our authorize endpoint; payment-service confirms the PaymentIntent server-side.
+ * captureMethod must match the PaymentIntent payment-service creates at Stripe (manual capture).
+ * With the simulator (clientSecret sim_cs_...) the same form is used; the simulator ignores the card.
  */
-function stripeElementsOptions(clientSecret, paymentData) {
-  if (clientSecret && clientSecret.startsWith('sim_cs_') && paymentData && paymentData.totalAmount) {
-    return {
-      mode: 'payment',
-      amount: paymentData.totalAmount.quantity,
-      currency: paymentData.totalAmount.currency.toLowerCase()
-    };
-  }
-  return { clientSecret: clientSecret };
+function stripeElementsOptions(paymentData) {
+  return {
+    mode: 'payment',
+    amount: paymentData.totalAmount.quantity,
+    currency: paymentData.totalAmount.currency.toLowerCase(),
+    captureMethod: 'manual',
+    paymentMethodCreation: 'manual'
+  };
+}
+
+function isSimulatedPsp(clientSecret) {
+  return Boolean(clientSecret) && clientSecret.startsWith('sim_cs_');
 }
 
 function App() {
@@ -304,7 +309,7 @@ function App() {
   };
 
   // Payment authorization
-  const handleAuthorize = async () => {
+  const handleAuthorize = async (paymentMethodId) => {
     if (!paymentIntentId) {
       setError('Payment ID missing');
       return;
@@ -314,11 +319,15 @@ function App() {
     setError(null);
 
     try {
-      const result = await authorizePayment(paymentIntentId);
+      const result = await authorizePayment(paymentIntentId, paymentMethodId);
       const { status } = result.payment;
 
-      if (status === 'AUTHORIZED' || status === 'SUCCEEDED' || status === 'REQUIRES_ACTION') {
+      if (status === 'AUTHORIZED' || status === 'SUCCEEDED') {
         setStep(STEPS.SUCCESS);
+      } else if (status === 'PENDING_AUTH') {
+        // 202: not decided yet. A 3-D Secure card also ends here: this demo has no authentication step.
+        setError('Payment not confirmed yet (PENDING_AUTH). If the card needs 3-D Secure, it stays pending: this demo has no authentication step.');
+        setStep(STEPS.ERROR);
       } else if (status === 'DECLINED' || status === 'FAILED') {
         setError(result.payment.error?.message || 'Payment declined');
         setStep(STEPS.ERROR);
@@ -502,9 +511,10 @@ function App() {
               </div>
             )}
             {error && <div className="error-message">{error}</div>}
-            <Elements stripe={stripePromise} options={stripeElementsOptions(clientSecret, paymentData)}>
+            <Elements stripe={stripePromise} options={stripeElementsOptions(paymentData)}>
               <PaymentForm onPaymentSubmit={handleAuthorize} onError={(err) => setError(err.message)} />
             </Elements>
+            <TestCards simulated={isSimulatedPsp(clientSecret)} />
           </div>
         </div>
       )}

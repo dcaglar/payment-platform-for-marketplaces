@@ -116,6 +116,10 @@ spec:
               value: "{{ .Values.spring.profile | default "local" }}"
             - name: POSTGRES_DB
               valueFrom: {configMapKeyRef: {name: edge-cell-config, key: EDGE_DB_NAME}}
+            # Which PSP adapter payment-service uses (overrides psp.gateway.type from application-<profile>.yml).
+            # STRIPE_API_KEY comes with envFrom edge-cell-credentials (edge-cell-sops-secrets.yaml).
+            - name: PSP_GATEWAY_TYPE
+              value: "{{ .Values.paymentService.pspGatewayType | default "SIMULATED" }}"
           startupProbe:
             httpGet: {path: /actuator/health/liveness, port: management}
             initialDelaySeconds: 10

@@ -108,18 +108,22 @@ export async function pollPaymentStatus(paymentIntentId, maxAttempts = 30, inter
 
 /**
  * Authorize a payment intent
- * Called after Stripe Payment Element has collected payment details
- * No payment details are sent - backend uses stored PaymentIntent ID
+ * Called after the Payment Element has collected the card. The card itself went to Stripe only;
+ * we send Stripe's PaymentMethod id (pm_...), which payment-service passes to Stripe's confirm.
  * @param {string} paymentIntentId - The internal payment intent ID
+ * @param {string|null} paymentMethodId - Stripe PaymentMethod id (pm_...)
  */
-export async function authorizePayment(paymentIntentId) {
+export async function authorizePayment(paymentIntentId, paymentMethodId) {
   const url = `${PROXY_URL}/api/checkout/authorize-payment/${paymentIntentId}`;
-  
+  const body = paymentMethodId
+    ? { paymentMethod: { type: 'CardToken', token: paymentMethodId } }
+    : {};
+
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify(body),
     });
 
     const responseData = await response.json().catch(() => ({}));

@@ -30,7 +30,6 @@ import kotlin.random.Random
 
 @Component
 @ConditionalOnProperty(name = ["psp.gateway.type"], havingValue = "STRIPE", matchIfMissing = true)
-@Profile("Test")
 class StripePspAuthorizationGatewayAdapter(
     private val stripeClient: StripeClient,
     private val simulator: AuthorizationNetworkSimulator,
@@ -164,6 +163,14 @@ class StripePspAuthorizationGatewayAdapter(
             .setAmount(paymentIntent.totalAmount.quantity)
             .setCurrency(paymentIntent.totalAmount.currency.currencyCode.lowercase())
             .setCaptureMethod(PaymentIntentCreateParams.CaptureMethod.MANUAL)
+            // We confirm server-side without a return_url, so only payment methods that never redirect
+            // the customer (e.g. cards) are allowed; otherwise Stripe rejects the confirm.
+            .setAutomaticPaymentMethods(
+                PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
+                    .setEnabled(true)
+                    .setAllowRedirects(PaymentIntentCreateParams.AutomaticPaymentMethods.AllowRedirects.NEVER)
+                    .build()
+            )
             .putMetadata("payment_intent_id", paymentIntent.paymentIntentId.value.toString())
             .putMetadata("order_id", paymentIntent.orderId.value)
             .putMetadata("buyer_id", paymentIntent.buyerId.value)

@@ -20,6 +20,12 @@ server:
       buffered: true
 
 spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Keycloak realm that signs the tokens (checked lazily, on the first request that carries a JWT)
+          issuer-uri: ${KEYCLOAK_ISSUER_URL:http://keycloak:8080/realms/ecommerce-platform}
   application:
     name: payment-consumers
   lifecycle:

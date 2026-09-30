@@ -115,5 +115,5 @@ if [[ -n "$TTL_MESSAGE" ]]; then
   echo "⏱️  Requested token lifespan: ${TTL_MESSAGE}h"
 fi
 
-echo "💡 Use this token to query balance for any seller: GET /api/v1/sellers/{sellerId}/balance"
+echo "💡 Use this token to query balance for any seller: GET /api/v1/balances/{sellerId}"
 

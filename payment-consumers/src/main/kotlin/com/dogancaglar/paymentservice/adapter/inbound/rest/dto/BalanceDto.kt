@@ -1,21 +1,30 @@
 package com.dogancaglar.port.out.web.dto
 
 /**
- * Balance DTO representing a merchant's account balance.
- * 
- * The balance is returned in the smallest currency unit (cents, pence, etc.)
- * and includes the currency for proper formatting.
- * 
- * Examples:
- * - $1,234.56 USD = BalanceDto(balance = 123456, currency = USD)
- * - €500.00 EUR = BalanceDto(balance = 50000, currency = EUR)
+ * The balance of one owner: a seller, or a merchant. Each payable account is listed with its
+ * balance, plus the total. Amounts are in the smallest currency unit (cents); all accounts in one
+ * response share one currency.
+ *
+ * A seller has one account (SELLER_PAYABLE). A merchant can sell directly and run a marketplace,
+ * so it has two: MERCHANT_DIRECT_PAYABLE and MERCHANT_COMMISSION_PAYABLE.
  */
 data class BalanceDto(
-    val balance: Long,
+    val ownerType: OwnerType,
+    val ownerId: String,
     val currency: CurrencyEnum,
-    val accountCode: String,
-    val sellerId: String
+    val total: Long,
+    val accounts: List<AccountBalanceDto>
 )
+
+data class AccountBalanceDto(
+    val accountType: String,
+    val accountCode: String,
+    val balance: Long
+)
+
+enum class OwnerType {
+    SELLER, MERCHANT
+}
 
 enum class CurrencyEnum {
     EUR, USD, GBP

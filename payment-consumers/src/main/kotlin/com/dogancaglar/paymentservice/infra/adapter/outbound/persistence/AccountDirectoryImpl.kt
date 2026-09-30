@@ -49,6 +49,11 @@ class AccountDirectoryImpl(
         return mapper.findAllBySubEntity(accountType.name, subEntityId)
     }
 
+    override fun getAccountProfilesByMaster(accountType: AccountType, masterAccountCode: String): List<AccountProfile> {
+        // Not using redis cache for merchant lookups currently, could be added later
+        return mapper.findAllByMaster(accountType.name, masterAccountCode)
+    }
+
     override fun getAccountByCode(accountCode: String): AccountProfile {
         // Not using redis cache for code lookups currently, could be added later
         return mapper.findByAccountCode(accountCode)

@@ -21,12 +21,13 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Profile
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 
 @Configuration
 class PaymentServiceConfig(val serializationPort: SerializationPort) {
 
-    @Profile("test")
+    // Same condition as StripePspAuthorizationGatewayAdapter, the only user of the client
+    @ConditionalOnProperty(name = ["psp.gateway.type"], havingValue = "STRIPE", matchIfMissing = true)
     @Bean
     fun stripeClient(
         @Value("\${stripe.api.api-key}") apiKey: String,
