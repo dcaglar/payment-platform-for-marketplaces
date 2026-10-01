@@ -24,7 +24,7 @@ create_internal_user() {
   log "  Creating/updating internal user '$username' with roles=${roles[*]}..."
 
   local user_id
-  user_id=$(curl -sf "$KEYCLOAK_URL/admin/realms/$REALM/users?username=$username" \
+  user_id=$(curl -sf "$KEYCLOAK_URL/admin/realms/$REALM/users?username=$username&exact=true" \
     -H "Authorization: Bearer $KC_TOKEN" | jq -r '.[0].id // empty' 2>/dev/null || echo "")
 
   if [[ -n "$user_id" && "$user_id" != "null" ]]; then
@@ -50,7 +50,7 @@ create_internal_user() {
       log "   ⚠️ User creation returned HTTP $create_response (may already exist)"
     fi
 
-    user_id=$(curl -sf "$KEYCLOAK_URL/admin/realms/$REALM/users?username=$username" \
+    user_id=$(curl -sf "$KEYCLOAK_URL/admin/realms/$REALM/users?username=$username&exact=true" \
       -H "Authorization: Bearer $KC_TOKEN" | jq -r '.[0].id // empty' 2>/dev/null || echo "")
   fi
 
@@ -107,14 +107,18 @@ if ! curl -sf --max-time 5 "$KEYCLOAK_URL/realms/master" >/dev/null 2>&1; then
   exit 1
 fi
 
-# Get admin token with better error handling
-KC_TOKEN=$(curl -f -s --max-time 10 \
-  -d "client_id=admin-cli" \
-  -d "username=$ADMIN_USER" \
-  -d "password=$ADMIN_PASS" \
-  -d "grant_type=password" \
-  "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" 2>/dev/null \
-  | jq -r '.access_token // empty' 2>/dev/null || echo "")
+# Admin token. It lives only 60 s, and provisioning 50+ sellers takes longer,
+# so the loops below call refresh_admin_token before each seller/merchant.
+refresh_admin_token() {
+  KC_TOKEN=$(curl -f -s --max-time 10 \
+    -d "client_id=admin-cli" \
+    -d "username=$ADMIN_USER" \
+    -d "password=$ADMIN_PASS" \
+    -d "grant_type=password" \
+    "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" 2>/dev/null \
+    | jq -r '.access_token // empty' 2>/dev/null || echo "")
+}
+refresh_admin_token
 
 if [[ -z "$KC_TOKEN" || "$KC_TOKEN" == "null" ]]; then
   log "❌ Failed to get admin token."
@@ -251,6 +255,7 @@ CLIENTS=(
 SECRETS_OUT="$OUTPUT_DIR/secrets.txt"
 echo -n > "$SECRETS_OUT"
 for client_entry in "${CLIENTS[@]}"; do
+  refresh_admin_token
   # Split client_name:secret_env_var
   IFS=':' read -r client secret_env_var <<< "$client_entry"
   
@@ -460,12 +465,14 @@ create_merchant_api_client() {
 
 # One seller API client per seller in central-db
 for seller in $SELLERS; do
+  refresh_admin_token
   create_seller_api_client "$seller"
 done
 
 # --- Merchant API clients: one per merchant, role MERCHANT, merchant_id claim ---
 log "🛠️ Creating merchant API clients (role MERCHANT)..."
 for merchant in $MERCHANTS; do
+  refresh_admin_token
   create_merchant_api_client "$merchant"
 done
 
@@ -522,7 +529,7 @@ create_test_user() {
   
   # Get user ID if exists
   local user_id
-  user_id=$(curl -sf "$KEYCLOAK_URL/admin/realms/$REALM/users?username=$username" \
+  user_id=$(curl -sf "$KEYCLOAK_URL/admin/realms/$REALM/users?username=$username&exact=true" \
     -H "Authorization: Bearer $KC_TOKEN" | jq -r '.[0].id // empty' 2>/dev/null || echo "")
   
   # If user already exists, delete it so we can recreate with managed credentials (avoids read-only errors)
@@ -552,7 +559,7 @@ create_test_user() {
     fi
     
     # Get user ID after creation attempt
-    user_id=$(curl -sf "$KEYCLOAK_URL/admin/realms/$REALM/users?username=$username" \
+    user_id=$(curl -sf "$KEYCLOAK_URL/admin/realms/$REALM/users?username=$username&exact=true" \
       -H "Authorization: Bearer $KC_TOKEN" | jq -r '.[0].id // empty' 2>/dev/null || echo "")
   fi
   
@@ -592,11 +599,13 @@ create_test_user() {
 
 # One login user per seller in central-db: SELLER-1-1 -> seller-1-1 (continue even if some fail)
 for seller in $SELLERS; do
+  refresh_admin_token
   username=$(echo "$seller" | tr '[:upper:]' '[:lower:]')
   create_test_user "$username" "$seller" "seller123" || log "  ⚠️ Failed to create $username, continuing..."
 done
 
 log "🛠️ Creating internal finance/admin users..."
+refresh_admin_token
 create_internal_user "finance-ops" "finance123" "FINANCE" || log "  ⚠️ Failed to create finance-ops user"
 create_internal_user "backoffice-admin" "admin123" "ADMIN" "FINANCE" || log "  ⚠️ Failed to create backoffice-admin user"
 

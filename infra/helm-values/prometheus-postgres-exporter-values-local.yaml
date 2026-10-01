@@ -1,0 +1,31 @@
+config:
+  datasource:
+    host: "central-db-postgresql.payment.svc.cluster.local"
+    port: "5432"
+    user: "postgres"
+    database: "central-db"
+    sslmode: "disable"
+    passwordSecret:
+      name: "central-db-credentials"
+      key: "CENTRAL_DB_POSTGRES_PASSWORD"
+
+serviceMonitor:
+  enabled: true
+  namespace: "payment"
+  interval: 10s
+  telemetryPath: /metrics
+  labels:
+    release: prometheus-stack
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+service:
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9187"

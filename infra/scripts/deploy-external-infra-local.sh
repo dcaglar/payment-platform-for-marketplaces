@@ -4,15 +4,16 @@ set -euo pipefail
 trap 'echo "❌ External infra deployment failed on line $LINENO. Command: $BASH_COMMAND"' ERR
 
 usage() {
-  echo "Usage: $0 <RELEASE_NAME used in helm upgrade install RELEASE_NAME>"
-  echo "Example: $0 keycloak/redis/kafka"
-  echo "Example: $0 ingress-controller local ingress-nginx"
+  echo "Usage: $0 <component>"
+  echo "Components: keycloak | kafka | redis | keda | ingress-nginx | prometheus-kafka-exporter | prometheus-postgres-exporter"
+  echo "Example: $0 prometheus-kafka-exporter"
   exit 1
 }
 
 RELEASE_NAME=${1:-}
+ENV="local"
 
-if [ -z "$RELEASE_NAME" ] then
+if [ -z "$RELEASE_NAME" ]; then
   usage
 fi
 
@@ -20,41 +21,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$REPO_ROOT"
 
-# Set base values file if it exists
-    REPO_NAME="bitnami"
-    REPO_URL="https://charts.bitnami.com/bitnami"
-    CHART="bitnami/keycloak"
-    RELEASE_NAME="keycloak"
-    NAMESPACE="payment"
-    EXTRA_ARGS="--version 20.0.0 --set global.imageRegistry=docker.io --set image.registry=docker.io --set image.repository=bitnamilegacy/keycloak --set image.tag=23.0.7 --set postgresql.enabled=true --set postgresql.image.registry=docker.io --set postgresql.image.repository=bitnamilegacy/postgresql --set postgresql.image.tag=16.4.0-debian-12-r0"
-    VALUES_FILE="$REPO_ROOT/infra/helm-values/${RELEASE_NAME}-values-local.yaml"
+echo "🚀 Preparing external deployment: $RELEASE_NAME for $ENV environment..."
 
-HELM_ARGS=""
-if [ ! -f "$VALUES_FILE" ]; then
-  echo "⚠️  No specific values file found at $VALUES_FILE. Proceeding with chart defaults."
-  VALUES_FILE=""
-else
-  HELM_ARGS="-f $VALUES_FILE"
-fi
-
-helm repo add "$REPO_NAME" "$REPO_URL"
-echo "helm repo add $REPO_NAME $REPO_URL"
-
-#KEYCLOAK
-# Note: we are passing HELM_ARGS and EXTRA_ARGS unquoted intentionally so they expand
-"helm upgrade --install "$RELEASE_NAME" "$CHART" \
-  -n "$NAMESPACE" --create-namespace \
-  $HELM_ARGS \
-  $EXTRA_ARGS"
-
-echo "helm upgrade --install "$RELEASE_NAME" $CHART \
-       -n $NAMESPACE --create-namespace \
-       $HELM_ARGS \
-       $EXTRA_ARGS"
-
-
-echo "🚀 Preparing external deployment: $RELEASE_NAME for local environment..."
-
+EXTRA_ARGS=""
 case "$RELEASE_NAME" in
   keycloak)
     REPO_NAME="bitnami"
@@ -98,9 +67,6 @@ case "$RELEASE_NAME" in
     REPO_URL="https://kedacore.github.io/charts"
     CHART="kedacore/keda"
     NAMESPACE="keda"
-    if [[ "$ENV" == "azure" ]]; then
-      EXTRA_ARGS="--set nodeSelector.pool=central"
-    fi
     ;;
 
   ingress-nginx)
@@ -112,16 +78,27 @@ case "$RELEASE_NAME" in
 
   *)
     echo "❌ Unknown external component: $RELEASE_NAME"
-    exit 1
+    usage
     ;;
 esac
 
+# Use infra/helm-values/<component>-values-local.yaml when it exists
+VALUES_FILE="$REPO_ROOT/infra/helm-values/${RELEASE_NAME}-values-${ENV}.yaml"
+HELM_ARGS=""
+if [ -f "$VALUES_FILE" ]; then
+  HELM_ARGS="-f $VALUES_FILE"
+else
+  echo "⚠️  No values file at $VALUES_FILE. Using chart defaults."
+fi
 
-#Redis
- REPO_NAME="bitnami"
- REPO_URL="https://charts.bitnami.com/bitnami"
- CHART="bitnami/redis"
- NAMESPACE="payment"
+helm repo add "$REPO_NAME" "$REPO_URL" --force-update
+helm repo update "$REPO_NAME"
 
+# HELM_ARGS and EXTRA_ARGS are unquoted on purpose so they split into separate arguments
+echo "helm upgrade --install $RELEASE_NAME $CHART -n $NAMESPACE --create-namespace $HELM_ARGS $EXTRA_ARGS"
+helm upgrade --install "$RELEASE_NAME" "$CHART" \
+  -n "$NAMESPACE" --create-namespace \
+  $HELM_ARGS \
+  $EXTRA_ARGS
 
 echo "✅ Deployment request of $RELEASE_NAME to $ENV helm complete."
