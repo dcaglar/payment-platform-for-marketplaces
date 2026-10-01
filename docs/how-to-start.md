@@ -47,11 +47,15 @@ infra/scripts/deploy-monitoring-stack-local.sh
 ```
 
 5) Exporters (Kafka & Postgresql) (Only if monitoring installed)
-- What: Exposes Kafka consumer lag, offsets, etc. for Prometheus.
-- Run:
+- What: Exposes Kafka consumer lag, offsets, etc. and central-db stats for Prometheus.
+- Run (from the repo root; settings come from `infra/helm-values/<name>-values-local.yaml`):
 ```bash
 infra/scripts/deploy-external-infra-local.sh prometheus-kafka-exporter
 infra/scripts/deploy-external-infra-local.sh prometheus-postgres-exporter
+```
+- Check: both pods `Running`:
+```bash
+kubectl get pods -n payment | grep exporter
 ```
 
 
@@ -157,31 +161,51 @@ same key twice, retry after an error), and for the card step, see [`checkout-dem
 
 ## 3️⃣ Test the balance API
 
-Base URL `http://${API_BASE_URL}/api/v1`. Who you are comes from the token; amounts are in cents.
+Who you are comes from the token; amounts are in cents. Every command below runs on its own, from any folder inside the repo (base URL and token path are looked up inline).
 
 | Call | Allowed for | Returns |
 |---|---|---|
 | `GET /balances/me` | seller (user or seller-api client), merchant | your own balance |
 | `GET /balances/{sellerId}` | merchant: only its own sellers (else `403`); finance/admin: any seller | that seller's balance |
 
+**A seller's own balance (seller user; user tokens last 5 minutes, so get a fresh one first):**
 ```bash
-JWT=./keycloak/output/jwt
+"$(git rev-parse --show-toplevel)"/keycloak/get-token-seller.sh seller-5-1
+curl -i "http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/balances/me" \
+  -H "Authorization: Bearer $(cat "$(git rev-parse --show-toplevel)"/keycloak/output/jwt/seller-SELLER-5-1.token)"
+```
 
-# a seller's own balance (user token or seller-api token); user tokens last 5 minutes, so refresh first
-./keycloak/get-token-seller.sh seller-5-1 > /dev/null
-curl -s -H "Authorization: Bearer $(cat $JWT/seller-SELLER-5-1.token)" "http://${API_BASE_URL}/api/v1/balances/me"
-curl -s -H "Authorization: Bearer $(cat $JWT/seller-api-SELLER-5-1.token)" "http://${API_BASE_URL}/api/v1/balances/me"
+**A seller's own balance (seller-api client):**
+```bash
+"$(git rev-parse --show-toplevel)"/keycloak/get-token-seller-api.sh SELLER-5-1
+curl -i "http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/balances/me" \
+  -H "Authorization: Bearer $(cat "$(git rev-parse --show-toplevel)"/keycloak/output/jwt/seller-api-SELLER-5-1.token)"
+```
 
-# a merchant's own balance: direct-sales payable + marketplace commission payable, and the total
-curl -s -H "Authorization: Bearer $(cat $JWT/merchant-api-MARKETPLACE-5.token)" "http://${API_BASE_URL}/api/v1/balances/me"
+**A merchant's own balance (direct-sales payable + marketplace commission payable, and the total):**
+```bash
+"$(git rev-parse --show-toplevel)"/keycloak/get-token-merchant-api.sh MARKETPLACE-5
+curl -i "http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/balances/me" \
+  -H "Authorization: Bearer $(cat "$(git rev-parse --show-toplevel)"/keycloak/output/jwt/merchant-api-MARKETPLACE-5.token)"
+```
 
-# a merchant reads one of its sellers (200) / another merchant's seller (403)
-curl -s -H "Authorization: Bearer $(cat $JWT/merchant-api-MARKETPLACE-5.token)" "http://${API_BASE_URL}/api/v1/balances/SELLER-5-1"
-curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $(cat $JWT/merchant-api-MARKETPLACE-5.token)" "http://${API_BASE_URL}/api/v1/balances/SELLER-1-1"
+**A merchant reads one of its sellers (`200`):**
+```bash
+curl -i "http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/balances/SELLER-5-1" \
+  -H "Authorization: Bearer $(cat "$(git rev-parse --show-toplevel)"/keycloak/output/jwt/merchant-api-MARKETPLACE-5.token)"
+```
 
-# back office reads any seller (user token, 5 minutes: refresh first)
-./keycloak/get-token-finance.sh > /dev/null
-curl -s -H "Authorization: Bearer $(cat $JWT/finance-finance-ops.token)" "http://${API_BASE_URL}/api/v1/balances/SELLER-1-1"
+**A merchant reads another merchant's seller (`403`):**
+```bash
+curl -i "http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/balances/SELLER-1-1" \
+  -H "Authorization: Bearer $(cat "$(git rev-parse --show-toplevel)"/keycloak/output/jwt/merchant-api-MARKETPLACE-5.token)"
+```
+
+**Back office reads any seller (user token, 5 minutes: get a fresh one first):**
+```bash
+"$(git rev-parse --show-toplevel)"/keycloak/get-token-finance.sh
+curl -i "http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/balances/SELLER-1-1" \
+  -H "Authorization: Bearer $(cat "$(git rev-parse --show-toplevel)"/keycloak/output/jwt/finance-finance-ops.token)"
 ```
 
 Example response (merchant):

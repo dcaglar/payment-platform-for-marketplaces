@@ -5,6 +5,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$SCRIPT_DIR/../.."
 cd "$REPO_ROOT"
 
+# 0. Fetch a fresh token for k6 (keycloak/output/jwt/payment-service.token); a saved one goes stale
+./keycloak/get-token.sh
+
 # 1. Query the local LoadBalancer IP of the Ingress Controller and write to endpoint.txt
 echo "🔍 Resolving local Ingress Controller IP..."
 kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='http://{.status.loadBalancer.ingress[0].ip}' > "load-tests/endpoint.txt"

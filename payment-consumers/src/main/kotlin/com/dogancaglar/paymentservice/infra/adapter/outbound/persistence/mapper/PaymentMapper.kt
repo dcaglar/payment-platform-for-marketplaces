@@ -33,6 +33,12 @@ interface PaymentMapper {
 
     fun upsert(payment: PaymentEntity): Int
 
+    /**
+     * Inserts the Payment unless its intent already has one (unique payment_intent_id).
+     * Returns 1 when inserted, 0 when a Payment for this intent already exists.
+     */
+    fun insertIfAbsent(payment: PaymentEntity): Int
+
     fun deleteById(id: Long): Int
 
     fun deleteAll(): Int

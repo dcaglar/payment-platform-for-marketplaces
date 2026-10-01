@@ -34,6 +34,27 @@ open class CentralDbTransactionalFacadeAdapter(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     @Transactional(timeout = 5)
+    override fun recordAuthorizationInLedger(
+        payment: Payment,
+        tx: Tx,
+        journalEntries: List<JournalEntry>,
+        outboxEvents: List<OutboxEvent>
+    ): Boolean {
+        val splitsJson = objectMapper.writeValueAsString(payment.splits.map { PaymentSplitDto.fromDomain(it) })
+        val paymentEntity = PaymentEntityMapper.toEntity(payment, splitsJson)
+        // A replay carries a newly generated payment_id, so the intent decides: one Payment per intent
+        val inserted = paymentMapper.insertIfAbsent(paymentEntity)
+        if (inserted == 0) {
+            logger.info("Payment for intent {} already recorded, skipping the authorization step", payment.paymentIntentId.value)
+            return false
+        }
+        val txEntity = PaymentTxEntityMapper.toEntity(tx)
+        txMapper.upsert(txEntity)
+        saveJournalAndOutbox(journalEntries, outboxEvents)
+        return true
+    }
+
+    @Transactional(timeout = 5)
     override fun recordPaymentOperationInLedger(
         payment: Payment,
         tx: Tx,

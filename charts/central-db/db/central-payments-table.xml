@@ -152,7 +152,9 @@
         <!-- ============================================================
              3. Indexes
              ============================================================ -->
-        <createIndex tableName="payments" indexName="idx_payments_payment_intent_id">
+        <!-- One Payment per intent: a replayed payment_authorized must not create a second Payment.
+             Also required by INSERT … ON CONFLICT (payment_intent_id) DO NOTHING (PaymentMapper.insertIfAbsent). -->
+        <createIndex tableName="payments" indexName="idx_payments_payment_intent_id" unique="true">
             <column name="payment_intent_id"/>
         </createIndex>
 
