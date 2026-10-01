@@ -154,6 +154,45 @@
     </insert>
 
     <!--
+        INSERT IF ABSENT: used only by the authorization step, which creates the Payment.
+        A replayed payment_authorized carries a newly generated payment_id, so it is detected by the
+        intent instead: 1 row = inserted, 0 rows = this intent already has a Payment.
+    -->
+    <insert id="insertIfAbsent"
+            parameterType="com.dogancaglar.common.db.entity.PaymentEntity">
+        INSERT INTO payments (
+            payment_id,
+            payment_intent_id,
+            buyer_id,
+            merchant_account,
+            processing_model,
+            total_amount_value,
+            captured_amount_value,
+            refunded_amount_value,
+            currency,
+            status,
+            splits_json,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{paymentId},
+            #{paymentIntentId},
+            #{buyerId},
+            #{merchantAccount},
+            #{processingModel},
+            #{totalAmountValue},
+            #{capturedAmountValue},
+            #{refundedAmountValue},
+            #{currency},
+            #{status},
+            CAST(#{splitsJson} AS jsonb),
+            #{createdAt,typeHandler=com.dogancaglar.common.db.typehandler.InstantTypeHandler},
+            #{updatedAt,typeHandler=com.dogancaglar.common.db.typehandler.InstantTypeHandler}
+        )
+        ON CONFLICT (payment_intent_id) DO NOTHING
+    </insert>
+
+    <!--
         UPDATE: only mutable state fields are included.
         payment_id, payment_intent_id, buyer_id, merchant_account,
         processing_model, total_amount_value, currency, splits_json are

@@ -127,13 +127,16 @@ open class ProcessPspResultProcessingService(
         )
         val ledgerOutboxEvent = outboxEventFactoryPort.create(ledgerEvent)
 
-        // 6. Persist all
-        centralDbTransactionalFacadePort.recordPaymentOperationInLedger(
+        // 6. Persist all (nothing is written when this intent already has a Payment: a replay)
+        val recorded = centralDbTransactionalFacadePort.recordAuthorizationInLedger(
             payment = payment,
             tx = transaction,
             journalEntries = journalEntries,
             outboxEvents = listOf(captureOutboxEvent, ledgerOutboxEvent)
         )
+        if (!recorded) {
+            logger.debug("payment_authorized for {} was already recorded, nothing written", event.publicPaymentIntentId)
+        }
     }
 
     override fun processCaptureConfirmed(event: CaptureConfirmed) {

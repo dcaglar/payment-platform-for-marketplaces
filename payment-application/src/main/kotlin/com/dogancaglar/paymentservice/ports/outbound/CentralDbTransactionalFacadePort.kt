@@ -7,6 +7,17 @@ import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 
 interface CentralDbTransactionalFacadePort {
 
+    /**
+     * Records the authorization step, which creates the Payment: Payment + AuthTx + journals + outbox events
+     * in one transaction. Returns false, writing nothing, if this intent already has a Payment (a replay).
+     */
+    fun recordAuthorizationInLedger(
+        payment: Payment,
+        tx: Tx,
+        journalEntries: List<JournalEntry>,
+        outboxEvents: List<OutboxEvent>
+    ): Boolean
+
     fun recordPaymentOperationInLedger(
         payment: Payment,
         tx: Tx,
