@@ -23,3 +23,9 @@ service:
   type: ClusterIP
   portName: http
   port: 8080
+
+# Balance read API route (/api/v1/balances/**); switched on per environment
+ingress:
+  enabled: false
+  className: "nginx"
+  appPath: "/api/v1/balances"

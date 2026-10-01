@@ -33,6 +33,9 @@ keda:
           value: 100
           periodSeconds: 15
 paymentService:
+  # Local deploys authorize through Stripe test mode (needs STRIPE_API_KEY in edge-cell-sops-secrets.yaml).
+  # e2e-tests do not use this chart and stay SIMULATED.
+  pspGatewayType: STRIPE
   image:
     pullPolicy: Always
   jvmOpts: >-

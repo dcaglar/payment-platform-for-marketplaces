@@ -384,3 +384,84 @@ code {
   margin-right: 8px;
 }
 
+
+/* Test cards panel (payment step) */
+.test-cards {
+  margin-top: 24px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 13px;
+}
+
+.test-cards summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #333;
+}
+
+.test-cards-mode {
+  margin: 12px 0 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.test-cards-mode-sim {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.test-cards-mode-stripe {
+  background: #d4edda;
+  color: #155724;
+}
+
+.test-cards-hint {
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.test-cards-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.test-cards-table th,
+.test-cards-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+}
+
+.test-cards-table th {
+  color: #555;
+  font-weight: 600;
+}
+
+.test-card-ok td:last-child {
+  color: #155724;
+}
+
+.test-card-decline td:last-child {
+  color: #721c24;
+}
+
+.test-card-pending td:last-child {
+  color: #856404;
+}
+
+.copy-card-btn {
+  background: none;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.copy-card-btn:hover {
+  border-color: #667eea;
+}

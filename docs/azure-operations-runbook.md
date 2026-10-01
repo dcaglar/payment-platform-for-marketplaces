@@ -23,7 +23,7 @@ az aks get-credentials --resource-group rg-payment-platform-loadtest --name aks-
 
 ## 2. Public Web UIs & API Endpoints
 
-These are the public external endpoints currently provisioned in Azure. 
+These are the public endpoints of the **last** deployed cluster. Azure assigns new IPs on every redeploy, so treat them as examples and use section 3 to look up the current ones.
 
 *   **📊 Grafana Load Test Dashboard**: [http://4.175.208.51](http://4.175.208.51)
 *   **🔥 Prometheus UI**: [http://20.31.203.163:9090](http://20.31.203.163:9090)
@@ -96,10 +96,10 @@ Run this command, then connect your SQL Client (e.g. DBeaver) to `localhost:5432
 kubectl port-forward -n payment svc/central-db-postgresql 5432:5432
 ```
 
-### 🗄️ Edge DB (SQLite/Postgres inside payment-edge-cell pods)
-Run this command, then connect your SQL client to `localhost:5433` (Database: `edge-db`):
+### 🗄️ Edge DB (Postgres inside each payment-edge-cell pod)
+Each edge cell has its own edge-db. Port-forward the cell you want (here cell 0), then connect your SQL client to `localhost:5433` (Database: `edge-db`):
 ```bash
-kubectl port-forward -n payment statefulset/payment-edge-cell 5433:5432
+kubectl port-forward -n payment pod/payment-edge-cell-0 5433:5432
 ```
 
 ### 🐙 Kafka Broker
@@ -108,65 +108,60 @@ Run this command, then connect your local Kafka tools to `localhost:9092`:
 kubectl port-forward -n payment svc/kafka 9092:9092
 ```
 
-###  fastest way to apply a values.yaml change directly to Kubernetes without waiting for a full script redeploy or building any images is to run a targeted helm upgrade, followed by a rollout restart (if needed).
+### ⚡ Apply a values change without a full redeploy
+The fastest way to apply a `values.yaml` change to Azure, without rerunning the scripts or building images, is a targeted `helm secrets upgrade` with the **Azure** values file (the same files `deploy-payment-platform-services-azure.sh` uses), followed by a rollout restart if needed.
 
+> [!WARNING]
+> Always pass `charts/<chart>/azure/values.yaml` on AKS. `local/values.yaml` sets the `local` Spring profile and OrbStack settings.
 
 ```bash
 helm dependency update charts/payment-edge-cell
 helm secrets upgrade --install payment-edge-cell charts/payment-edge-cell \
--n payment --create-namespace \
--f charts/payment-edge-cell/values.yaml \
--f charts/payment-edge-cell/local/values.yaml \
--f secrets://edge-cell-sops-secrets.yaml
+  -n payment --create-namespace \
+  -f charts/payment-edge-cell/values.yaml \
+  -f charts/payment-edge-cell/azure/values.yaml \
+  -f secrets://edge-cell-sops-secrets.yaml
 ```
-
-
-
-
-```bash
-helm dependency update charts/payment-consumers
-helm secrets upgrade --install payment-consumers charts/payment-consumers \
--n payment --create-namespace \
--f charts/payment-consumers/values.yaml \
--f charts/payment-consumers/local/values.yaml \
--f secrets://central-db-sops-secrets.yaml
-```
-
 
 ```bash
 helm dependency update charts/payment-edge-workers
 helm secrets upgrade --install payment-edge-workers charts/payment-edge-workers \
--n payment --create-namespace \
--f charts/payment-edge-workers/values.yaml \
--f charts/payment-edge-workers/local/values.yaml \
--f secrets://central-db-sops-secrets.yaml \
--f secrets://edge-cell-sops-secrets.yaml
+  -n payment --create-namespace \
+  -f charts/payment-edge-workers/values.yaml \
+  -f charts/payment-edge-workers/azure/values.yaml \
+  -f secrets://edge-cell-sops-secrets.yaml \
+  -f secrets://central-db-sops-secrets.yaml
 ```
-
 
 ```bash
 helm dependency update charts/payment-central-relay
 helm secrets upgrade --install payment-central-relay charts/payment-central-relay \
--n payment --create-namespace \
--f charts/payment-central-relay/values.yaml \
--f charts/payment-central-relay/local/values.yaml \
--f secrets://central-db-sops-secrets.yaml
+  -n payment --create-namespace \
+  -f charts/payment-central-relay/values.yaml \
+  -f charts/payment-central-relay/azure/values.yaml \
+  -f secrets://central-db-sops-secrets.yaml
 ```
 
-
+```bash
 helm dependency update charts/payment-consumers
 helm secrets upgrade --install payment-consumers charts/payment-consumers \
--n payment --create-namespace \
--f charts/payment-consumers/values.yaml \
--f charts/payment-consumers/local/values.yaml \
--f secrets://central-db-sops-secrets.yaml
-# Force the Pod to Restart (If necessary)
-   When Helm runs, it updates the ConfigMap. However, Kubernetes does not automatically restart a pod just because a ConfigMap changed (unless you use a special checksum annotation in your Helm template).
+  -n payment --create-namespace \
+  -f charts/payment-consumers/values.yaml \
+  -f charts/payment-consumers/azure/values.yaml \
+  -f secrets://central-db-sops-secrets.yaml
+```
+
+> [!NOTE]
+> Known issues in the Azure values (edge-cell does not render; multi-document values files) are listed in `docs/architecture/adr-001-azure-infrastructure.md`, audit entry 2026-09-29.
+
+#### Force the Pod to Restart (If necessary)
+When Helm runs, it updates the ConfigMap. However, Kubernetes does not automatically restart a pod just because a ConfigMap changed (unless you use a special checksum annotation in your Helm template).
 
 To force Kubernetes to gracefully spin up a new pod with the new injected values, and then terminate the old pod (Zero Downtime Rolling Update), run this instantly after the Helm command:
 ```bash
 kubectl rollout restart statefulset/payment-consumers -n payment
 ```
+
 ## 6. Testing the Payment API
 
 Once your Azure infrastructure is deployed, you can test the public Payment API using standard curl commands. 
@@ -190,7 +185,7 @@ Execute the curl request against the public IP, injecting the token from the fil
 ```bash
 IDEMPOTENCY_KEY=$(printf '%08x-%04x-7%03x-8%03x-%04x%08x' $((RANDOM*RANDOM)) $((RANDOM)) $((RANDOM%4096)) $((RANDOM%4096)) $((RANDOM)) $((RANDOM*RANDOM)))
 echo "Using Idempotency-Key=$IDEMPOTENCY_KEY"
-curl -i -X POST http://51.105.254.202/api/v1/payments \
+curl -i -X POST "http://$API_IP/api/v1/payments" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(cat ./keycloak/output/jwt/payment-service.token)" \
   -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
@@ -210,11 +205,11 @@ curl -i -X POST http://51.105.254.202/api/v1/payments \
 ```
 
 ### Step 4: Authorize the Payment Intent
-Copy the `paymentIntentId` returned from Step 3 (e.g., `pi_AcqzYyHCcAA`) and authorize it:
+Copy the `paymentIntentId` returned from Step 3 (e.g., `pi_AcqzYyHCcAA`) into `PAYMENT_INTENT_ID` and authorize it:
 ```bash
 PAYMENT_INTENT_ID="<paste-your-payment-intent-id-here>"
 
-curl -i -X POST "http://51.105.254.202/api/v1/payments/pi_Ar6RoATCAAA/authorize" \
+curl -i -X POST "http://$API_IP/api/v1/payments/$PAYMENT_INTENT_ID/authorize" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(cat ./keycloak/output/jwt/payment-service.token)" \
   -d '{}'

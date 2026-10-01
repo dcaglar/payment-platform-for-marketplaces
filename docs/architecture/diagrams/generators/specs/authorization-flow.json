@@ -1,0 +1,903 @@
+[
+{
+"type": "cameraUpdate",
+"width": 800,
+"height": 600,
+"x": 0,
+"y": -40
+},
+{
+"type": "text",
+"id": "title",
+"x": 40,
+"y": -10,
+"text": "Authorization flow — create + authorize (demo checkout)",
+"fontSize": 28,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "cameraUpdate",
+"width": 1600,
+"height": 1200,
+"x": -20,
+"y": -40
+},
+{
+"type": "rectangle",
+"id": "h_br",
+"x": 10,
+"y": 45,
+"width": 220,
+"height": 80,
+"backgroundColor": "#e9ecef",
+"fillStyle": "solid",
+"strokeColor": "#868e96",
+"label": {
+"text": "Shopper's browser\n(React, demo)",
+"fontSize": 18
+},
+"roundness": {
+"type": 3
+},
+"strokeStyle": "dashed"
+},
+{
+"type": "arrow",
+"id": "l_br",
+"x": 120,
+"y": 125,
+"width": 0,
+"height": 1405,
+"points": [
+[
+0,
+0
+],
+[
+0,
+1405
+]
+],
+"strokeColor": "#adb5bd",
+"strokeWidth": 1,
+"strokeStyle": "dashed",
+"endArrowhead": null
+},
+{
+"type": "rectangle",
+"id": "h_px",
+"x": 270,
+"y": 45,
+"width": 220,
+"height": 80,
+"backgroundColor": "#e9ecef",
+"fillStyle": "solid",
+"strokeColor": "#868e96",
+"label": {
+"text": "Backend proxy\n(Node.js, demo)",
+"fontSize": 18
+},
+"roundness": {
+"type": 3
+},
+"strokeStyle": "dashed"
+},
+{
+"type": "arrow",
+"id": "l_px",
+"x": 380,
+"y": 125,
+"width": 0,
+"height": 1405,
+"points": [
+[
+0,
+0
+],
+[
+0,
+1405
+]
+],
+"strokeColor": "#adb5bd",
+"strokeWidth": 1,
+"strokeStyle": "dashed",
+"endArrowhead": null
+},
+{
+"type": "rectangle",
+"id": "h_kc",
+"x": 510,
+"y": 45,
+"width": 220,
+"height": 80,
+"backgroundColor": "#c3fae8",
+"fillStyle": "solid",
+"strokeColor": "#06b6d4",
+"label": {
+"text": "Keycloak\n«edge-infra»",
+"fontSize": 18
+},
+"roundness": {
+"type": 3
+}
+},
+{
+"type": "arrow",
+"id": "l_kc",
+"x": 620,
+"y": 125,
+"width": 0,
+"height": 1405,
+"points": [
+[
+0,
+0
+],
+[
+0,
+1405
+]
+],
+"strokeColor": "#adb5bd",
+"strokeWidth": 1,
+"strokeStyle": "dashed",
+"endArrowhead": null
+},
+{
+"type": "rectangle",
+"id": "h_ps",
+"x": 750,
+"y": 45,
+"width": 220,
+"height": 80,
+"backgroundColor": "#a5d8ff",
+"fillStyle": "solid",
+"strokeColor": "#4a9eed",
+"label": {
+"text": "payment-service\n«web-api»",
+"fontSize": 18
+},
+"roundness": {
+"type": 3
+}
+},
+{
+"type": "arrow",
+"id": "l_ps",
+"x": 860,
+"y": 125,
+"width": 0,
+"height": 1405,
+"points": [
+[
+0,
+0
+],
+[
+0,
+1405
+]
+],
+"strokeColor": "#adb5bd",
+"strokeWidth": 1,
+"strokeStyle": "dashed",
+"endArrowhead": null
+},
+{
+"type": "ellipse",
+"id": "h_db",
+"x": 1060,
+"y": 45,
+"width": 220,
+"height": 80,
+"backgroundColor": "#b2f2bb",
+"fillStyle": "solid",
+"strokeColor": "#22c55e",
+"label": {
+"text": "edge-db\n«database»",
+"fontSize": 18
+}
+},
+{
+"type": "arrow",
+"id": "l_db",
+"x": 1170,
+"y": 125,
+"width": 0,
+"height": 1405,
+"points": [
+[
+0,
+0
+],
+[
+0,
+1405
+]
+],
+"strokeColor": "#adb5bd",
+"strokeWidth": 1,
+"strokeStyle": "dashed",
+"endArrowhead": null
+},
+{
+"type": "rectangle",
+"id": "h_psp",
+"x": 1340,
+"y": 45,
+"width": 220,
+"height": 80,
+"backgroundColor": "#e9ecef",
+"fillStyle": "solid",
+"strokeColor": "#868e96",
+"label": {
+"text": "PSP «external»\n(Stripe in the demo)",
+"fontSize": 18
+},
+"roundness": {
+"type": 3
+},
+"strokeStyle": "dashed"
+},
+{
+"type": "arrow",
+"id": "l_psp",
+"x": 1450,
+"y": 125,
+"width": 0,
+"height": 1405,
+"points": [
+[
+0,
+0
+],
+[
+0,
+1405
+]
+],
+"strokeColor": "#adb5bd",
+"strokeWidth": 1,
+"strokeStyle": "dashed",
+"endArrowhead": null
+},
+{
+"type": "text",
+"id": "ph1",
+"x": 30,
+"y": 150,
+"text": "Phase 1 — create payment intent",
+"fontSize": 22,
+"strokeColor": "#1d4ed8"
+},
+{
+"type": "arrow",
+"id": "m1",
+"x": 120,
+"y": 205,
+"width": 260,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+260,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "m1T",
+"x": 132,
+"y": 181,
+"text": "POST /api/checkout/process-payment",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m2",
+"x": 380,
+"y": 245,
+"width": 240,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+240,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "m2T",
+"x": 392,
+"y": 221,
+"text": "token (client_credentials)",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m3",
+"x": 620,
+"y": 285,
+"width": -240,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+-240,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e",
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "m3T",
+"x": 392,
+"y": 261,
+"text": "JWT",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m4",
+"x": 380,
+"y": 330,
+"width": 480,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+480,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "m4T",
+"x": 392,
+"y": 306,
+"text": "POST /api/v1/payments (JWT + Idempotency-Key)",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m5",
+"x": 860,
+"y": 375,
+"width": 310,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+310,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "m5T",
+"x": 872,
+"y": 351,
+"text": "claim key: INSERT … ON CONFLICT",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m6",
+"x": 860,
+"y": 420,
+"width": 310,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+310,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "m6T",
+"x": 872,
+"y": 396,
+"text": "INSERT intent CREATED_PENDING",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m7",
+"x": 860,
+"y": 465,
+"width": 590,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+590,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "m7T",
+"x": 872,
+"y": 441,
+"text": "create PSP intent (wait ≤ 3 s)",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m8",
+"x": 1450,
+"y": 505,
+"width": -590,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+-590,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e",
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "m8T",
+"x": 872,
+"y": 481,
+"text": "{ id, clientSecret }",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "rectangle",
+"id": "n1",
+"x": 640,
+"y": 535,
+"width": 920,
+"height": 190,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#f8f9fa",
+"fillStyle": "solid",
+"strokeColor": "#868e96",
+"strokeWidth": 1,
+"label": {
+"text": "Create — what the caller gets\nPSP answered → CREATED · 201 + Location { paymentIntentId, clientSecret }\nPSP refused our request for good → FAILED · 422\nPSP unavailable / outcome unknown → key released · 503 RETRY_LATER\nno answer in 3 s → 202 + Retry-After 2 (background stores the answer → CREATED)\nsame key again: other body → 422 KEY_REUSED · still running → 409 IN_PROGRESS\n· finished → replay of the first answer + Idempotent-Replayed",
+"fontSize": 17
+}
+},
+{
+"type": "arrow",
+"id": "m9",
+"x": 860,
+"y": 760,
+"width": -480,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+-480,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e",
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "m9T",
+"x": 392,
+"y": 736,
+"text": "201 / 202 / 409 / 422 / 503",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m10",
+"x": 380,
+"y": 800,
+"width": -260,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+-260,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e",
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "m10T",
+"x": 132,
+"y": 776,
+"text": "clientSecret",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "cameraUpdate",
+"width": 1600,
+"height": 1200,
+"x": -20,
+"y": 360
+},
+{
+"type": "text",
+"id": "ph2",
+"x": 30,
+"y": 850,
+"text": "Phase 2 — card details go straight to the PSP",
+"fontSize": 22,
+"strokeColor": "#1d4ed8"
+},
+{
+"type": "arrow",
+"id": "m11",
+"x": 120,
+"y": 895,
+"width": 1330,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+1330,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "m11T",
+"x": 132,
+"y": 871,
+"text": "PSP payment form (iframe) · elements.submit()",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m12",
+"x": 1450,
+"y": 935,
+"width": -1330,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+-1330,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e",
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "m12T",
+"x": 132,
+"y": 911,
+"text": "validation OK — card data never touches our servers",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "ph3",
+"x": 30,
+"y": 985,
+"text": "Phase 3 — authorize",
+"fontSize": 22,
+"strokeColor": "#1d4ed8"
+},
+{
+"type": "arrow",
+"id": "m13",
+"x": 120,
+"y": 1035,
+"width": 260,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+260,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "m13T",
+"x": 132,
+"y": 1011,
+"text": "POST /api/checkout/authorize-payment/{id}",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m14",
+"x": 380,
+"y": 1075,
+"width": 480,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+480,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "m14T",
+"x": 392,
+"y": 1051,
+"text": "POST /api/v1/payments/{id}/authorize (JWT)",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m15",
+"x": 860,
+"y": 1115,
+"width": 310,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+310,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "m15T",
+"x": 872,
+"y": 1091,
+"text": "CREATED → PENDING_AUTH (1 wins)",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m16",
+"x": 860,
+"y": 1155,
+"width": 590,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+590,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "m16T",
+"x": 872,
+"y": 1131,
+"text": "authorize (same PSP idempotency key, wait ≤ 3 s)",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m17",
+"x": 1450,
+"y": 1195,
+"width": -590,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+-590,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e",
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "m17T",
+"x": 872,
+"y": 1171,
+"text": "authorized / declined / error / no answer",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "rectangle",
+"id": "n2",
+"x": 640,
+"y": 1225,
+"width": 920,
+"height": 215,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#f8f9fa",
+"fillStyle": "solid",
+"strokeColor": "#868e96",
+"strokeWidth": 1,
+"label": {
+"text": "Authorize — what the caller gets\nauthorized → ONE local tx: AUTHORIZED + outbox payment_authorized · 200\ncard declined → DECLINED (final) · 200\nPSP refused our request for good → FAILED (final) · 422\nPSP unavailable / outcome unknown → back to CREATED · 503 RETRY_LATER\nno answer in 3 s → 202 PENDING_AUTH + Location (background stores the answer)\nnot in this cell → 404 · CREATED_PENDING → 409 · already decided → current state",
+"fontSize": 17
+}
+},
+{
+"type": "arrow",
+"id": "m18",
+"x": 860,
+"y": 1470,
+"width": -480,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+-480,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e",
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "m18T",
+"x": 392,
+"y": 1446,
+"text": "200 / 202 / 404 / 409 / 422 / 503",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "arrow",
+"id": "m19",
+"x": 380,
+"y": 1510,
+"width": -260,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+-260,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeColor": "#1e1e1e",
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "m19T",
+"x": 132,
+"y": 1486,
+"text": "final status",
+"fontSize": 16,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "cameraUpdate",
+"width": 1600,
+"height": 1200,
+"x": -20,
+"y": 360
+}
+]

@@ -18,7 +18,8 @@ The first **runnable** module: a Spring Boot app (`PaymentServiceApplication`, h
 - **PSP** (`infra/adapter/outbound/psp`): two `@Component` impls of `PspAuthorizationGatewayPort`, selected by config:
   - `@ConditionalOnProperty("psp.gateway.type", havingValue="STRIPE", matchIfMissing=true)` → `StripePspAuthorizationGatewayAdapter` (**default**).
   - `havingValue="SIMULATED"` → `SimulatedPspAuthorizationGatewayAdapter` (+ `AuthorizationNetworkSimulator`).
-  - ⚠️ Since STRIPE is `matchIfMissing=true`, **local/e2e MUST set `psp.gateway.type=SIMULATED`** or you'll hit real Stripe. The `MARKETPLACE-5` hardcoded sim target drives the auto-settle e2e path.
+  - ⚠️ Since STRIPE is `matchIfMissing=true`, **e2e MUST keep `psp.gateway.type=SIMULATED`** (it does, via `application-local.yml`) or you'll hit real Stripe. The `MARKETPLACE-5` hardcoded sim target drives the auto-settle e2e path.
+  - The **local cluster** deliberately runs Stripe test mode: the chart sets env `PSP_GATEWAY_TYPE` (`charts/payment-edge-cell/local/values.yaml`: `pspGatewayType: STRIPE`) and `STRIPE_API_KEY` comes from `edge-cell-sops-secrets.yaml` via the `edge-cell-credentials` Secret (`envFrom`). The `StripeClient` bean has the same `@ConditionalOnProperty` as the adapter.
 - **Persistence** (`infra/adapter/outbound/persistence`): edge-db adapters — `PaymentIntentOutboundAdapter` (the `save`/`findById`/partial-update we dissected + the splits lazy-delegate), `IdempotencyStoreAdapter`, `LocalOutboxWriterAdapter` (impl of `LocalOutboxWriterPort`), `PaymentTransactionalFacadeAdapter`. MyBatis mappers under `mapper/edge` (+ a `mapper/yugabyte` for the idempotency key).
 
 ## Edge-cell rules (separation of powers)

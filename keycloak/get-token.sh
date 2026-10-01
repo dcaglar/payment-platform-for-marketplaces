@@ -14,7 +14,7 @@ REALM="ecommerce-platform"
 
 # Optional CLI override for Keycloak URL
 CLI_KC_URL="${1:-}"
-TTL_HOURS="${2:4}"
+TTL_HOURS="${2:-4}"
 
 if [[ -n "$CLI_KC_URL" ]]; then
   KC_URL="$CLI_KC_URL"

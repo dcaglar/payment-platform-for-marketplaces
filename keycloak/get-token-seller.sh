@@ -5,8 +5,8 @@ OUTPUT_DIR="$(dirname "$0")/output"
 JWT_DIR="${OUTPUT_DIR}/jwt"
 REALM="ecommerce-platform"
 
-# Default to seller-111, can be overridden
-DEFAULT_USERNAME="seller-111"
+# Default to seller-1-1 (provisioned for SELLER-1-1), can be overridden
+DEFAULT_USERNAME="seller-1-1"
 DEFAULT_PASSWORD="seller123"
 USERNAME="$(echo "${1:-$DEFAULT_USERNAME}" | xargs)"
 PASSWORD="${2:-$DEFAULT_PASSWORD}"
@@ -151,5 +151,5 @@ fi
 
 echo "✅ Token saved to $ACCESS_TOKEN_FILE"
 echo "📝 Claims saved to $CLAIMS_FILE"
-echo "💡 Use this token to query your own balance: GET /api/v1/sellers/me/balance"
+echo "💡 Use this token to query your own balance: GET /api/v1/balances/me"
 

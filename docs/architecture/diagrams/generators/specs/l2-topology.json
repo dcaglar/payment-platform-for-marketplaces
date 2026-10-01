@@ -1,0 +1,1027 @@
+[
+{
+"type": "cameraUpdate",
+"width": 800,
+"height": 600,
+"x": 0,
+"y": -40
+},
+{
+"type": "text",
+"id": "title",
+"x": 40,
+"y": -10,
+"text": "L2 — System Topology (numbered edges 1→13 tell the flow)",
+"fontSize": 28,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "rectangle",
+"id": "client",
+"x": 40,
+"y": 70,
+"width": 280,
+"height": 80,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#e9ecef",
+"fillStyle": "solid",
+"strokeColor": "#868e96",
+"strokeStyle": "dashed",
+"label": {
+"text": "Merchant / Checkout\n«external»",
+"fontSize": 20
+}
+},
+{
+"type": "rectangle",
+"id": "nginx",
+"x": 640,
+"y": 70,
+"width": 380,
+"height": 80,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#c3fae8",
+"fillStyle": "solid",
+"strokeColor": "#06b6d4",
+"label": {
+"text": "NGINX + Snowflake Lua router\n«edge-infra»",
+"fontSize": 20
+}
+},
+{
+"type": "arrow",
+"id": "a1",
+"x": 320,
+"y": 110,
+"width": 320,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+320,
+0
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "client",
+"fixedPoint": [
+1,
+0.5
+]
+},
+"endBinding": {
+"elementId": "nginx",
+"fixedPoint": [
+0,
+0.5
+]
+},
+"label": {
+"text": "1· POST /payments (create)\n4· POST …/authorize",
+"fontSize": 18
+}
+},
+{
+"type": "cameraUpdate",
+"width": 1200,
+"height": 900,
+"x": 0,
+"y": 150
+},
+{
+"type": "rectangle",
+"id": "edgeZone",
+"x": 40,
+"y": 210,
+"width": 1040,
+"height": 380,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#dbe4ff",
+"fillStyle": "solid",
+"strokeColor": "#4a9eed",
+"strokeWidth": 1,
+"opacity": 35
+},
+{
+"type": "text",
+"id": "edgeT",
+"x": 60,
+"y": 218,
+"text": "EDGE NODE (one cell shown)",
+"fontSize": 20,
+"strokeColor": "#1d4ed8"
+},
+{
+"type": "rectangle",
+"id": "cellPod",
+"x": 80,
+"y": 260,
+"width": 520,
+"height": 310,
+"roundness": {
+"type": 3
+},
+"strokeColor": "#495057",
+"strokeWidth": 1,
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "cellPodT",
+"x": 95,
+"y": 268,
+"text": "pod: payment-edge-cell-0",
+"fontSize": 18,
+"strokeColor": "#495057"
+},
+{
+"type": "rectangle",
+"id": "ps",
+"x": 140,
+"y": 300,
+"width": 400,
+"height": 70,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#a5d8ff",
+"fillStyle": "solid",
+"strokeColor": "#4a9eed",
+"label": {
+"text": "payment-service «web-api»",
+"fontSize": 20
+}
+},
+{
+"type": "ellipse",
+"id": "edb",
+"x": 120,
+"y": 440,
+"width": 440,
+"height": 115,
+"backgroundColor": "#b2f2bb",
+"fillStyle": "solid",
+"strokeColor": "#22c55e",
+"label": {
+"text": "edge-db-0 «database»\nintents · idempotency · LOCAL outbox",
+"fontSize": 18
+}
+},
+{
+"type": "arrow",
+"id": "a3",
+"x": 340,
+"y": 370,
+"width": 0,
+"height": 70,
+"points": [
+[
+0,
+0
+],
+[
+0,
+70
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "ps",
+"fixedPoint": [
+0.5,
+1
+]
+},
+"endBinding": {
+"elementId": "edb",
+"fixedPoint": [
+0.5,
+0
+]
+},
+"label": {
+"text": "2· intent CREATED_PENDING\n6· AUTHORIZED + outbox, ONE tx",
+"fontSize": 16
+}
+},
+{
+"type": "arrow",
+"id": "a2n",
+"x": 830,
+"y": 150,
+"width": -390,
+"height": 150,
+"points": [
+[
+0,
+0
+],
+[
+-390,
+150
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "nginx",
+"fixedPoint": [
+0.5,
+1
+]
+},
+"endBinding": {
+"elementId": "ps",
+"fixedPoint": [
+0.75,
+0
+]
+},
+"label": {
+"text": "create: any cell · authorize: owning cell",
+"fontSize": 16
+}
+},
+{
+"type": "rectangle",
+"id": "ewPod",
+"x": 660,
+"y": 390,
+"width": 380,
+"height": 165,
+"roundness": {
+"type": 3
+},
+"strokeColor": "#495057",
+"strokeWidth": 1,
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "ewPodT",
+"x": 675,
+"y": 398,
+"text": "pod: payment-edge-workers-0",
+"fontSize": 18,
+"strokeColor": "#495057"
+},
+{
+"type": "rectangle",
+"id": "ew",
+"x": 690,
+"y": 440,
+"width": 320,
+"height": 80,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#ffd8a8",
+"fillStyle": "solid",
+"strokeColor": "#f59e0b",
+"label": {
+"text": "payment-edge-workers\n«scheduled-job»",
+"fontSize": 20
+}
+},
+{
+"type": "arrow",
+"id": "a4",
+"x": 560,
+"y": 497,
+"width": 130,
+"height": -17,
+"points": [
+[
+0,
+0
+],
+[
+130,
+-17
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "edb",
+"fixedPoint": [
+1,
+0.5
+]
+},
+"endBinding": {
+"elementId": "ew",
+"fixedPoint": [
+0,
+0.5
+]
+},
+"label": {
+"text": "7· poll NEW",
+"fontSize": 16
+}
+},
+{
+"type": "rectangle",
+"id": "psp",
+"x": 1160,
+"y": 285,
+"width": 330,
+"height": 90,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#e9ecef",
+"fillStyle": "solid",
+"strokeColor": "#868e96",
+"strokeStyle": "dashed",
+"label": {
+"text": "PSP «external»\n(Stripe in the demo)",
+"fontSize": 20
+}
+},
+{
+"type": "arrow",
+"id": "a2",
+"x": 540,
+"y": 330,
+"width": 620,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+620,
+0
+]
+],
+"endArrowhead": "arrow",
+"strokeStyle": "dashed",
+"startBinding": {
+"elementId": "ps",
+"fixedPoint": [
+1,
+0.43
+]
+},
+"endBinding": {
+"elementId": "psp",
+"fixedPoint": [
+0,
+0.5
+]
+},
+"label": {
+"text": "3· create PSP intent · 5· authorize (≤ 3 s each)",
+"fontSize": 18
+}
+},
+{
+"type": "cameraUpdate",
+"width": 1200,
+"height": 900,
+"x": 0,
+"y": 400
+},
+{
+"type": "rectangle",
+"id": "cenZone",
+"x": 40,
+"y": 650,
+"width": 1040,
+"height": 270,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#d3f9d8",
+"fillStyle": "solid",
+"strokeColor": "#22c55e",
+"strokeWidth": 1,
+"opacity": 35
+},
+{
+"type": "text",
+"id": "cenT",
+"x": 60,
+"y": 658,
+"text": "CENTRAL CLUSTER — system of record",
+"fontSize": 20,
+"strokeColor": "#15803d"
+},
+{
+"type": "ellipse",
+"id": "cdb",
+"x": 70,
+"y": 705,
+"width": 540,
+"height": 190,
+"backgroundColor": "#b2f2bb",
+"fillStyle": "solid",
+"strokeColor": "#22c55e",
+"label": {
+"text": "central-db «database»\nCENTRAL outbox · payments · payment_tx\njournal_entries · postings · transfers",
+"fontSize": 18
+}
+},
+{
+"type": "rectangle",
+"id": "relay",
+"x": 700,
+"y": 740,
+"width": 340,
+"height": 120,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#ffd8a8",
+"fillStyle": "solid",
+"strokeColor": "#f59e0b",
+"label": {
+"text": "payment-central-relay\n«scheduled-job»\nONLY Kafka publisher · claims ≤ T_safe",
+"fontSize": 18
+}
+},
+{
+"type": "arrow",
+"id": "a5",
+"x": 850,
+"y": 520,
+"width": -360,
+"height": 198,
+"points": [
+[
+0,
+0
+],
+[
+-360,
+198
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "ew",
+"fixedPoint": [
+0.5,
+1
+]
+},
+"label": {
+"text": "8· forward + advance watermark",
+"fontSize": 16
+}
+},
+{
+"type": "arrow",
+"id": "a6",
+"x": 610,
+"y": 800,
+"width": 90,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+90,
+0
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "cdb",
+"fixedPoint": [
+1,
+0.5
+]
+},
+"endBinding": {
+"elementId": "relay",
+"fixedPoint": [
+0,
+0.5
+]
+},
+"label": {
+"text": "9· claim",
+"fontSize": 16
+}
+},
+{
+"type": "cameraUpdate",
+"width": 1200,
+"height": 900,
+"x": 380,
+"y": 400
+},
+{
+"type": "rectangle",
+"id": "kZone",
+"x": 1140,
+"y": 620,
+"width": 400,
+"height": 330,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#fff3bf",
+"fillStyle": "solid",
+"strokeColor": "#ca8a04",
+"strokeWidth": 1,
+"opacity": 45
+},
+{
+"type": "text",
+"id": "kT",
+"x": 1155,
+"y": 628,
+"text": "KAFKA — every topic has a .DLQ twin",
+"fontSize": 18,
+"strokeColor": "#a16207"
+},
+{
+"type": "rectangle",
+"id": "t1",
+"x": 1170,
+"y": 670,
+"width": 340,
+"height": 50,
+"backgroundColor": "#fff3bf",
+"fillStyle": "solid",
+"strokeColor": "#ca8a04",
+"label": {
+"text": "payment.psp.results",
+"fontSize": 18
+}
+},
+{
+"type": "rectangle",
+"id": "t2",
+"x": 1170,
+"y": 735,
+"width": 340,
+"height": 50,
+"backgroundColor": "#fff3bf",
+"fillStyle": "solid",
+"strokeColor": "#ca8a04",
+"label": {
+"text": "gateway.capture.requested",
+"fontSize": 18
+}
+},
+{
+"type": "rectangle",
+"id": "t3",
+"x": 1170,
+"y": 800,
+"width": 340,
+"height": 50,
+"backgroundColor": "#fff3bf",
+"fillStyle": "solid",
+"strokeColor": "#ca8a04",
+"label": {
+"text": "gateway.capture.submitted",
+"fontSize": 18
+}
+},
+{
+"type": "rectangle",
+"id": "t4",
+"x": 1170,
+"y": 865,
+"width": 340,
+"height": 50,
+"backgroundColor": "#fff3bf",
+"fillStyle": "solid",
+"strokeColor": "#ca8a04",
+"label": {
+"text": "journal.entries.recorded",
+"fontSize": 18
+}
+},
+{
+"type": "arrow",
+"id": "a7",
+"x": 1040,
+"y": 800,
+"width": 100,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+100,
+0
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "relay",
+"fixedPoint": [
+1,
+0.5
+]
+},
+"endBinding": {
+"elementId": "kZone",
+"fixedPoint": [
+0,
+0.545
+]
+},
+"label": {
+"text": "10· publish",
+"fontSize": 16
+}
+},
+{
+"type": "cameraUpdate",
+"width": 1200,
+"height": 900,
+"x": 380,
+"y": 400
+},
+{
+"type": "rectangle",
+"id": "consPod",
+"x": 880,
+"y": 990,
+"width": 470,
+"height": 140,
+"roundness": {
+"type": 3
+},
+"strokeColor": "#495057",
+"strokeWidth": 1,
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "consPodT",
+"x": 895,
+"y": 996,
+"text": "pod: payment-consumers",
+"fontSize": 16,
+"strokeColor": "#495057"
+},
+{
+"type": "rectangle",
+"id": "cons",
+"x": 905,
+"y": 1022,
+"width": 420,
+"height": 95,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#d0bfff",
+"fillStyle": "solid",
+"strokeColor": "#8b5cf6",
+"label": {
+"text": "payment-consumers «kafka-consumer»\nONLY ledger writer · never publishes",
+"fontSize": 18
+}
+},
+{
+"type": "arrow",
+"id": "a8",
+"x": 1340,
+"y": 950,
+"width": -100,
+"height": 72,
+"points": [
+[
+0,
+0
+],
+[
+-100,
+72
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "kZone",
+"fixedPoint": [
+0.5,
+1
+]
+},
+"endBinding": {
+"elementId": "cons",
+"fixedPoint": [
+0.8,
+0
+]
+},
+"label": {
+"text": "11· consume",
+"fontSize": 16
+}
+},
+{
+"type": "arrow",
+"id": "a9",
+"x": 905,
+"y": 1040,
+"width": -515,
+"height": -150,
+"points": [
+[
+0,
+0
+],
+[
+-515,
+-150
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "cons",
+"fixedPoint": [
+0,
+0.19
+]
+},
+"label": {
+"text": "12· ledger writes + append NEW outbox events",
+"fontSize": 16
+}
+},
+{
+"type": "ellipse",
+"id": "redis",
+"x": 560,
+"y": 1055,
+"width": 210,
+"height": 85,
+"backgroundColor": "#eebefa",
+"fillStyle": "solid",
+"strokeColor": "#ec4899",
+"label": {
+"text": "redis «cache»",
+"fontSize": 18
+}
+},
+{
+"type": "arrow",
+"id": "aR",
+"x": 905,
+"y": 1095,
+"width": -135,
+"height": 0,
+"points": [
+[
+0,
+0
+],
+[
+-135,
+0
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "cons",
+"fixedPoint": [
+0,
+0.77
+]
+},
+"endBinding": {
+"elementId": "redis",
+"fixedPoint": [
+1,
+0.47
+]
+},
+"label": {
+"text": "balances",
+"fontSize": 16
+}
+},
+{
+"type": "arrow",
+"id": "a10",
+"x": 1325,
+"y": 1070,
+"width": 235,
+"height": -740,
+"points": [
+[
+0,
+0
+],
+[
+235,
+0
+],
+[
+235,
+-740
+],
+[
+165,
+-740
+]
+],
+"endArrowhead": "arrow",
+"strokeStyle": "dashed",
+"startBinding": {
+"elementId": "cons",
+"fixedPoint": [
+1,
+0.5
+]
+},
+"endBinding": {
+"elementId": "psp",
+"fixedPoint": [
+1,
+0.5
+]
+}
+},
+{
+"type": "text",
+"id": "a10T",
+"x": 1395,
+"y": 560,
+"text": "13· async capture",
+"fontSize": 16,
+"strokeColor": "#495057"
+},
+{
+"type": "cameraUpdate",
+"width": 600,
+"height": 450,
+"x": 1080,
+"y": -40
+},
+{
+"type": "text",
+"id": "lgT",
+"x": 1100,
+"y": 10,
+"text": "Legend",
+"fontSize": 20,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "rectangle",
+"id": "lg1",
+"x": 1100,
+"y": 45,
+"width": 210,
+"height": 44,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#a5d8ff",
+"fillStyle": "solid",
+"strokeColor": "#4a9eed",
+"label": {
+"text": "«web-api»",
+"fontSize": 16
+}
+},
+{
+"type": "rectangle",
+"id": "lg2",
+"x": 1330,
+"y": 45,
+"width": 210,
+"height": 44,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#ffd8a8",
+"fillStyle": "solid",
+"strokeColor": "#f59e0b",
+"label": {
+"text": "«scheduled-job»",
+"fontSize": 16
+}
+},
+{
+"type": "rectangle",
+"id": "lg3",
+"x": 1100,
+"y": 100,
+"width": 210,
+"height": 44,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#d0bfff",
+"fillStyle": "solid",
+"strokeColor": "#8b5cf6",
+"label": {
+"text": "«kafka-consumer»",
+"fontSize": 16
+}
+},
+{
+"type": "ellipse",
+"id": "lg4",
+"x": 1330,
+"y": 97,
+"width": 210,
+"height": 50,
+"backgroundColor": "#b2f2bb",
+"fillStyle": "solid",
+"strokeColor": "#22c55e",
+"label": {
+"text": "«database»",
+"fontSize": 16
+}
+},
+{
+"type": "ellipse",
+"id": "lg5",
+"x": 1100,
+"y": 152,
+"width": 210,
+"height": 50,
+"backgroundColor": "#eebefa",
+"fillStyle": "solid",
+"strokeColor": "#ec4899",
+"label": {
+"text": "«cache»",
+"fontSize": 16
+}
+},
+{
+"type": "rectangle",
+"id": "lg6",
+"x": 1330,
+"y": 155,
+"width": 210,
+"height": 44,
+"backgroundColor": "#fff3bf",
+"fillStyle": "solid",
+"strokeColor": "#ca8a04",
+"label": {
+"text": "«topic»",
+"fontSize": 16
+}
+},
+{
+"type": "rectangle",
+"id": "lg7",
+"x": 1100,
+"y": 210,
+"width": 210,
+"height": 44,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#e9ecef",
+"fillStyle": "solid",
+"strokeColor": "#868e96",
+"strokeStyle": "dashed",
+"label": {
+"text": "«external»",
+"fontSize": 16
+}
+},
+{
+"type": "rectangle",
+"id": "lg8",
+"x": 1330,
+"y": 210,
+"width": 210,
+"height": 44,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#c3fae8",
+"fillStyle": "solid",
+"strokeColor": "#06b6d4",
+"label": {
+"text": "«edge-infra»",
+"fontSize": 16
+}
+},
+{
+"type": "cameraUpdate",
+"width": 1600,
+"height": 1200,
+"x": -10,
+"y": -40
+}
+]

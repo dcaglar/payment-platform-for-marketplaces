@@ -1,0 +1,633 @@
+[
+{
+"type": "cameraUpdate",
+"width": 800,
+"height": 600,
+"x": 150,
+"y": -30
+},
+{
+"type": "text",
+"id": "title",
+"x": 220,
+"y": 0,
+"text": "Cell routing — Snowflake-aware Lua router",
+"fontSize": 28,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "rectangle",
+"id": "app",
+"x": 260,
+"y": 60,
+"width": 640,
+"height": 110,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#e9ecef",
+"fillStyle": "solid",
+"strokeColor": "#868e96",
+"strokeStyle": "dashed",
+"label": {
+"text": "Merchant checkout flow «external»\n1· POST /api/v1/payments — round-robin to any cell\n2· POST /api/v1/payments/pi_XXX/authorize — cell-routed",
+"fontSize": 20
+}
+},
+{
+"type": "rectangle",
+"id": "ngZone",
+"x": 230,
+"y": 215,
+"width": 700,
+"height": 265,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#c3fae8",
+"fillStyle": "solid",
+"strokeColor": "#06b6d4",
+"strokeWidth": 1,
+"opacity": 30
+},
+{
+"type": "text",
+"id": "ngT",
+"x": 250,
+"y": 222,
+"text": "NGINX Ingress Controller",
+"fontSize": 20,
+"strokeColor": "#0f766e"
+},
+{
+"type": "rectangle",
+"id": "lua",
+"x": 280,
+"y": 260,
+"width": 600,
+"height": 195,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#c3fae8",
+"fillStyle": "solid",
+"strokeColor": "#06b6d4",
+"label": {
+"text": "Snowflake Lua router «edge-infra»\n① match /api/v1/payments/pi_([A-Za-z0-9_%-]+)\n② Base64URL → 8-byte long\n③ nodeId = floor(lo / 4096) % 32   (= (id >> 12) & 31)\n④ proxy_pass → payment-edge-cell-<nodeId>",
+"fontSize": 20
+}
+},
+{
+"type": "arrow",
+"id": "a0",
+"x": 580,
+"y": 170,
+"width": 0,
+"height": 90,
+"points": [
+[
+0,
+0
+],
+[
+0,
+90
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "app",
+"fixedPoint": [
+0.5,
+1
+]
+},
+"endBinding": {
+"elementId": "lua",
+"fixedPoint": [
+0.5,
+0
+]
+}
+},
+{
+"type": "cameraUpdate",
+"width": 1200,
+"height": 900,
+"x": -20,
+"y": 80
+},
+{
+"type": "rectangle",
+"id": "ssZone",
+"x": 40,
+"y": 540,
+"width": 1120,
+"height": 330,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#dbe4ff",
+"fillStyle": "solid",
+"strokeColor": "#4a9eed",
+"strokeWidth": 1,
+"opacity": 35
+},
+{
+"type": "text",
+"id": "ssT",
+"x": 60,
+"y": 548,
+"text": "StatefulSet: payment-edge-cell — every /authorize lands on the cell that created the intent",
+"fontSize": 20,
+"strokeColor": "#1d4ed8"
+},
+{
+"type": "rectangle",
+"id": "p0",
+"x": 80,
+"y": 595,
+"width": 320,
+"height": 250,
+"roundness": {
+"type": 3
+},
+"strokeColor": "#495057",
+"strokeWidth": 1,
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "p0T",
+"x": 95,
+"y": 603,
+"text": "pod: payment-edge-cell-0",
+"fontSize": 18,
+"strokeColor": "#495057"
+},
+{
+"type": "rectangle",
+"id": "c0",
+"x": 100,
+"y": 640,
+"width": 280,
+"height": 65,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#a5d8ff",
+"fillStyle": "solid",
+"strokeColor": "#4a9eed",
+"label": {
+"text": "payment-service «web-api»",
+"fontSize": 18
+}
+},
+{
+"type": "ellipse",
+"id": "d0",
+"x": 110,
+"y": 745,
+"width": 260,
+"height": 85,
+"backgroundColor": "#b2f2bb",
+"fillStyle": "solid",
+"strokeColor": "#22c55e",
+"label": {
+"text": "edge-db-0 «database»",
+"fontSize": 18
+}
+},
+{
+"type": "arrow",
+"id": "c0d0",
+"x": 240,
+"y": 705,
+"width": 0,
+"height": 40,
+"points": [
+[
+0,
+0
+],
+[
+0,
+40
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "c0",
+"fixedPoint": [
+0.5,
+1
+]
+},
+"endBinding": {
+"elementId": "d0",
+"fixedPoint": [
+0.5,
+0
+]
+}
+},
+{
+"type": "rectangle",
+"id": "p1",
+"x": 440,
+"y": 595,
+"width": 320,
+"height": 250,
+"roundness": {
+"type": 3
+},
+"strokeColor": "#495057",
+"strokeWidth": 1,
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "p1T",
+"x": 455,
+"y": 603,
+"text": "pod: payment-edge-cell-1",
+"fontSize": 18,
+"strokeColor": "#495057"
+},
+{
+"type": "rectangle",
+"id": "c1",
+"x": 460,
+"y": 640,
+"width": 280,
+"height": 65,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#a5d8ff",
+"fillStyle": "solid",
+"strokeColor": "#4a9eed",
+"label": {
+"text": "payment-service «web-api»",
+"fontSize": 18
+}
+},
+{
+"type": "ellipse",
+"id": "d1",
+"x": 470,
+"y": 745,
+"width": 260,
+"height": 85,
+"backgroundColor": "#b2f2bb",
+"fillStyle": "solid",
+"strokeColor": "#22c55e",
+"label": {
+"text": "edge-db-1 «database»",
+"fontSize": 18
+}
+},
+{
+"type": "arrow",
+"id": "c1d1",
+"x": 600,
+"y": 705,
+"width": 0,
+"height": 40,
+"points": [
+[
+0,
+0
+],
+[
+0,
+40
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "c1",
+"fixedPoint": [
+0.5,
+1
+]
+},
+"endBinding": {
+"elementId": "d1",
+"fixedPoint": [
+0.5,
+0
+]
+}
+},
+{
+"type": "rectangle",
+"id": "p2",
+"x": 800,
+"y": 595,
+"width": 320,
+"height": 250,
+"roundness": {
+"type": 3
+},
+"strokeColor": "#495057",
+"strokeWidth": 1,
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "p2T",
+"x": 815,
+"y": 603,
+"text": "pod: payment-edge-cell-2",
+"fontSize": 18,
+"strokeColor": "#495057"
+},
+{
+"type": "rectangle",
+"id": "c2",
+"x": 820,
+"y": 640,
+"width": 280,
+"height": 65,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#a5d8ff",
+"fillStyle": "solid",
+"strokeColor": "#4a9eed",
+"label": {
+"text": "payment-service «web-api»",
+"fontSize": 18
+}
+},
+{
+"type": "ellipse",
+"id": "d2",
+"x": 830,
+"y": 745,
+"width": 260,
+"height": 85,
+"backgroundColor": "#b2f2bb",
+"fillStyle": "solid",
+"strokeColor": "#22c55e",
+"label": {
+"text": "edge-db-2 «database»",
+"fontSize": 18
+}
+},
+{
+"type": "arrow",
+"id": "c2d2",
+"x": 960,
+"y": 705,
+"width": 0,
+"height": 40,
+"points": [
+[
+0,
+0
+],
+[
+0,
+40
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "c2",
+"fixedPoint": [
+0.5,
+1
+]
+},
+"endBinding": {
+"elementId": "d2",
+"fixedPoint": [
+0.5,
+0
+]
+}
+},
+{
+"type": "arrow",
+"id": "r0",
+"x": 430,
+"y": 455,
+"width": -190,
+"height": 185,
+"points": [
+[
+0,
+0
+],
+[
+-190,
+185
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "lua",
+"fixedPoint": [
+0.25,
+1
+]
+},
+"endBinding": {
+"elementId": "c0",
+"fixedPoint": [
+0.5,
+0
+]
+}
+},
+{
+"type": "arrow",
+"id": "r1",
+"x": 580,
+"y": 455,
+"width": 20,
+"height": 185,
+"points": [
+[
+0,
+0
+],
+[
+20,
+185
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "lua",
+"fixedPoint": [
+0.5,
+1
+]
+},
+"endBinding": {
+"elementId": "c1",
+"fixedPoint": [
+0.5,
+0
+]
+}
+},
+{
+"type": "arrow",
+"id": "r2",
+"x": 730,
+"y": 455,
+"width": 230,
+"height": 185,
+"points": [
+[
+0,
+0
+],
+[
+230,
+185
+]
+],
+"endArrowhead": "arrow",
+"startBinding": {
+"elementId": "lua",
+"fixedPoint": [
+0.75,
+1
+]
+},
+"endBinding": {
+"elementId": "c2",
+"fixedPoint": [
+0.5,
+0
+]
+}
+},
+{
+"type": "text",
+"id": "r0T",
+"x": 262,
+"y": 488,
+"text": "nodeId = 0",
+"fontSize": 18,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "r1T",
+"x": 600,
+"y": 488,
+"text": "nodeId = 1",
+"fontSize": 18,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "r2T",
+"x": 805,
+"y": 488,
+"text": "nodeId = 2",
+"fontSize": 18,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "text",
+"id": "note",
+"x": 60,
+"y": 885,
+"text": "Without the router: round-robin sends (N−1)/N of /authorize calls to the wrong cell → 404 (≈67% with 3 cells).",
+"fontSize": 18,
+"strokeColor": "#495057"
+},
+{
+"type": "text",
+"id": "lgT",
+"x": 960,
+"y": 60,
+"text": "Legend",
+"fontSize": 20,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "rectangle",
+"id": "lg1",
+"x": 960,
+"y": 95,
+"width": 200,
+"height": 42,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#a5d8ff",
+"fillStyle": "solid",
+"strokeColor": "#4a9eed",
+"label": {
+"text": "«web-api»",
+"fontSize": 16
+}
+},
+{
+"type": "ellipse",
+"id": "lg4",
+"x": 960,
+"y": 145,
+"width": 200,
+"height": 48,
+"backgroundColor": "#b2f2bb",
+"fillStyle": "solid",
+"strokeColor": "#22c55e",
+"label": {
+"text": "«database»",
+"fontSize": 16
+}
+},
+{
+"type": "rectangle",
+"id": "lg7",
+"x": 960,
+"y": 200,
+"width": 200,
+"height": 42,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#e9ecef",
+"fillStyle": "solid",
+"strokeColor": "#868e96",
+"strokeStyle": "dashed",
+"label": {
+"text": "«external»",
+"fontSize": 16
+}
+},
+{
+"type": "rectangle",
+"id": "lg8",
+"x": 960,
+"y": 250,
+"width": 200,
+"height": 42,
+"roundness": {
+"type": 3
+},
+"backgroundColor": "#c3fae8",
+"fillStyle": "solid",
+"strokeColor": "#06b6d4",
+"label": {
+"text": "«edge-infra»",
+"fontSize": 16
+}
+},
+{
+"type": "cameraUpdate",
+"width": 1200,
+"height": 900,
+"x": 10,
+"y": -10
+}
+]

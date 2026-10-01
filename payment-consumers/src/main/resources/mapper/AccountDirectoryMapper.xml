@@ -55,6 +55,19 @@
         ORDER BY currency
     </select>
 
+    <!-- All accounts of one merchant of one type (no sub entity), one row per currency -->
+    <select id="findAllByMaster"
+            parameterType="map"
+            resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
+        SELECT
+        <include refid="accountProfileColumns"/>
+        FROM account_directory
+        WHERE account_type = #{accountType}
+        AND master_account_code = #{masterAccountCode}
+        AND sub_entity_id IS NULL
+        ORDER BY currency
+    </select>
+
     <select id="findByAccountCode"
             parameterType="string"
             resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">

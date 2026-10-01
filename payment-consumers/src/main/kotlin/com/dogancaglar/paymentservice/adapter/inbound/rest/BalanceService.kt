@@ -1,13 +1,22 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
+import com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
 import com.dogancaglar.paymentservice.ports.inbound.usecases.AccountBalanceReadUseCase
 import com.dogancaglar.paymentservice.ports.outbound.AccountDirectoryPort
+import com.dogancaglar.port.out.web.dto.AccountBalanceDto
 import com.dogancaglar.port.out.web.dto.BalanceDto
 import com.dogancaglar.port.out.web.dto.CurrencyEnum
+import com.dogancaglar.port.out.web.dto.OwnerType
 import org.slf4j.LoggerFactory
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
 
+/**
+ * Reads balances for the balance API. Accounts are found in account_directory: a seller's account
+ * by its sub_entity_id, a merchant's accounts by master_account_code. Each balance is the real-time
+ * value (snapshot + Redis delta).
+ */
 @Service
 class BalanceService(
     private val accountBalanceReadUseCase: AccountBalanceReadUseCase,
@@ -15,42 +24,69 @@ class BalanceService(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    /**
-     * Retrieves the real-time balance for a seller's merchant account.
-     * 
-     * Real-time balance = snapshot balance + Redis delta (ephemeral)
-     * This provides the most up-to-date balance without merging deltas into the snapshot.
-     * 
-     * @param sellerId The seller identifier
-     * @return BalanceDto containing balance, currency, accountCode, and sellerId
-     * @throws IllegalArgumentException if the seller's account profile is not found
-     */
+    /** A seller's balance (the seller itself, or finance/admin). A seller id is unique platform-wide. */
     fun getSellerBalance(sellerId: String): BalanceDto {
-        logger.debug("Retrieving balance for seller: {}", sellerId)
-        
-        // Get account profile to determine account code and currency.
-        // A seller id is unique across the platform, so the seller id alone finds the account.
+        val profiles = sellerAccounts(sellerId)
+        return toBalance(OwnerType.SELLER, sellerId, profiles)
+    }
+
+    /** A seller's balance read by a merchant: only the merchant's own sellers. */
+    fun getSellerBalanceForMerchant(sellerId: String, merchantId: String): BalanceDto {
+        val profiles = sellerAccounts(sellerId)
+        for (profile in profiles) {
+            if (profile.masterAccountCode != merchantId) {
+                throw AccessDeniedException("Seller $sellerId does not belong to merchant $merchantId")
+            }
+        }
+        return toBalance(OwnerType.SELLER, sellerId, profiles)
+    }
+
+    /** A merchant's own balance: its direct-sales payable and its marketplace commission payable. */
+    fun getMerchantBalance(merchantId: String): BalanceDto {
+        val profiles = mutableListOf<AccountProfile>()
+        profiles.addAll(accountDirectory.getAccountProfilesByMaster(AccountType.MERCHANT_DIRECT_PAYABLE, merchantId))
+        profiles.addAll(accountDirectory.getAccountProfilesByMaster(AccountType.MERCHANT_COMMISSION_PAYABLE, merchantId))
+        if (profiles.isEmpty()) {
+            throw BalanceOwnerNotFoundException("No merchant accounts for $merchantId")
+        }
+        return toBalance(OwnerType.MERCHANT, merchantId, profiles)
+    }
+
+    private fun sellerAccounts(sellerId: String): List<AccountProfile> {
         val profiles = accountDirectory.getAccountProfilesBySubEntity(AccountType.SELLER_PAYABLE, sellerId)
         if (profiles.isEmpty()) {
-            throw IllegalArgumentException("Account not found: ${AccountType.SELLER_PAYABLE.name} for seller $sellerId")
+            throw BalanceOwnerNotFoundException("No seller account for $sellerId")
         }
-        if (profiles.size > 1) {
-            // This endpoint returns a single balance; a seller with several currencies is not supported yet
-            throw IllegalStateException("Seller $sellerId has ${profiles.size} accounts (one per currency); expected exactly one")
+        return profiles
+    }
+
+    private fun toBalance(ownerType: OwnerType, ownerId: String, profiles: List<AccountProfile>): BalanceDto {
+        val currency = profiles[0].currency
+        for (profile in profiles) {
+            if (profile.currency != currency) {
+                // One response has one currency and one total; several currencies are not supported yet
+                throw IllegalStateException("$ownerId has accounts in several currencies; expected one")
+            }
         }
-        val profile = profiles[0]
-        val accountCode = profile.accountCode
-        
-        // Get real-time balance (snapshot + Redis delta)
-        val balance = accountBalanceReadUseCase.getRealTimeBalance(accountCode)
-        
-        logger.debug("Balance for seller {} (account {}): {} {}", sellerId, accountCode, balance, profile.currency.currencyCode)
-        
+
+        val accounts = mutableListOf<AccountBalanceDto>()
+        var total = 0L
+        for (profile in profiles) {
+            val balance = accountBalanceReadUseCase.getRealTimeBalance(profile.accountCode)
+            accounts.add(AccountBalanceDto(profile.type.name, profile.accountCode, balance))
+            total += balance
+        }
+        logger.debug("Balance of {} {}: {} {} over {} account(s)", ownerType, ownerId, total, currency.currencyCode, accounts.size)
+
         return BalanceDto(
-            balance = balance,
-            currency = CurrencyEnum.valueOf(profile.currency.currencyCode),
-            accountCode = accountCode,
-            sellerId = sellerId
+            ownerType = ownerType,
+            ownerId = ownerId,
+            currency = CurrencyEnum.valueOf(currency.currencyCode),
+            total = total,
+            accounts = accounts
         )
     }
 }
+
+/** No seller or merchant account for the requested id (404). */
+class BalanceOwnerNotFoundException(message: String) : RuntimeException(message)

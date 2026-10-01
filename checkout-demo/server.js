@@ -17,6 +17,10 @@ import http from 'http';
 import https from 'https';
 import { URL } from 'url';
 import { randomUUID } from 'crypto';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,23 +62,18 @@ function readEnvFile() {
 const envFile = readEnvFile();
 
 // Read configuration from environment variables, .env file, or defaults
-const KEYCLOAK_URL = process.env.KEYCLOAK_URL || envFile.KEYCLOAK_URL || 'http://keycloak.payment.svc.cluster.local:8080';
 const REALM = process.env.KEYCLOAK_REALM || envFile.KEYCLOAK_REALM || 'ecommerce-platform';
 const CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || envFile.KEYCLOAK_CLIENT_ID || 'payment-service';
 
-// Try to read client secret from environment, .env file, or secrets.txt
+// The client secret and the Keycloak URL are resolved on every token request, the same way
+// keycloak/get-token.sh does, so re-provisioning Keycloak (new secret, new IP) needs no restart.
+
+// Client secret: env var > keycloak/output/secrets.txt (written by provision-keycloak.sh) > .env
 function getClientSecret() {
-  // First, try environment variable
   if (process.env.KEYCLOAK_CLIENT_SECRET) {
     return process.env.KEYCLOAK_CLIENT_SECRET;
   }
 
-  // Try reading from already-parsed .env file (VITE_ prefix is already stripped)
-  if (envFile.KEYCLOAK_CLIENT_SECRET) {
-    return envFile.KEYCLOAK_CLIENT_SECRET;
-  }
-
-  // Try reading from secrets.txt as fallback
   try {
     const secretsPath = path.join(__dirname, '..', 'keycloak', 'output', 'secrets.txt');
     if (fs.existsSync(secretsPath)) {
@@ -88,30 +87,99 @@ function getClientSecret() {
     console.warn('Could not read secrets.txt:', error.message);
   }
 
+  // VITE_ prefix is already stripped by readEnvFile
+  if (envFile.KEYCLOAK_CLIENT_SECRET) {
+    return envFile.KEYCLOAK_CLIENT_SECRET;
+  }
+
   return null;
 }
 
-const CLIENT_SECRET = getClientSecret();
+// Addresses found the same way as keycloak/get-token.sh and the curl examples: the LoadBalancer IP
+// of a Kubernetes service (kubectl), cached for a minute, so a rebuilt cluster needs no .env change.
+const DISCOVERY_CACHE_MS = 60000;
+const keycloakDiscovery = { namespace: 'payment', service: 'keycloak', port: ':8080', url: null, at: 0 };
+const paymentApiDiscovery = { namespace: 'ingress-controller', service: 'ingress-nginx-controller', port: '', url: null, at: 0 };
 
-// Payment API configuration (read from env, .env file, or defaults)
-// Priority: env var > .env file > defaults
-const PAYMENT_API_BASE_URL = process.env.PAYMENT_API_BASE_URL || 
-                              envFile.API_BASE_URL || 
-                              'http://localhost';
+async function discoverUrl(target) {
+  const cacheIsFresh = target.url !== null && Date.now() - target.at < DISCOVERY_CACHE_MS;
+  if (cacheIsFresh) {
+    return target.url;
+  }
+  try {
+    const { stdout } = await execFileAsync(
+      'kubectl',
+      ['get', 'svc', '-n', target.namespace, target.service, '-o', 'jsonpath={.status.loadBalancer.ingress[0].ip}'],
+      { timeout: 3000 }
+    );
+    const ip = stdout.trim();
+    if (ip) {
+      target.url = `http://${ip}${target.port}`;
+      target.at = Date.now();
+    }
+  } catch (error) {
+    console.warn(`Could not discover the ${target.service} IP with kubectl:`, error.message);
+  }
+  return target.url;
+}
 
-// Helper function to get access token from Keycloak
+// Called when the address could not be reached, so the next request looks it up again
+function forgetDiscoveredUrl(target) {
+  target.url = null;
+  target.at = 0;
+}
+
+// Keycloak URL: env var > LoadBalancer IP of svc/keycloak > .env > in-cluster default
+async function getKeycloakUrl() {
+  if (process.env.KEYCLOAK_URL) {
+    return process.env.KEYCLOAK_URL;
+  }
+  const discovered = await discoverUrl(keycloakDiscovery);
+  if (discovered !== null) {
+    return discovered;
+  }
+  return envFile.KEYCLOAK_URL || 'http://keycloak.payment.svc.cluster.local:8080';
+}
+
+// Payment API base URL: env var > LoadBalancer IP of the ingress controller > .env > localhost
+async function getPaymentApiBaseUrl() {
+  if (process.env.PAYMENT_API_BASE_URL) {
+    return process.env.PAYMENT_API_BASE_URL;
+  }
+  const discovered = await discoverUrl(paymentApiDiscovery);
+  if (discovered !== null) {
+    return discovered;
+  }
+  return envFile.API_BASE_URL || 'http://localhost';
+}
+
+// The proxy keeps one access token and renews it shortly before it expires (or right away when the
+// payment service rejects it). Only this server holds the token; the browser never sees it.
+const RENEW_BEFORE_EXPIRY_MS = 60000;
+let cachedToken = null; // { value, expiresAt }
+
+function forgetCachedToken() {
+  cachedToken = null;
+}
+
 async function getAccessToken() {
-  if (!CLIENT_SECRET) {
+  if (cachedToken !== null && Date.now() < cachedToken.expiresAt - RENEW_BEFORE_EXPIRY_MS) {
+    return cachedToken.value;
+  }
+
+  const clientSecret = getClientSecret();
+  if (!clientSecret) {
     throw new Error('Client secret not configured');
   }
 
-  const tokenEndpoint = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`;
+  const keycloakUrl = await getKeycloakUrl();
+  const tokenEndpoint = `${keycloakUrl}/realms/${REALM}/protocol/openid-connect/token`;
   console.log(`      🔑 Token endpoint: ${tokenEndpoint}`);
-  
+
   const formData = new URLSearchParams();
   formData.append('grant_type', 'client_credentials');
   formData.append('client_id', CLIENT_ID);
-  formData.append('client_secret', CLIENT_SECRET);
+  formData.append('client_secret', clientSecret);
 
   let response;
   try {
@@ -125,7 +193,8 @@ async function getAccessToken() {
     console.log(`      📡 Keycloak response: ${response.status} ${response.statusText}`);
   } catch (fetchError) {
     console.error(`      ❌ Network error calling Keycloak:`, fetchError.message);
-    throw new Error(`Cannot reach Keycloak at ${KEYCLOAK_URL}: ${fetchError.message}`);
+    forgetDiscoveredUrl(keycloakDiscovery);
+    throw new Error(`Cannot reach Keycloak at ${keycloakUrl}: ${fetchError.message}`);
   }
 
   let responseData;
@@ -147,7 +216,31 @@ async function getAccessToken() {
     throw new Error('No access token in response');
   }
 
-  return responseData.access_token;
+  // expires_in is in seconds; without it, keep the token only briefly
+  const lifetimeSeconds = responseData.expires_in || 60;
+  cachedToken = { value: responseData.access_token, expiresAt: Date.now() + lifetimeSeconds * 1000 };
+  console.log(`      ♻️  New access token cached for ${Math.round(lifetimeSeconds / 60)} min`);
+  return cachedToken.value;
+}
+
+// Calls the payment service with the proxy's token. On 401 (token expired or signed by a Keycloak that
+// was since rebuilt) it renews the token and retries once; the request was rejected before any
+// processing, and a retried create keeps the same Idempotency-Key.
+async function callPaymentService(url, options) {
+  const token = await getAccessToken();
+  const response = await httpRequestWithHost(url, withBearer(options, token));
+  if (response.status !== 401) {
+    return response;
+  }
+
+  console.warn('      ⚠️ payment-service answered 401: renewing the token and retrying once');
+  forgetCachedToken();
+  const renewedToken = await getAccessToken();
+  return httpRequestWithHost(url, withBearer(options, renewedToken));
+}
+
+function withBearer(options, token) {
+  return { ...options, headers: { ...options.headers, 'Authorization': `Bearer ${token}` } };
 }
 
 // Helper function to make HTTP requests with custom Host header (for ingress routing)
@@ -219,34 +312,6 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Token endpoint (kept for backwards compatibility or direct token needs)
-app.post('/api/token', async (req, res) => {
-  try {
-    if (!CLIENT_SECRET) {
-      return res.status(500).json({
-        error: 'Client secret not configured',
-        message: 'Please set KEYCLOAK_CLIENT_SECRET environment variable or run npm run setup-env'
-      });
-    }
-
-    const token = await getAccessToken();
-    
-    res.json({
-      access_token: token,
-      token_type: 'Bearer',
-      expires_in: 3600 // Default, could be extracted from Keycloak response
-    });
-
-  } catch (error) {
-    console.error('Token proxy error:', error);
-    res.status(500).json({
-      error: 'Failed to get token',
-      message: error.message,
-      details: error.cause || 'Unknown error'
-    });
-  }
-});
-
 // Checkout endpoint: Simulates order-service/checkout-service
 // Handles full flow: token acquisition + payment-service call
 app.post('/api/checkout/process-payment', async (req, res) => {
@@ -255,7 +320,7 @@ app.post('/api/checkout/process-payment', async (req, res) => {
   console.log(`   [${requestId}] Request body:`, JSON.stringify(req.body, null, 2));
   
   try {
-    if (!CLIENT_SECRET) {
+    if (!getClientSecret()) {
       console.error(`   [${requestId}] ❌ Client secret not configured`);
       return res.status(500).json({
         error: 'Client secret not configured',
@@ -280,7 +345,7 @@ app.post('/api/checkout/process-payment', async (req, res) => {
 
     // Step 1: Get token from Keycloak (server-to-server)
     console.log(`   [${requestId}] 🔐 Step 1: Acquiring token from Keycloak...`);
-    console.log(`   [${requestId}]    Keycloak URL: ${KEYCLOAK_URL}`);
+    console.log(`   [${requestId}]    Keycloak URL: ${await getKeycloakUrl()}`);
     console.log(`   [${requestId}]    Realm: ${REALM}`);
     console.log(`   [${requestId}]    Client ID: ${CLIENT_ID}`);
     
@@ -314,7 +379,7 @@ app.post('/api/checkout/process-payment', async (req, res) => {
     // Step 3: Call payment-service with token (server-to-server)
     // Access via ingress: base URL + Host header (matches how-to-start.md)
     console.log(`   [${requestId}] 💳 Step 3: Calling payment-service...`);
-    const paymentUrl = `${PAYMENT_API_BASE_URL}/api/v1/payments`;
+    const paymentUrl = `${await getPaymentApiBaseUrl()}/api/v1/payments`;
     console.log(`   [${requestId}]    URL: ${paymentUrl}`);
     console.log(`   [${requestId}]    Idempotency-Key: ${idempotencyKey}`);
     console.log(`   [${requestId}]    Request payload:`, JSON.stringify(paymentData, null, 2));
@@ -331,11 +396,10 @@ app.post('/api/checkout/process-payment', async (req, res) => {
       
       // Use custom httpRequestWithHost to properly set Host header for ingress routing
       // Node.js fetch() doesn't allow overriding Host header, so we use native http module
-      paymentResponse = await httpRequestWithHost(paymentUrl, {
+      paymentResponse = await callPaymentService(paymentUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify(paymentData),
@@ -445,7 +509,7 @@ app.get('/api/checkout/payment-status/:paymentId', async (req, res) => {
   console.log(`\n📥 [${requestId}] Checking payment status: ${paymentId}`);
   
   try {
-    if (!CLIENT_SECRET) {
+    if (!getClientSecret()) {
       console.error(`   [${requestId}] ❌ Client secret not configured`);
       return res.status(500).json({
         error: 'Client secret not configured',
@@ -471,15 +535,14 @@ app.get('/api/checkout/payment-status/:paymentId', async (req, res) => {
     // Note: This assumes there's a GET endpoint for payment status
     // If not available, we'll need to implement it or use a different approach
     console.log(`   [${requestId}] 💳 Checking payment status...`);
-    const statusUrl = `${PAYMENT_API_BASE_URL}/api/v1/payments/${paymentId}`;
+    const statusUrl = `${await getPaymentApiBaseUrl()}/api/v1/payments/${paymentId}`;
     console.log(`   [${requestId}]    URL: ${statusUrl}`);
     
     let statusResponse;
     try {
-      statusResponse = await httpRequestWithHost(statusUrl, {
+      statusResponse = await callPaymentService(statusUrl, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
         },
         timeout: 10000,
       });
@@ -543,7 +606,7 @@ app.post('/api/checkout/authorize-payment/:paymentId', async (req, res) => {
   console.log(`   [${requestId}] Request body:`, JSON.stringify(req.body, null, 2));
   
   try {
-    if (!CLIENT_SECRET) {
+    if (!getClientSecret()) {
       console.error(`   [${requestId}] ❌ Client secret not configured`);
       return res.status(500).json({
         error: 'Client secret not configured',
@@ -567,7 +630,7 @@ app.post('/api/checkout/authorize-payment/:paymentId', async (req, res) => {
 
     // Step 2: Call payment-service authorize endpoint
     console.log(`   [${requestId}] 🔐 Authorizing payment...`);
-    const authorizeUrl = `${PAYMENT_API_BASE_URL}/api/v1/payments/${paymentId}/authorize`;
+    const authorizeUrl = `${await getPaymentApiBaseUrl()}/api/v1/payments/${paymentId}/authorize`;
     console.log(`   [${requestId}]    URL: ${authorizeUrl}`);
     console.log(`   [${requestId}]    Note: No payment details sent - backend uses stored PaymentIntent ID`);
     
@@ -579,11 +642,10 @@ app.post('/api/checkout/authorize-payment/:paymentId', async (req, res) => {
     
     let authorizeResponse;
     try {
-      authorizeResponse = await httpRequestWithHost(authorizeUrl, {
+      authorizeResponse = await callPaymentService(authorizeUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(authorizeRequest),
         timeout: 30000,
@@ -649,7 +711,6 @@ app.use((req, res) => {
     path: req.url,
     availableRoutes: [
       'GET /health',
-      'POST /api/token',
       'POST /api/checkout/process-payment',
       'GET /api/checkout/payment-status/:paymentId',
       'POST /api/checkout/authorize-payment/:paymentId'
@@ -657,25 +718,25 @@ app.use((req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Backend proxy server running on http://localhost:${PORT}`);
   console.log(`   (Simulates order-service/checkout-service)`);
-  console.log(`   Keycloak URL: ${KEYCLOAK_URL}`);
+  console.log(`   Keycloak URL: ${await getKeycloakUrl()} (resolved per token request)`);
   console.log(`   Realm: ${REALM}`);
   console.log(`   Client ID: ${CLIENT_ID}`);
-  console.log(`   Client Secret: ${CLIENT_SECRET ? '✅ Configured' : '❌ Not found'}`);
-  console.log(`   Payment API URL: ${PAYMENT_API_BASE_URL}`);
-  console.log(`   Payment Service Endpoint: ${PAYMENT_API_BASE_URL}/api/v1/payments`);
+  console.log(`   Client Secret: ${getClientSecret() ? '✅ Configured' : '❌ Not found'} (read per token request)`);
+  const paymentApiBaseUrl = await getPaymentApiBaseUrl();
+  console.log(`   Payment API URL: ${paymentApiBaseUrl} (resolved per request)`);
+  console.log(`   Payment Service Endpoint: ${paymentApiBaseUrl}/api/v1/payments`);
   console.log(`\n📋 Available endpoints:`);
   console.log(`   GET  /health`);
-  console.log(`   POST /api/token`);
   console.log(`   POST /api/checkout/process-payment`);
   console.log(`   GET  /api/checkout/payment-status/:paymentId`);
   console.log(`   POST /api/checkout/authorize-payment/:paymentId`);
-  if (!CLIENT_SECRET) {
+  if (!getClientSecret()) {
     console.log(`\n   ⚠️  Please set KEYCLOAK_CLIENT_SECRET or run: npm run setup-env`);
   }
-  if (PAYMENT_API_BASE_URL === 'http://127.0.0.1' && !endpoints) {
+  if (paymentApiBaseUrl === 'http://localhost') {
     console.log(`\n   💡 Tip: Payment service may need port-forwarding if running in Kubernetes`);
     console.log(`   Run: kubectl port-forward -n payment svc/payment-service 80:80`);
   }

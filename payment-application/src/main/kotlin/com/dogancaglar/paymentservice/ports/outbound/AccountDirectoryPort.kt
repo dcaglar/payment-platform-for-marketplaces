@@ -14,5 +14,8 @@ interface AccountDirectoryPort {
     // All accounts of a sub entity (a seller), one per currency, found by its id alone
     fun getAccountProfilesBySubEntity(accountType: AccountType, subEntityId: String): List<AccountProfile>
 
+    // All accounts of a merchant of the given type (no sub entity), one per currency
+    fun getAccountProfilesByMaster(accountType: AccountType, masterAccountCode: String): List<AccountProfile>
+
     fun getAccountByCode(accountCode: String): AccountProfile
 }

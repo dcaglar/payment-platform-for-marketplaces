@@ -24,6 +24,11 @@ interface AccountDirectoryMapper {
         @Param("subEntityId") subEntityId: String
     ): List<AccountProfile>
 
+    fun findAllByMaster(
+        @Param("accountType") accountType: String,
+        @Param("masterAccountCode") masterAccountCode: String
+    ): List<AccountProfile>
+
     fun findByAccountCode(
         @Param("accountCode") accountCode: String
     ): AccountProfile?

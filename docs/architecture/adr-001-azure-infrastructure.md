@@ -10,20 +10,36 @@ We have built a high-performance, cell-based payment processing system. Original
 We will clone and parameterize your existing bash scripts to create an identical, sibling deployment track for Azure. **The GitHub Actions pipeline will boot up a temporary Linux server in the cloud to execute your existing bash scripts on your behalf.**
 
 ## 4. Resource Allocation & Sizing
-1. **System Node Pool (`Standard_D2s_v5` - 2 vCPU, 8 GB RAM)**
-2. **Central Node Pool (`Standard_D8s_v5` - 8 vCPU, 32 GB RAM):** Pinned via `nodeSelector`.
-3. **Edge Cell Node Pool (`Standard_D8s_v5` - 8 vCPU, 32 GB RAM):** Dedicated exclusively to the `payment-edge-cell` Pods.
+Current sizes (source of truth: `infra/terraform/aks-loadtest.tfvars`; the original DSv5 plan was blocked by quota, see Phase 16):
+1. **System Node Pool (`systempool`, `Standard_D2s_v4` - 2 vCPU, 8 GB RAM, 1 node):** AKS system pods only (`only_critical_addons_enabled`).
+2. **Central Node Pool (`centralpool`, `Standard_D8ds_v4` - 8 vCPU, 32 GB RAM, 1 node):** label `pool=central`; Kafka, Central DB, Redis, Keycloak, KEDA, `payment-central-relay`, `payment-consumers`, monitoring.
+3. **Edge Node Pool (`edgepool`, `Standard_D8s_v3` - 8 vCPU, 32 GB RAM, 1 node):** label `pool=edge`; intended for the edge cells.
+4. **Edge Node Pool 2 (`edgepool2`, `Standard_E8ds_v4` - 8 vCPU, 64 GB RAM, autoscale 0–1):** label `pool=edge`; a different VM family to stay inside the per-family quota.
 
 ## 5. Script and Configuration Strategy (The "Azure Profile")
 
-We will mirror your local deployment structure perfectly:
+Local and Azure use the same charts and differ only in the values files and the Spring profile:
 
-### 5.1 Helm Values and Secrets (Same Folders)
-Inside your *existing* `infra/helm-values` and `infra/secrets` folders, we will place a new file next to every `-local.yaml` file ending in `-azure.yaml` (e.g., `central-db-values-local.yaml` will live right next to `central-db-values-azure.yaml`).
-* The `-azure.yaml` files will have larger connection pools, higher CPU limits, and the AKS `nodeSelector` values.
+| | local (OrbStack) | azure (AKS) |
+|---|---|---|
+| Spring profile (`SPRING_PROFILES_ACTIVE`, from `spring.profile` in the values) | `local` → `application-local.yml` | `azure` → `application-azure.yml` |
+| Our app charts (`charts/<chart>/`) | `values.yaml` + `local/values.yaml` | `values.yaml` + `azure/values.yaml` |
+| Third-party infra (Kafka, Redis, Keycloak, ingress, OTel, monitoring) | `infra/helm-values/*-values-local.yaml` | `infra/helm-values/*-values-azure.yaml` |
+| Secrets | `edge-cell-sops-secrets.yaml`, `central-db-sops-secrets.yaml` (repo root, SOPS + age, decrypted by `helm secrets`) | same files; CI needs `SOPS_AGE_KEY` |
+| Entry point | `infra/scripts/deploy-all-local.sh` | GitHub Actions `deploy-infra.yml` |
+
+The e2e tests (`e2e-tests`) run the images with the `local` profile and `psp.gateway.type=SIMULATED`; the `liquibase-job` profile runs schema migrations only.
+
+### 5.1 Helm Values and Secrets
+* Our own charts keep one folder per environment: `charts/<chart>/local/values.yaml` and `charts/<chart>/azure/values.yaml`. The Azure files carry larger connection pools, higher CPU limits, and the AKS `nodeSelector` values.
+* Third-party charts use `infra/helm-values/<component>-values-local.yaml` next to `<component>-values-azure.yaml`.
+* ⚠️ Helm reads only the **first** YAML document of a values file. See the 2026-09-29 audit below for the Azure values files that contain several documents.
 
 ### 5.2 Bash Scripts (Same Folder)
-Inside your *existing* `infra/scripts` folder, we will duplicate `deploy-all-local.sh` and its child scripts to end with `-azure.sh`. The Azure scripts will reference the `-azure.yaml` files.
+Inside `infra/scripts`, each local script has an Azure sibling:
+* local: `deploy-all-local.sh` → `build-all-payment-platform-images-and-push.sh`, `deploy-all-external-infra-local.sh`, `deploy-payment-platform-services-local.sh` (monitoring: `deploy-monitoring-stack-local.sh`).
+* azure: `deploy-all-external-infra-azure.sh`, `deploy-monitoring-stack-azure.sh`, `deploy-payment-platform-services-azure.sh` (called in that order by `deploy-infra.yml`); teardown: `delete-all-azure.sh`.
+* one-time setup: `setup-terraform-backend.sh` (state storage), `setup-github-secrets.sh` (service principal + GitHub secrets); `teardown-terraform-backend.sh` removes the state storage.
 
 ## 6. Infrastructure as Code (IaC) & CI/CD Flow
 
@@ -31,12 +47,6 @@ Inside your *existing* `infra/scripts` folder, we will duplicate `deploy-all-loc
 > **WHERE DOES ALL THIS RUN?**
 > When you click "Run workflow" in GitHub, GitHub boots up a temporary, free **Ubuntu Virtual Machine** in their cloud (called a "Runner"). 
 > 
-> GitHub downloads your code onto that Ubuntu VM. **Every single script (Terraform, Docker builds, and Bash scripts) is executed directly on that temporary GitHub Ubuntu VM**, not on your Mac, and not inside the AKS cluster! That Ubuntu VM acts as your "robot developer", doing exactly what you would do on your Mac terminal.
-
-!IMPORTANT]
-> **WHERE DOES ALL THIS RUN?**
-> When you click "Run workflow" in GitHub, GitHub boots up a temporary, free **Ubuntu Virtual Machine** in their cloud (called a "Runner").
->
 > GitHub downloads your code onto that Ubuntu VM. **Every single script (Terraform, Docker builds, and Bash scripts) is executed directly on that temporary GitHub Ubuntu VM**, not on your Mac, and not inside the AKS cluster! That Ubuntu VM acts as your "robot developer", doing exactly what you would do on your Mac terminal.
 
 ```mermaid
@@ -49,7 +59,7 @@ graph TD
         
         Runner -->|3. Runs Terraform| TF["terraform apply<br/>(aks-loadtest.tfvars)"]
         Runner -->|4. Runs Build Scripts| Build["infra/scripts/build-and-push.sh"]
-        Runner -->|5. Runs Deploy Scripts| Deploy["infra/scripts/deploy.sh"]
+        Runner -->|5. Runs Deploy Scripts| Deploy["deploy-all-external-infra-azure.sh<br/>deploy-monitoring-stack-azure.sh<br/>deploy-payment-platform-services-azure.sh"]
     end
     
     TF -->|Creates Cluster| AKS["Azure AKS Cluster"]
@@ -59,21 +69,22 @@ graph TD
 ```
 
 ### The Step-by-Step CI/CD Execution:
+0. **One-time setup (from your Mac):** `setup-terraform-backend.sh` creates the state storage (`rg-terraform-state` / `tfstateloadtestdc` / `tfstate`); `setup-github-secrets.sh` creates the service principal and sets `AZURE_*` and `DOCKERHUB_*` secrets. `SOPS_AGE_KEY` must be added to the GitHub secrets by hand.
 1. **Creation:** You click "Run workflow" on `deploy-infra.yml` in GitHub Actions. GitHub boots up the temporary Ubuntu Runner.
-2. **IaC Execution:** The Ubuntu Runner authenticates securely with Azure and runs `terraform apply`. Terraform uses the Azure API to physically rent the Virtual Machines and start the AKS Kubernetes cluster.
-3. **Build & Push:** The Ubuntu Runner executes your existing `build-and-push-payment-service-docker-repo.sh` scripts. The Java code is compiled and the Docker images are built **directly on the Ubuntu Runner**. The Runner then pushes those built images to your Docker Hub.
-4. **Application Deployment:** The Ubuntu Runner installs `helm` and `kubectl` on itself, downloads the `kubeconfig` from Azure, and then executes your `deploy-all-azure.sh` script. The bash script talks to the AKS Cluster's API and tells it to deploy your Helm charts.
-5. **Teardown:** When finished, you run `destroy-infra.yml`. A new Ubuntu Runner boots up, runs `terraform destroy`, and deletes the Azure resources.
+2. **IaC Execution:** The `terraform-plan` job runs `terraform plan` and saves the plan as an artifact; after the images are built, the deploy job runs `terraform apply` on that plan (no manual approval step).
+3. **Build & Push:** In parallel, a matrix job runs `infra/scripts/build-and-push.sh` for the four services and pushes `<DOCKERHUB_USERNAME>/<service>:latest` to Docker Hub.
+4. **Application Deployment:** The Runner installs `helm`, `helm-secrets` and `sops`, logs in with the service principal, downloads the `kubeconfig` from Azure, and runs the three Azure deploy scripts.
+5. **Teardown:** When finished, you run `destroy-infra.yml`: it plans the destroy, uninstalls the Helm releases (`delete-all-azure.sh`, so Azure load balancers and disks are released), runs `terraform destroy`, and finally deletes the `MC_…` node resource group if it was left behind.
 
 
 ## 7. Status
-**PROPOSED**
+**ACCEPTED** — implemented; the Append-Only Ledger Log below records how it evolved, and the 2026-09-29 audit lists what is currently broken.
 
 ---
 
 ## 8. Detailed Infrastructure Walkthrough (Terraform Breakdown)
 
-Because this ADR serves as our architectural blueprint, below is a detailed breakdown of the exact Terraform code we just wrote in Phase 2 (`infra/terraform/main.tf`). This documents *why* we configured Azure the way we did.
+Because this ADR serves as our architectural blueprint, below is a detailed breakdown of the Terraform code (`infra/terraform/main.tf`, values from `aks-loadtest.tfvars`). This documents *why* we configured Azure the way we did.
 
 ### 8.1 The Foundation: Resource Group, API Server, and Load Balancer
 In Azure, everything must live inside a "Resource Group" (a logical folder). We define our Resource Group to live in `westeurope` (the Netherlands), guaranteeing the lowest possible latency for your testing.
@@ -89,57 +100,66 @@ We use the `kubenet` network plugin because it is lightweight and free. Finally,
 ```hcl
 default_node_pool {
   name       = "systempool"
-  node_count = 1
-  vm_size    = "Standard_D2s_v5"
+  node_count = 1                  # system_node_count
+  vm_size    = "Standard_D2s_v4"  # system_node_size
   only_critical_addons_enabled = true
 }
 ```
-**The Detail:** Every AKS cluster requires at least one default node pool. We created a tiny 2-vCPU node. *(Note: You can tell it has 2 vCPUs because the number **2** is right in the name: `Standard_D2s_v5`)*.
+**The Detail:** Every AKS cluster requires at least one default node pool. We created a tiny 2-vCPU node. *(Note: You can tell it has 2 vCPUs because the number **2** is right in the name: `Standard_D2s_v4`)*.
 **The "Why":** We set `only_critical_addons_enabled = true`. This is a crucial Azure feature. It tells Kubernetes: *"Do not allow ANY user applications to run here."* This guarantees that Kubernetes' own internal brain (CoreDNS, metrics, health probes) runs safely here without your high-throughput load tests accidentally crashing the cluster's internal networking.
 *(Note: Does the GitHub Actions Runner run here? **NO!** The GitHub Runner is a completely separate server hosted by GitHub far away from Azure. The Runner is the one telling Azure to build this `systempool`!)*
 
 ### 8.3 The Central Node Pool (`centralpool`)
 ```hcl
 resource "azurerm_kubernetes_cluster_node_pool" "central" {
-  name                  = "centralpool"
-  vm_size               = "Standard_D8s_v5"
+  name        = "centralpool"
+  vm_size     = "Standard_D8ds_v4"   # central_node_size
+  node_count  = 1                    # central_node_count
   node_labels = { "pool" = "central" }
 }
 ```
-**The Detail:** We rent an 8-vCPU, 32GB RAM Virtual Machine. *(Note: The **8** in `Standard_D8s_v5` means 8 vCPUs!)* We explicitly label this VM with the sticker `pool=central`.
-**The "Why":** Later, in Phase 4, we will update the Helm charts for Kafka, Redis, your Central DB, and the Central Relay to strictly look for VMs wearing the `pool=central` sticker. 
-* **Virtual Isolation:** Even though they share this physical `Standard_D8s_v5` motherboard to save money, Kubernetes deploys them as completely isolated Pods. This means Kafka and Central DB will have completely different internal IPs and different virtual hostnames (e.g., `kafka.payment.svc.cluster.local` vs `central-db-postgresql.payment.svc.cluster.local`). They behave exactly as if they were on separate machines!
+**The Detail:** We rent an 8-vCPU, 32GB RAM Virtual Machine. *(Note: The **8** in `Standard_D8ds_v4` means 8 vCPUs!)* We explicitly label this VM with the sticker `pool=central`.
+**The "Why":** The Helm values for Kafka, Redis, Keycloak, the Central DB, KEDA, the Central Relay and the Consumers set `nodeSelector: pool: central`, so they only land on this VM.
+* **Virtual Isolation:** Even though they share this physical `Standard_D8ds_v4` machine to save money, Kubernetes deploys them as completely isolated Pods. This means Kafka and Central DB will have completely different internal IPs and different virtual hostnames (e.g., `kafka.payment.svc.cluster.local` vs `central-db-postgresql.payment.svc.cluster.local`). They behave exactly as if they were on separate machines!
 
-### 8.4 The Edge Autoscaling Pool (`edgepool`)
+### 8.4 The Edge Pools (`edgepool` + `edgepool2`)
 ```hcl
 resource "azurerm_kubernetes_cluster_node_pool" "edge" {
-  name                  = "edgepool"
-  vm_size               = "Standard_D8s_v5"
-  enable_auto_scaling   = true
-  min_count             = 1
-  max_count             = 3
+  name        = "edgepool"
+  vm_size     = "Standard_D8s_v3"    # edge_node_size
+  node_count  = 1                    # fixed: the primary edge cell
   node_labels = { "pool" = "edge" }
 }
+
+resource "azurerm_kubernetes_cluster_node_pool" "edge2" {
+  name                 = "edgepool2"
+  vm_size              = "Standard_E8ds_v4"  # edge2_node_size
+  auto_scaling_enabled = true
+  min_count            = 0
+  max_count            = 1
+  node_labels          = { "pool" = "edge" }
+}
 ```
-**The Detail:** We rent another 8-vCPU VM and label it `pool=edge`. We also turn on Azure's native VM autoscaler.
-**The "Why":** Your `payment-edge-cell` Pods are massive. If your k6 load test pushes 1,000 RPS, your Pods will hit 100% CPU. When Kubernetes tries to spawn a *second* `payment-edge-cell` Pod, it won't fit on this VM. Because `enable_auto_scaling` is true, Azure will detect the traffic jam, automatically rent a *second* `Standard_D8s_v5` VM in the background, attach it to the cluster, and move your new Pod onto it. When the load test ends, Azure deletes the second VM to save you money!
+**The Detail:** One fixed 8-vCPU VM for the primary edge cell, plus a second pool that sits at 0 nodes and scales to 1. Both carry the label `pool=edge`.
+**The "Why":** Your `payment-edge-cell` Pods are large. When KEDA asks for a *second* `payment-edge-cell` Pod and it doesn't fit on `edgepool`, the cluster autoscaler rents the `edgepool2` VM, attaches it, and the new Pod lands there. When the load test ends, the VM is removed again. The second pool uses a different VM family because each family's quota is capped at 10 vCPU.
+> ⚠️ The edge charts don't set `nodeSelector: pool: edge` yet (see the 2026-09-29 audit), so today edge Pods are not forced onto these pools.
 
 ---
 
 
 ## 8.5 VM Operating System Disks vs Application Disks
 We establish a strict architectural boundary between compute storage and persistent application data:
-*   **Node OS Disks (Compute):** The Terraform `main.tf` defines the VM SKUs (`Standard_D8s_v5`). By default, AKS provisions a 128GB Managed OS Disk for these nodes to hold the Linux OS, container images, and ephemeral logs. Because Kubernetes nodes are stateless cattle, these OS disks are entirely disposable.
-*   **Application Data (PVCs):** Our databases (PostgreSQL and Kafka) utilize Kubernetes `PersistentVolumeClaims` (PVCs). In Azure, this automatically triggers the `managed-csi` driver to provision highly-redundant, independent **Premium SSD Managed Disks** over the network. If a physical VM crashes, the node OS disk is lost, but the Premium SSD Data Disk is safely detached by Azure and plugged into the replacement VM with zero data loss.
+*   **Node OS Disks (Compute):** The Terraform `main.tf` defines the VM SKUs. By default, AKS provisions a 128GB Managed OS Disk for these nodes to hold the Linux OS, container images, and ephemeral logs. Because Kubernetes nodes are stateless cattle, these OS disks are entirely disposable.
+*   **Application Data (PVCs):** Our databases (PostgreSQL and Kafka) utilize Kubernetes `PersistentVolumeClaims` (PVCs). In Azure, this automatically triggers the `managed-csi` driver to provision independent **Managed Disks** over the network. If a physical VM crashes, the node OS disk is lost, but the data disk is detached by Azure and attached to the replacement VM with zero data loss.
 
 ### 8.6 The Dual Purpose of StatefulSets
 Our architecture utilizes the `StatefulSet` API object for two fundamentally different reasons:
-1.  **For Databases (`payment-edge-cell`):** We use StatefulSets to dynamically provision independent hard drives. If the Edge Cell scales to 3 replicas, the `volumeClaimTemplates` forces Kubernetes to provision 3 entirely separate Premium SSDs. This ensures `payment-edge-cell-0` never attempts to corrupt the physical database files of `payment-edge-cell-1`.
-2.  **For Kafka Consumers (`payment-consumers`):** The consumers have absolutely no persistent storage attached. However, they use a StatefulSet to acquire stable network identities (e.g., `payment-consumers-0`). If a pod restarts, it retains its exact identity. This signals to the Kafka broker that it is the *same* consumer returning, completely bypassing a cluster-wide Kafka Consumer Group Rebalance storm.
+1.  **For Databases (`payment-edge-cell`):** We use StatefulSets to dynamically provision independent disks. If the Edge Cell scales to 3 replicas, the `volumeClaimTemplates` forces Kubernetes to provision 3 entirely separate disks. This ensures `payment-edge-cell-0` never attempts to corrupt the physical database files of `payment-edge-cell-1`. The ordinal also pairs each cell with its worker (`payment-edge-workers-N` → `payment-edge-cell-N`).
+2.  **For Kafka Consumers (`payment-consumers`):** The consumers have no persistent storage attached; the StatefulSet gives them stable network identities (e.g., `payment-consumers-0`). Kafka static membership (`group.instance.id`) is **not** configured yet, so a restarted pod still triggers a normal consumer group rebalance.
 
 ### 8.7 Environment-Specific Capacity Tuning
-All infrastructure capacity constraints are mathematically decoupled from the generic Helm templates (`values.yaml`) and strictly injected via environment-specific profiles (`helm-values/*-azure.yaml` vs `*-local.yaml`).
-*   **Central Infrastructure:** The Azure configuration for the Central Database and Kafka explicitly override defaults with massive production-grade capacities (e.g., `250Gi` Managed Disks, `6000m` CPU, `12Gi` RAM, and `4GB shared_buffers`) tailored precisely for the 8-core `Standard_D8s_v5` nodes in the `centralpool`. Local configurations are strictly starved to prevent laptop exhaustion.
+All capacity settings are kept out of the generic Helm templates (`values.yaml`) and injected per environment (`charts/<chart>/azure/values.yaml` and `infra/helm-values/*-azure.yaml` vs their `local` counterparts).
+*   **Central Infrastructure:** On Azure, the Central DB gets `6000m` CPU / `12Gi` RAM limits and `4GB shared_buffers`; Kafka gets a `250Gi` disk and an 8 GB heap — sized for the 8-core `Standard_D8ds_v4` node in the `centralpool`. Local configurations are strictly starved to prevent laptop exhaustion.
 *   **Relay Singleton:** The `payment-central-relay` polling job is explicitly stripped of autoscaling and locked to a strict `replicaCount: 1` singleton to prevent database contention and duplicate message publishing.
 
 
@@ -447,6 +467,25 @@ Standard DSv5 Family vCPUs
 5. **GitHub Secrets Pipeline:** Fixed `setup-github-secrets.sh` to ensure the Service Principal ID (`AZ_CLIENT_ID`) is properly parsed *before* attempting to assign it the "Storage Blob Data Contributor" role for Terraform state access.
 
 **Result:** The entire provisioning and deployment pipeline is now genuinely declarative. Developers and CI pipelines can spin up the full cluster (locally or in Azure) by executing a single script without any manual pauses, hacky port forwarding, or order-dependent steps. Remote state authentication is also fully stabilized.
+
+
+### 2026-09-29: Audit — docs vs repo, and known issues ⚠️ OPEN
+
+**Context:** A check of this ADR, the runbook, the workflows and the charts against the repository (Azure charts rendered with `helm template` using the same values files as the Azure scripts).
+
+**Corrections to earlier entries (the entries above are kept as written):**
+- Phase 3: `deploy-infra.yml` has **no** `environment: azure-loadtest` approval gate; plan and apply run without a manual approval.
+- Phase 4 / Phase 11: the `payment-edge-cell` and `payment-edge-workers` templates render **no** `nodeSelector` or affinity, and the edge-cell sets no `topologySpreadConstraints`. Only the central components (relay, consumers, central-db, Kafka, Redis, Keycloak, KEDA) are pinned (`pool: central`).
+- Phase 16: the edge pools are `Standard_D8s_v3` (`edgepool`) and `Standard_E8ds_v4` (`edgepool2`), not `D8ds_v6` / `D8ds_v7` (see `aks-loadtest.tfvars`).
+- Phase 17: `providers.tf` does **not** set `use_azuread_auth = true`; the backend works because the Contributor service principal can read the storage account keys. There is no single `deploy-all-azure.sh`; the workflow calls three Azure scripts.
+
+**Known issues — an Azure deploy from the current branch fails:**
+1. `payment-edge-cell` does not render on Azure: `statefulset.yaml` reads `.Values.edgeDb.args`, but `edgeDb` is defined only in `local/values.yaml` (`nil pointer evaluating .Values.edgeDb.args`).
+2. `charts/payment-{edge-workers,central-relay,consumers}/azure/values.yaml` each contain several YAML documents (`---`). Helm reads only the first one. For `payment-consumers` the `config:` block is in the second document, so its ConfigMap renders empty and the pod has no `CENTRAL_DB_URL` (`application-azure.yml` requires it).
+3. The three Azure deploy scripts run an interactive `az login` and `az account set` to a hardcoded subscription; on a GitHub runner the interactive login blocks the job even though the workflow already logged in with the service principal.
+4. `SOPS_AGE_KEY` is required by the deploy workflow but not created by `setup-github-secrets.sh`.
+
+**Smaller items:** `setup-github-secrets.sh` grants Contributor on the whole subscription; `delete-all-azure.sh` does not uninstall Tempo or the OTel collector (harmless: `terraform destroy` removes the resource group); `main.tf` still describes the edge-workers as a sidecar (they are a separate StatefulSet since Phase 14).
 
 ---
 
