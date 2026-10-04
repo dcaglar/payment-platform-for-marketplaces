@@ -1,17 +1,17 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
 import com.dogancaglar.common.time.Utc
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.AmountDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.JournalEntryDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PaymentDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PostingDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.TxDto
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
 import com.dogancaglar.paymentservice.domain.model.ledger.Posting
 import com.dogancaglar.paymentservice.domain.model.ledger.Tx
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
 import com.dogancaglar.paymentservice.domain.model.vo.TxId
 import com.dogancaglar.paymentservice.ports.inbound.usecases.TxUseCase
-import com.dogancaglar.port.out.web.dto.AmountDto
-import com.dogancaglar.port.out.web.dto.JournalEntryDto
-import com.dogancaglar.port.out.web.dto.PaymentDto
-import com.dogancaglar.port.out.web.dto.PostingDto
-import com.dogancaglar.port.out.web.dto.TxDto
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity

@@ -10,7 +10,7 @@ Each `@Component` consumer is a THIN inbound adapter: no business logic, no dire
 4. `dedupe.markProcessed(eventId, 3600)` AFTER success.
 5. `catch → throw` (never swallow; Kafka owns retry/DLQ).
 
-Invariants: topic/group/factory come from `Topics.*` + `CONSUMER_GROUPS.*` (common-kafka), never inline strings. Payload is a typed `EventEnvelope<T>`. Dedup on `deterministicEventId()` (data-derived, e.g. `"$publicPaymentIntentId:$eventType[:$attempt]"`), NOT the random `envelope.eventId`.
+Invariants: topic/group/factory come from `Topics.*` + `ConsumerGroups.*` (common-kafka), never inline strings. Payload is a typed `EventEnvelope<T>`. Dedup on `deterministicEventId()` (data-derived, e.g. `"$publicPaymentIntentId:$eventType[:$attempt]"`), NOT the random `envelope.eventId`.
 
 ## Idempotency (two layers — at-least
 -once is safe because of this)
@@ -18,7 +18,7 @@ Invariants: topic/group/factory come from `Topics.*` + `CONSUMER_GROUPS.*` (comm
 - Durable: journal-entry ids are deterministic; ledger insert **skips on duplicate id** (`CentralDbTransactionalFacadeAdapter.saveJournalAndOutbox`). Redis is the optimization; the DB is the guarantee. Don't add a ledger path that bypasses skip-on-duplicate.
 
 ## Write path
-- `CentralDbTransactionalFacadeAdapter` (`@Transactional(timeout=5)`) writes journal entries + postings **and** the next outbox events in ONE tx — write-side transactional outbox. Downstream event append = `CentralOutboxWriterAdapter`. `LedgerMapper`/`LedgerEntitiyMapper` persist `JournalEntry`+`Posting`. Single central-db datasource.
+- `CentralDbTransactionalFacadeAdapter` (`@Transactional(timeout=5)`) writes journal entries + postings **and** the next outbox events in ONE tx — write-side transactional outbox. Downstream event append = `CentralOutboxWriterAdapter`. `LedgerMapper`/`LedgerEntityMapper` persist `JournalEntry`+`Posting`. Single central-db datasource.
 
 ## Consumer roster (topic → role)
 - `PspResultConsumer` ← `PSP_RESULTS` — multiplexer: `when(event)` routes PaymentAuthorized/CaptureConfirmed/InternalTransferCommand/SettlementReceived → `ProcessPspResultUseCase` (records AUTHORIZATION/CAPTURE/SETTLEMENT).

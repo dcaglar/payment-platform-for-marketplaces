@@ -1,12 +1,19 @@
 # Fixing the detekt baseline
 
-How to clean up the old detekt findings, module by module, until the baselines are empty.
+How to work through the detekt findings, module by module, until the baselines are empty.
 For what detekt is and when it runs, see [code-quality.md](code-quality.md).
 
 ## What the baseline is
 
-Each module has a `detekt-baseline.xml`: the findings that already existed when detekt was introduced. detekt
-ignores them; anything not in the list fails `mvn verify`. One line per finding:
+Each module has a `detekt-baseline.xml`: **every finding still left in that module's code**, in all files
+(`src/main` and `src/test`), whatever their age. It is a to-do list, not a list of accepted problems:
+
+- The findings in it are **tolerated for now**, so the build stays green while they're being fixed step by step.
+- Anything **not** in it fails `mvn verify`: code you write or change must be clean.
+- The goal is an **empty** baseline. Progress per module and per step is tracked in
+  [code-health/checkup-2026-10-04.md](code-health/checkup-2026-10-04.md) (table at the top).
+
+One line per finding:
 
 ```xml
 <ID>LongParameterList:InternalTransfer.kt$InternalTransfer.Companion$( transferId: InternalTransferId, ... )</ID>

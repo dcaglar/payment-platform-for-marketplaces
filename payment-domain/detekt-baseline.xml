@@ -2,7 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>Filename:PaymentDomainExceptions.kt$com.dogancaglar.paymentservice.domain.exception.PaymentDomainExceptions.kt</ID>
     <ID>LongParameterList:InternalTransfer.kt$InternalTransfer$( val transferId: InternalTransferId, val paymentId: PaymentId, val paymentIntentId: PaymentIntentId, val merchantAccount: String, val amount: Amount, val targetAccount: String, val sourceAccount: String, val transferType: String, val status: InternalTransferStatus, val createdAt: LocalDateTime, val updatedAt: LocalDateTime )</ID>
     <ID>LongParameterList:InternalTransfer.kt$InternalTransfer.Companion$( transferId: InternalTransferId, paymentId: PaymentId, paymentIntentId: PaymentIntentId, merchantAccount: String, amount: Amount, targetAccount: String, sourceAccount: String, status: InternalTransferStatus, transferType: String, createdAt: LocalDateTime, updatedAt: LocalDateTime )</ID>
     <ID>LongParameterList:InternalTransfer.kt$InternalTransfer.Companion$( transferId: InternalTransferId, paymentIntentId: PaymentIntentId, paymentId: PaymentId, merchantAccount: String, amount: Amount, sourceAccount: String, targetAccount: String, transferType: String, now: LocalDateTime = Utc.nowLocalDateTime() )</ID>
@@ -37,7 +36,6 @@
     <ID>MagicNumber:LedgerAccount.kt$LedgerAccount.Companion$4</ID>
     <ID>MagicNumber:MerchantAccount.kt$PlatformFee$10_000</ID>
     <ID>MagicNumber:MerchantAccount.kt$PlatformFee.Companion$10_000</ID>
-    <ID>MatchingDeclarationName:PaymentDomainExceptions.kt$MissingPaymentOrderException : RuntimeException</ID>
     <ID>MaxLineLength:InternalTransfer.kt$InternalTransfer$"source=$sourceAccount/$sourceAccount, status=$status, transferType= $transferType createdAt=$createdAt, updatedAt=$updatedAt)"</ID>
     <ID>MaxLineLength:JournalEntry.kt$JournalEntry.JournalFactory$*</ID>
     <ID>MaxLineLength:JournalEntry.kt$JournalEntry.JournalFactory$// CAPTURE — This journal entry is recorded when external PSP notifies Mor-DC platform regarding the final status of capture, money is still not in Mor-DC account, but PSP confrms that it will send within 3 or 5 days</ID>

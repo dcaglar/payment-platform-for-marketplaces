@@ -1,7 +1,7 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.kafka.consumers
 
 import com.dogancaglar.common.event.EventEnvelope
-import com.dogancaglar.common.kafka.metadata.CONSUMER_GROUPS
+import com.dogancaglar.common.kafka.metadata.ConsumerGroups
 import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.JournalEntriesRecorded
@@ -26,20 +26,20 @@ class TransactionConsumer(
 
     @KafkaListener(
         topics = [Topics.JOURNAL_ENTRIES_RECORDED],
-        containerFactory = CONSUMER_GROUPS.TRANSACTION_CONSUMER + "-factory",
-        groupId = CONSUMER_GROUPS.TRANSACTION_CONSUMER
+        containerFactory = ConsumerGroups.TRANSACTION_CONSUMER + "-factory",
+        groupId = ConsumerGroups.TRANSACTION_CONSUMER
     )
     fun consume(record: ConsumerRecord<String, EventEnvelope<JournalEntriesRecorded>>) {
         val envelope = record.value()
         EventLogContext.with(envelope) {
             val eventId = envelope.data.deterministicEventId()
-            if (dedupe.exists(CONSUMER_GROUPS.TRANSACTION_CONSUMER, eventId)) {
+            if (dedupe.exists(ConsumerGroups.TRANSACTION_CONSUMER, eventId)) {
                 logger.warn("⚠️ Event is processed already, skipping eventId=$eventId")
                 return@with
             }
             try {
                 transactionUseCase.updateTransactions(envelope.data)
-                dedupe.markProcessed(CONSUMER_GROUPS.TRANSACTION_CONSUMER, eventId, 3600)
+                dedupe.markProcessed(ConsumerGroups.TRANSACTION_CONSUMER, eventId, 3600)
             } catch (e: Exception) {
                 logger.error("❌ Failed to update transactions from ledger batch {}", eventId, e)
                 throw e // the shared error handler retries or sends it to the DLQ

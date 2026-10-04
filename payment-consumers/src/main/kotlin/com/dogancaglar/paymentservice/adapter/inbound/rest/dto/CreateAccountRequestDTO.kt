@@ -1,4 +1,4 @@
-package com.dogancaglar.port.out.web.dto
+package com.dogancaglar.paymentservice.adapter.inbound.rest.dto
 
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max

@@ -1,7 +1,7 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.kafka.consumers
 
 import com.dogancaglar.common.event.EventEnvelope
-import com.dogancaglar.common.kafka.metadata.CONSUMER_GROUPS
+import com.dogancaglar.common.kafka.metadata.ConsumerGroups
 import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.CaptureSubmitted
@@ -21,14 +21,14 @@ class CapturePspPerformedConsumer(
 
     @KafkaListener(
         topics = [Topics.CAPTURE_SUBMITTED_ACKS],
-        containerFactory = CONSUMER_GROUPS.CAPTURE_SUBMITTED_CONSUMER + "-factory",
-        groupId = CONSUMER_GROUPS.CAPTURE_SUBMITTED_CONSUMER
+        containerFactory = ConsumerGroups.CAPTURE_SUBMITTED_CONSUMER + "-factory",
+        groupId = ConsumerGroups.CAPTURE_SUBMITTED_CONSUMER
     )
     fun consume(record: ConsumerRecord<String, EventEnvelope<CaptureSubmitted>>) {
         val envelope = record.value()
         EventLogContext.with(envelope) {
             val eventId = envelope.data.deterministicEventId()
-            if (dedupe.exists(CONSUMER_GROUPS.CAPTURE_SUBMITTED_CONSUMER, eventId)) {
+            if (dedupe.exists(ConsumerGroups.CAPTURE_SUBMITTED_CONSUMER, eventId)) {
                 logger.warn("⚠️ Event is processed already, skipping eventId=\$eventId")
                 return@with
             }
@@ -41,7 +41,7 @@ class CapturePspPerformedConsumer(
                     event = eventData,
                     parentEventId = envelope.eventId
                 )
-                dedupe.markProcessed(CONSUMER_GROUPS.CAPTURE_SUBMITTED_CONSUMER, eventId, 3600)
+                dedupe.markProcessed(ConsumerGroups.CAPTURE_SUBMITTED_CONSUMER, eventId, 3600)
                 logger.info(
                     "Capture PSP performed consumer executed successfully for paymentIntentId=${eventData.publicPaymentIntentId}"
                 )

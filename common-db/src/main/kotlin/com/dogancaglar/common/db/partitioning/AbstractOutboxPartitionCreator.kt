@@ -12,7 +12,6 @@ abstract class AbstractOutboxPartitionCreator(
     protected val logger = LoggerFactory.getLogger(javaClass)
     protected val partitionFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmm")
     protected val sqlFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-    protected val PARTITION_SIZE_MIN = 30L
 
     fun ensureCurrentAndNext() {
         val now = Utc.nowLocalDateTime()
@@ -124,5 +123,9 @@ abstract class AbstractOutboxPartitionCreator(
                 }
             }
         }
+    }
+
+    private companion object {
+        const val PARTITION_SIZE_MIN = 30L // one partition per 30 minutes
     }
 }

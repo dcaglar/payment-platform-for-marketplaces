@@ -2,9 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>Filename:EdgeMybatisConfig.kt$com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.EdgeMybatisConfig.kt</ID>
-    <ID>InvalidPackageDeclaration:AmountDto.kt$package com.dogancaglar.port.out.web.dto</ID>
-    <ID>InvalidPackageDeclaration:BalanceDto.kt$package com.dogancaglar.port.out.web.dto</ID>
     <ID>LongMethod:DomainEventFactoryTest.kt$DomainEventFactoryTest$@Test fun `should generate unique eventId each time`()</ID>
     <ID>LongMethod:HttpPspAuthorizationGatewayAdapterIntegrationTest.kt$HttpPspAuthorizationGatewayAdapterIntegrationTest$@Test fun `an authorization keeps the card brand and last 4 the PSP reports, and none when it reports none`()</ID>
     <ID>LongMethod:PaymentApiIntegrationTest.kt$PaymentApiIntegrationTest.Companion$@JvmStatic fun authorizeContract()</ID>
@@ -39,7 +36,6 @@
     <ID>MagicNumber:StripePspAuthorizationGatewayAdapter.kt$StripePspAuthorizationGatewayAdapter$500</ID>
     <ID>MagicNumber:StripePspAuthorizationGatewayAdapter.kt$StripePspAuthorizationGatewayAdapter$599</ID>
     <ID>MagicNumber:UuidV7Validator.kt$UuidV7Validator$7</ID>
-    <ID>MatchingDeclarationName:EdgeMybatisConfig.kt$EdgeMyBatisConfig</ID>
     <ID>MaxLineLength:AuthorizationNetworkSimulator.kt$AuthorizationNetworkSimulator$roll &lt; sc.latency.slow.probability + sc.latency.moderate.probability + sc.latency.fast.probability</ID>
     <ID>MaxLineLength:AuthorizationRequestDTO.kt$AuthorizationRequestDTO$val paymentMethod: PaymentMethodDTO? = null // Optional - for Stripe Payment Element, payment method is already attached</ID>
     <ID>MaxLineLength:DomainEventFactoryTest.kt$DomainEventFactoryTest$processingModel = com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel.DIRECT_MERCHANT</ID>
@@ -68,7 +64,7 @@
     <ID>ReturnCount:PaymentController.kt$PaymentController$@PostMapping("/payments/{paymentIntentId}/authorize") @PreAuthorize("hasAuthority('payment:write')") fun authorizePayment( @PathVariable("paymentIntentId") publicPaymentIntentId: String, @Valid @RequestBody request: AuthorizationRequestDTO, @AuthenticationPrincipal jwt: Jwt ): ResponseEntity&lt;CreatePaymentIntentResponseDTO&gt;</ID>
     <ID>ReturnCount:PspCardSummary.kt$PspCardSummary$private fun brandOf(name: String): CardBrand</ID>
     <ID>ReturnCount:WebhookController.kt$WebhookController$@PostMapping("/webhook") fun handleWebhook( @RequestBody payload: String, @RequestHeader("Stripe-Signature") sigHeader: String? ): ResponseEntity&lt;String&gt;</ID>
-    <ID>SpreadOperator:EdgeMybatisConfig.kt$EdgeMyBatisConfig$( *PathMatchingResourcePatternResolver().getResources("classpath*:mapper/**/*.xml") )</ID>
+    <ID>SpreadOperator:EdgeMyBatisConfig.kt$EdgeMyBatisConfig$( *PathMatchingResourcePatternResolver().getResources("classpath*:mapper/**/*.xml") )</ID>
     <ID>SpreadOperator:PaymentServiceApplication.kt$(*args)</ID>
     <ID>SwallowedException:PaymentApiIntegrationTest.kt$PaymentApiIntegrationTest$e: RejectedExecutionException</ID>
     <ID>SwallowedException:StripePspAuthorizationGatewayAdapter.kt$StripePspAuthorizationGatewayAdapter$e: CardException</ID>

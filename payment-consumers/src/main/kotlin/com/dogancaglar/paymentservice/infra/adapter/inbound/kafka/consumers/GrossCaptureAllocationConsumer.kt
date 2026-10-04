@@ -1,7 +1,7 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.kafka.consumers
 
 import com.dogancaglar.common.event.EventEnvelope
-import com.dogancaglar.common.kafka.metadata.CONSUMER_GROUPS
+import com.dogancaglar.common.kafka.metadata.ConsumerGroups
 import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.JournalEntriesRecorded
@@ -39,8 +39,8 @@ class GrossCaptureAllocationConsumer(
 
     @KafkaListener(
         topics = [Topics.JOURNAL_ENTRIES_RECORDED],
-        containerFactory = CONSUMER_GROUPS.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR + "-factory",
-        groupId = CONSUMER_GROUPS.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR
+        containerFactory = ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR + "-factory",
+        groupId = ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR
     )
     fun onLedgerEntriesRecorded(
         record: ConsumerRecord<String, EventEnvelope<JournalEntriesRecorded>>
@@ -48,7 +48,7 @@ class GrossCaptureAllocationConsumer(
         val envelope = record.value() as EventEnvelope<JournalEntriesRecorded>
         EventLogContext.with(envelope) {
             val eventId = envelope.data.deterministicEventId()
-            if (dedupe.exists(CONSUMER_GROUPS.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId)) {
+            if (dedupe.exists(ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId)) {
                 logger.warn("⚠️ Event is processed already, skipping eventId=$eventId")
                 return@with
             }
@@ -63,7 +63,7 @@ class GrossCaptureAllocationConsumer(
                 val captureEntry = event.ledgerEntries.find { it.journalType == JournalType.CAPTURE }
                 if (captureEntry == null) {
                     logger.debug("No CAPTURE journal entry found. No clearing allocation required.")
-                    dedupe.markProcessed(CONSUMER_GROUPS.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId, 3600)
+                    dedupe.markProcessed(ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId, 3600)
                     return@with
                 }
                 val rawPaymentIntentId = event.paymentIntentId.trim()
@@ -74,7 +74,7 @@ class GrossCaptureAllocationConsumer(
                     logger.error(
                         "🛑 POISON PILL DETECTED: Payment data entity not found for paymentIntentId='$rawPaymentIntentId'."
                     )
-                    dedupe.markProcessed(CONSUMER_GROUPS.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId, 3600)
+                    dedupe.markProcessed(ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId, 3600)
                     return@with
                 }
                 // 1. Resolve Global Platform Accounts
@@ -137,7 +137,7 @@ class GrossCaptureAllocationConsumer(
                     logger.info(
                         "💾 Suspense account cleanly cleared. Staged 100% allocation to direct payable for merchant: ${payment.merchantAccount}"
                     )
-                    dedupe.markProcessed(CONSUMER_GROUPS.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId, 3600)
+                    dedupe.markProcessed(ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId, 3600)
                     return@with
                 }
 
@@ -206,7 +206,7 @@ class GrossCaptureAllocationConsumer(
                 logger.info(
                     "💾 Suspense account cleanly cleared. Staged split ledger allocations across all ${payment.splits.size} distribution paths."
                 )
-                dedupe.markProcessed(CONSUMER_GROUPS.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId, 3600)
+                dedupe.markProcessed(ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId, 3600)
                 logger.info(
                     "Gross capture allocation consumer executed successfully for paymentIntentId=${event.publicPaymentIntentId}"
                 )

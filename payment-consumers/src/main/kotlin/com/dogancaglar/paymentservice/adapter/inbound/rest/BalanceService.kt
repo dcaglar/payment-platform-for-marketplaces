@@ -1,14 +1,14 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.AccountBalanceDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.BalanceDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CurrencyEnum
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.OwnerType
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PageDto
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 import com.dogancaglar.paymentservice.ports.inbound.usecases.AccountBalanceReadUseCase
 import com.dogancaglar.paymentservice.ports.outbound.AccountDirectoryPort
-import com.dogancaglar.port.out.web.dto.AccountBalanceDto
-import com.dogancaglar.port.out.web.dto.BalanceDto
-import com.dogancaglar.port.out.web.dto.CurrencyEnum
-import com.dogancaglar.port.out.web.dto.OwnerType
-import com.dogancaglar.port.out.web.dto.PageDto
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 

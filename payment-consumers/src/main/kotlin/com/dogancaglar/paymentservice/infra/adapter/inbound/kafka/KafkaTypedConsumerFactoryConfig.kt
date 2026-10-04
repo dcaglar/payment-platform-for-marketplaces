@@ -3,7 +3,7 @@ package com.dogancaglar.paymentservice.infra.adapter.inbound.kafka
 
 import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.EventEnvelope
-import com.dogancaglar.common.kafka.metadata.CONSUMER_GROUPS
+import com.dogancaglar.common.kafka.metadata.ConsumerGroups
 import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.kafka.serde.EventEnvelopeKafkaSerializer
 import com.dogancaglar.common.logging.GenericLogFields
@@ -221,7 +221,7 @@ class KafkaTypedConsumerFactoryConfig(
             }
         }
 
-    @Bean(CONSUMER_GROUPS.PSP_RESULT_CONSUMER + "-factory")
+    @Bean(ConsumerGroups.PSP_RESULT_CONSUMER + "-factory")
     fun pspResultFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -238,7 +238,7 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
-    @Bean(CONSUMER_GROUPS.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR + "-factory")
+    @Bean(ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR + "-factory")
     fun marketPlaceSplitConsumerFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -256,7 +256,7 @@ class KafkaTypedConsumerFactoryConfig(
     }
 
     @Profile("test", "local", "azure")
-    @Bean(CONSUMER_GROUPS.SETTLEMENT_RECORD_SIMULATOR + "-factory")
+    @Bean(ConsumerGroups.SETTLEMENT_RECORD_SIMULATOR + "-factory")
     fun settlementSimulatorFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -264,7 +264,7 @@ class KafkaTypedConsumerFactoryConfig(
         errorHandler: DefaultErrorHandler
     ): ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<Event>> {
         return createFactory(
-            clientId = CONSUMER_GROUPS.SETTLEMENT_RECORD_SIMULATOR,
+            clientId = ConsumerGroups.SETTLEMENT_RECORD_SIMULATOR,
             concurrency = 1,
             interceptor = interceptor,
             consumerFactory = customFactory,
@@ -273,7 +273,7 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
-    @Bean(CONSUMER_GROUPS.ACCOUNT_BALANCE_CONSUMER + "-factory")
+    @Bean(ConsumerGroups.ACCOUNT_BALANCE_CONSUMER + "-factory")
     fun journalEntriesRecordedFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -291,7 +291,7 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
-    @Bean(CONSUMER_GROUPS.CAPTURE_COMMAND_EXECUTOR + "-factory")
+    @Bean(ConsumerGroups.CAPTURE_COMMAND_EXECUTOR + "-factory")
     fun captureCommandsFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -308,7 +308,7 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
-    @Bean(CONSUMER_GROUPS.CAPTURE_SUBMITTED_CONSUMER + "-factory")
+    @Bean(ConsumerGroups.CAPTURE_SUBMITTED_CONSUMER + "-factory")
     fun captureSubmittedAcksFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -325,7 +325,7 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
-    @Bean(CONSUMER_GROUPS.TRANSACTION_CONSUMER + "-factory")
+    @Bean(ConsumerGroups.TRANSACTION_CONSUMER + "-factory")
     fun transactionConsumerFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -342,7 +342,7 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
-    @Bean(CONSUMER_GROUPS.ACCOUNT_CREATION_COMMAND_EXECUTOR + "-factory")
+    @Bean(ConsumerGroups.ACCOUNT_CREATION_COMMAND_EXECUTOR + "-factory")
     fun accountCreationFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")

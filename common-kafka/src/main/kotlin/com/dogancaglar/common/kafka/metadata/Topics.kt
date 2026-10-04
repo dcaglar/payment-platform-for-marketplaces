@@ -32,7 +32,7 @@ object Topics {
     )
 }
 
-object CONSUMER_GROUPS {
+object ConsumerGroups {
     const val PSP_RESULT_CONSUMER = "payment.psp.result.consumer"
     const val CAPTURE_COMMAND_EXECUTOR = "capture.psp.command.executor"
     const val CAPTURE_SUBMITTED_CONSUMER = "capture.psp.submitted.ack.consumer"

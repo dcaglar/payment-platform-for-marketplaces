@@ -8,8 +8,8 @@
     <ID>MagicNumber:LocalOutboxDispatchWorker.kt$LocalOutboxDispatchWorker$10</ID>
     <ID>MagicNumber:LocalOutboxDispatchWorker.kt$LocalOutboxDispatchWorker$1_000_000_000.0</ID>
     <ID>MagicNumber:LocalOutboxDispatchWorker.kt$LocalOutboxDispatchWorker$60</ID>
-    <ID>MagicNumber:LocalOutboxMaintenceJob.kt$LocalOutboxMaintenanceJob$20</ID>
-    <ID>MagicNumber:LocalOutboxMaintenceJob.kt$LocalOutboxMaintenanceJob$3000</ID>
+    <ID>MagicNumber:LocalOutboxMaintenanceJob.kt$LocalOutboxMaintenanceJob$20</ID>
+    <ID>MagicNumber:LocalOutboxMaintenanceJob.kt$LocalOutboxMaintenanceJob$3000</ID>
     <ID>MagicNumber:LocalOutboxStoreAndForwardJob.kt$LocalOutboxStoreAndForwardJob$1000</ID>
     <ID>MagicNumber:LocalOutboxStoreAndForwardJob.kt$LocalOutboxStoreAndForwardJob$2000</ID>
     <ID>MagicNumber:LocalOutboxStoreAndForwardJob.kt$LocalOutboxStoreAndForwardJob$3</ID>
@@ -26,10 +26,10 @@
     <ID>ReturnCount:LocalOutboxDispatchWorker.kt$LocalOutboxDispatchWorker$@WithSpan("outbox-shutdown-flush") fun flushBatch(workerId: String): Int</ID>
     <ID>SpreadOperator:MyBatisFactoriesConfig.kt$MyBatisFactoriesConfig$(*resolver.getResources("classpath*:mapper/**/*.xml"))</ID>
     <ID>SpreadOperator:PaymentEdgeWorkersApplication.kt$(*args)</ID>
-    <ID>SwallowedException:LocalOutboxMaintenceJob.kt$LocalOutboxMaintenanceJob$e: Exception</ID>
+    <ID>SwallowedException:LocalOutboxMaintenanceJob.kt$LocalOutboxMaintenanceJob$e: Exception</ID>
     <ID>TooGenericExceptionCaught:LocalOutboxDispatchWorker.kt$LocalOutboxDispatchWorker$t: Throwable</ID>
-    <ID>TooGenericExceptionCaught:LocalOutboxMaintenceJob.kt$LocalOutboxMaintenanceJob$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:LocalOutboxMaintenceJob.kt$LocalOutboxMaintenanceJob$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:LocalOutboxMaintenanceJob.kt$LocalOutboxMaintenanceJob$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LocalOutboxMaintenanceJob.kt$LocalOutboxMaintenanceJob$t: Throwable</ID>
     <ID>TooGenericExceptionCaught:LocalOutboxStoreAndForwardJob.kt$LocalOutboxStoreAndForwardJob$t: Throwable</ID>
     <ID>TooManyFunctions:LocalOutboxDispatchWorker.kt$LocalOutboxDispatchWorker</ID>
   </CurrentIssues>

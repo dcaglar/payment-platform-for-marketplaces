@@ -1,4 +1,4 @@
-package com.dogancaglar.port.out.web.dto
+package com.dogancaglar.paymentservice.adapter.inbound.rest.dto
 
 /**
  * The balance of one owner: a seller, or a merchant. Each payable account is listed with its

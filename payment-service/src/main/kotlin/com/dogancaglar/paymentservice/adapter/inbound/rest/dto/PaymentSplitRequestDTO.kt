@@ -1,6 +1,5 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest.dto
 
-import com.dogancaglar.port.out.web.dto.AmountDto
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import jakarta.validation.Valid

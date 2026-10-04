@@ -1,7 +1,7 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.kafka.consumers
 
 import com.dogancaglar.common.event.EventEnvelope
-import com.dogancaglar.common.kafka.metadata.CONSUMER_GROUPS
+import com.dogancaglar.common.kafka.metadata.ConsumerGroups
 import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.AccountCreationRequested
@@ -27,14 +27,14 @@ class AccountCreationCommandExecutor(
 
     @KafkaListener(
         topics = [Topics.ACCOUNT_CREATION_REQUESTED],
-        containerFactory = CONSUMER_GROUPS.ACCOUNT_CREATION_COMMAND_EXECUTOR + "-factory",
-        groupId = CONSUMER_GROUPS.ACCOUNT_CREATION_COMMAND_EXECUTOR
+        containerFactory = ConsumerGroups.ACCOUNT_CREATION_COMMAND_EXECUTOR + "-factory",
+        groupId = ConsumerGroups.ACCOUNT_CREATION_COMMAND_EXECUTOR
     )
     fun consume(record: ConsumerRecord<String, EventEnvelope<AccountCreationRequested>>) {
         val envelope = record.value()
         EventLogContext.with(envelope) {
             val eventId = envelope.data.deterministicEventId()
-            if (dedupe.exists(CONSUMER_GROUPS.ACCOUNT_CREATION_COMMAND_EXECUTOR, eventId)) {
+            if (dedupe.exists(ConsumerGroups.ACCOUNT_CREATION_COMMAND_EXECUTOR, eventId)) {
                 logger.warn("⚠️ Event is processed already, skipping eventId=$eventId")
                 return@with
             }
@@ -42,7 +42,7 @@ class AccountCreationCommandExecutor(
             val request = envelope.data
             try {
                 createAccountUseCase.create(request.toCommand())
-                dedupe.markProcessed(CONSUMER_GROUPS.ACCOUNT_CREATION_COMMAND_EXECUTOR, eventId, 3600)
+                dedupe.markProcessed(ConsumerGroups.ACCOUNT_CREATION_COMMAND_EXECUTOR, eventId, 3600)
                 logger.info("Account creation executed for merchant {}", request.merchantAccountCode)
             } catch (e: Exception) {
                 logger.error("❌ Failed to create accounts for merchant {}", request.merchantAccountCode, e)

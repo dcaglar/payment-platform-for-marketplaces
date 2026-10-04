@@ -1,7 +1,7 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.kafka.consumers
 
 import com.dogancaglar.common.event.EventEnvelope
-import com.dogancaglar.common.kafka.metadata.CONSUMER_GROUPS
+import com.dogancaglar.common.kafka.metadata.ConsumerGroups
 import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.paymentservice.application.events.JournalEntriesRecorded
 import com.dogancaglar.paymentservice.application.util.LedgerDomainEventEntityMapper
@@ -29,8 +29,8 @@ class AccountBalanceConsumer(
 
     @KafkaListener(
         topics = [Topics.JOURNAL_ENTRIES_RECORDED],
-        containerFactory = CONSUMER_GROUPS.ACCOUNT_BALANCE_CONSUMER + "-factory",
-        groupId = CONSUMER_GROUPS.ACCOUNT_BALANCE_CONSUMER
+        containerFactory = ConsumerGroups.ACCOUNT_BALANCE_CONSUMER + "-factory",
+        groupId = ConsumerGroups.ACCOUNT_BALANCE_CONSUMER
     )
     fun onLedgerEntriesRecorded(
         records: List<ConsumerRecord<String, EventEnvelope<JournalEntriesRecorded>>>
@@ -39,7 +39,7 @@ class AccountBalanceConsumer(
         val newRecords = records.filter { record ->
             val envelope = record.value() as EventEnvelope<JournalEntriesRecorded>
             val singleDedupeKey = envelope.data.deterministicEventId()
-            val exists = dedupe.exists(CONSUMER_GROUPS.ACCOUNT_BALANCE_CONSUMER, singleDedupeKey)
+            val exists = dedupe.exists(ConsumerGroups.ACCOUNT_BALANCE_CONSUMER, singleDedupeKey)
             if (exists) {
                 logger.warn(
                     "⚠️ Event is processed already, skipping deterministing eventid $singleDedupeKey eventId=${record.value().eventId}, aggregateId=${record.value().aggregateId}"
@@ -64,7 +64,7 @@ class AccountBalanceConsumer(
         newRecords.forEach {
             val currentEventEnvelope = it.value()
             val currentDedupeKey = currentEventEnvelope.data.deterministicEventId()
-            dedupe.markProcessed(CONSUMER_GROUPS.ACCOUNT_BALANCE_CONSUMER, currentDedupeKey, 3600)
+            dedupe.markProcessed(ConsumerGroups.ACCOUNT_BALANCE_CONSUMER, currentDedupeKey, 3600)
         }
 
         logger.info("Account balance consumer executed successfully for batch size=${records.size}")

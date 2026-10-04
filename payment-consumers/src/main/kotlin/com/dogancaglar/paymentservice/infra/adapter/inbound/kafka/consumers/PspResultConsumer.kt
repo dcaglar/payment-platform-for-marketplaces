@@ -2,7 +2,7 @@ package com.dogancaglar.paymentservice.infra.adapter.inbound.kafka.consumers
 
 import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.EventEnvelope
-import com.dogancaglar.common.kafka.metadata.CONSUMER_GROUPS
+import com.dogancaglar.common.kafka.metadata.ConsumerGroups
 import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.CaptureConfirmed
@@ -31,8 +31,8 @@ class PspResultConsumer(
 
     @KafkaListener(
         topics = [Topics.PSP_RESULTS],
-        containerFactory = CONSUMER_GROUPS.PSP_RESULT_CONSUMER + "-factory",
-        groupId = CONSUMER_GROUPS.PSP_RESULT_CONSUMER
+        containerFactory = ConsumerGroups.PSP_RESULT_CONSUMER + "-factory",
+        groupId = ConsumerGroups.PSP_RESULT_CONSUMER
     )
     fun onPspResult(
         record: ConsumerRecord<String, EventEnvelope<Event>>
@@ -40,7 +40,7 @@ class PspResultConsumer(
         val envelope = record.value()
         EventLogContext.with(envelope) {
             val eventId = envelope.data.deterministicEventId()
-            if (dedupe.exists(CONSUMER_GROUPS.PSP_RESULT_CONSUMER, eventId)) {
+            if (dedupe.exists(ConsumerGroups.PSP_RESULT_CONSUMER, eventId)) {
                 logger.warn("⚠️ Event is processed already, skipping eventId=$eventId")
                 return@with
             }
@@ -82,7 +82,7 @@ class PspResultConsumer(
                 }
 
                 logger.info("PSP result consumer executed successfully for event type=${event.javaClass.simpleName}")
-                dedupe.markProcessed(CONSUMER_GROUPS.PSP_RESULT_CONSUMER, eventId, 3600)
+                dedupe.markProcessed(ConsumerGroups.PSP_RESULT_CONSUMER, eventId, 3600)
             } catch (e: Exception) {
                 logger.error(
                     "❌ Failed to process event ${event.javaClass.simpleName} with eventId: ${record.value().eventId}",

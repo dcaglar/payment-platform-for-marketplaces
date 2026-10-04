@@ -1,7 +1,7 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
-import com.dogancaglar.port.out.web.dto.BalanceDto
-import com.dogancaglar.port.out.web.dto.PageDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.BalanceDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PageDto
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize

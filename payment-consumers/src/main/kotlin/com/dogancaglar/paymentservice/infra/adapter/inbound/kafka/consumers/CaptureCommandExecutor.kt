@@ -1,7 +1,7 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.kafka.consumers
 
 import com.dogancaglar.common.event.EventEnvelope
-import com.dogancaglar.common.kafka.metadata.CONSUMER_GROUPS
+import com.dogancaglar.common.kafka.metadata.ConsumerGroups
 import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.CaptureRequested
@@ -26,14 +26,14 @@ class CaptureCommandExecutor(
 
     @KafkaListener(
         topics = [Topics.CAPTURE_REQUESTED],
-        containerFactory = CONSUMER_GROUPS.CAPTURE_COMMAND_EXECUTOR + "-factory",
-        groupId = CONSUMER_GROUPS.CAPTURE_COMMAND_EXECUTOR
+        containerFactory = ConsumerGroups.CAPTURE_COMMAND_EXECUTOR + "-factory",
+        groupId = ConsumerGroups.CAPTURE_COMMAND_EXECUTOR
     )
     fun consume(record: ConsumerRecord<String, EventEnvelope<CaptureRequested>>) {
         val envelope = record.value()
         EventLogContext.with(envelope) {
             val eventId = envelope.data.deterministicEventId()
-            if (dedupe.exists(CONSUMER_GROUPS.CAPTURE_COMMAND_EXECUTOR, eventId)) {
+            if (dedupe.exists(ConsumerGroups.CAPTURE_COMMAND_EXECUTOR, eventId)) {
                 logger.warn("⚠️ Event is processed already, skipping eventId=\$eventId")
                 return@with
             }
@@ -41,7 +41,7 @@ class CaptureCommandExecutor(
             val captureRequested = envelope.data
             try {
                 executeCaptureUseCase.execute(captureRequested)
-                dedupe.markProcessed(CONSUMER_GROUPS.CAPTURE_COMMAND_EXECUTOR, eventId, 3600)
+                dedupe.markProcessed(ConsumerGroups.CAPTURE_COMMAND_EXECUTOR, eventId, 3600)
                 logger.info(
                     "Capture command executor executed successfully for paymentIntentId=${captureRequested.publicPaymentIntentId}"
                 )
