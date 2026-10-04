@@ -33,6 +33,9 @@ excalidraw.com (Open → choose the file).
   copy is switched off so a finding isn't reported twice.
 - Plugin setup: root [`pom.xml`](../pom.xml) (`detekt-maven-plugin`). The `no-sources` profile turns detekt off
   for modules without Kotlin (the root aggregator pom).
+- Switched off on purpose: `InstanceOfCheckForException`. Our standard for handling exceptions is to catch the sealed
+  family once and branch with an exhaustive `when (e) { is A, is B -> … }`, which is exactly what that rule flags.
+  See [code-health/exception-hierarchy.md](code-health/exception-hierarchy.md).
 
 ### Check or fix only your local changes
 [`infra/scripts/detekt-changed.sh`](../infra/scripts/detekt-changed.sh) runs detekt on only the Kotlin files you
@@ -107,7 +110,7 @@ On a push to `feature/**`, `fix/**`, `hotfix/**` and on a PR to `main`:
 | Job | Runs | Includes |
 |---|---|---|
 | `unit-tests` | `mvn clean test` | unit tests |
-| `security-scan` (in parallel) | `infra/scripts/security-scan.sh` | gitleaks + Trivy |
+| `security-scan` (in parallel) | `mvn install -Dmaven.test.skip=true` (fills `~/.m2` for Trivy, runs no tests), then `infra/scripts/security-scan.sh` | gitleaks + Trivy |
 | `integration-tests` (after unit-tests) | `mvn clean verify` | integration tests + **detekt** |
 | `e2e-acceptance` (after integration-tests, PR only) | `mvn verify -f e2e-tests/pom.xml` | e2e tests + detekt |
 
@@ -116,7 +119,19 @@ Settings → Code security:
 - **Dependabot alerts** and **Dependabot security updates**: PRs that bump vulnerable dependencies.
 - **Secret scanning** and **Push protection**: GitHub blocks a push that contains a known secret format.
 
+## IntelliJ inspections (not detekt)
+
+IntelliJ runs its own Kotlin inspections, separate from detekt and CI: in the editor, in **Code → Inspect Code**, in
+the *Problems* tool window, and on commit when the Commit window's **Analyze code** check is on (it lists the warnings
+per committed file). They overlap with detekt, but also see what detekt can't: e.g. unused **public** functions
+("Function … is never used"), redundant modifiers, redundant SAM constructors. They are warnings only and don't block
+the build; `mvn verify` decides what fails.
+
+Note for the root `pom.xml`: Surefire's `skipTests` is bound to our own `skipUnitTests` property, so a plain
+`-DskipTests` does **not** skip unit tests. Use `-DskipUnitTests=true` (unit only) or `-Dmaven.test.skip=true` (all
+tests, not even compiled).
+
 ## Not covered
 - **Unused public functions / classes across modules:** detekt only sees private code. Use IntelliJ:
-  Code → Inspect Code → "Unused declaration".
+  Code → Inspect Code → "Unused declaration" (see above).
 - **Spring-specific checks:** no good free tool for Spring in Kotlin.

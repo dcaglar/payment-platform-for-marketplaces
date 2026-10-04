@@ -77,8 +77,9 @@ List what's left (same command as in step 1) and work through it. Per rule:
 | `InvalidPackageDeclaration` | the `package` line doesn't match the folder: move the file (IntelliJ: F6 Move) or fix the `package` line |
 | `MaxLineLength` (over 120 characters) | break the line where it reads best, e.g. one argument per line |
 | `MagicNumber` | give the number a name: a `const val` in a `companion object`, e.g. `SIMULATED_PSP_FEE_BPS = 150L` |
-| `UseCheckOrError` | `throw IllegalStateException("...")` → `error("...")`; `if (!x) throw IllegalStateException(...)` → `check(x) { "..." }` |
-| `TooGenericExceptionCaught` | `catch (e: Exception)` → catch the specific type, or let it propagate (root `CLAUDE.md` §5: catch only where you can do something useful) |
+| `UseCheckOrError`, `UseRequire` | in `payment-domain`: our `require(x) { PaymentDomainException.… }` from `domain/model/common/Preconditions.kt` (import it explicitly, or Kotlin's own `require` is used silently); elsewhere `throw IllegalStateException("...")` → `error("...")`, `if (!x) throw IllegalStateException(...)` → `check(x) { "..." }`. Messages name the payment (`paymentId=…`). See [code-health/exception-hierarchy.md](code-health/exception-hierarchy.md) |
+| `TooGenericExceptionCaught` | root `CLAUDE.md` §5: catch only where you can do something useful. Then: **narrow** to the real type (`DataAccessException`, `IOException`, `JsonProcessingException`, `ExecutionException`, `KafkaException`); **log and rethrow** → remove the catch (the handling layer logs once, e.g. the Kafka recoverer); **count a metric and rethrow** → `try/finally` with a success flag, no catch; **react per subtype** → catch the sealed family once, exhaustive `when (e) { is A, is B -> … }` |
+| `SwallowedException` | log it **with** the exception where it's handled, or let it propagate; if dropping it is the point (a timeout that is the expected outcome, "not a UUID" = invalid), keep it and suppress (below) |
 | `LongParameterList`, `LongMethod`, `TooManyFunctions`, `ReturnCount`, `ThrowsCount` | refactor if it makes the code clearer; if the size is natural (e.g. an aggregate's `rehydrate` with all its fields), keep it and suppress (below) |
 
 ### c. Suppressing a finding on purpose
@@ -87,6 +88,10 @@ the baseline:
 ```kotlin
 @Suppress("LongParameterList") // rehydrate takes every persisted field of the aggregate
 fun rehydrate(...)
+```
+For a single `catch`, put it on the caught parameter, so it covers only that one catch:
+```kotlin
+} catch (@Suppress("SwallowedException") e: TimeoutException) { // the timeout IS the answer
 ```
 The suppression is visible in review and stays with the code; a baseline entry is invisible.
 

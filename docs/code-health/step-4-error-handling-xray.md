@@ -1,8 +1,39 @@
 # Step 4 X-ray: error handling, case by case (2026-10-05)
 
 Every error-handling finding of detekt (71 findings at 68 places), read with its code and judged against the
-standard in root `CLAUDE.md` §5. **Nothing is changed yet**: this is the diagnosis to decide on before fixing.
-Modules in dependency order. Line numbers as of the step-3 code.
+standard in root `CLAUDE.md` §5. Written as the diagnosis **before** fixing (line numbers as of the step-3 code);
+the outcome is in **Status** right below. Modules in dependency order. The resulting standard:
+[exception-hierarchy.md](exception-hierarchy.md).
+
+## Status (2026-10-05)
+
+**Done** (commit `2612a352` + follow-ups; 389 unit/integration tests, detekt green, e2e 26/26):
+
+- **No `TooGenericExceptionCaught` / `SwallowedException` left** (detekt with the baselines switched off). Each catch
+  was narrowed to the real type (`DataAccessException`, `IOException`, `JsonProcessingException`,
+  `ExecutionException`, `KafkaException`), removed, or rewritten:
+  - the 7 Kafka consumers and `CaptureRetryQueueAdapter` no longer log-and-rethrow; the Kafka recoverer logs **once**
+    per failed event (event type, event id, aggregate id, topic, partition, offset, exception) before the DLQ;
+  - "count the failure and rethrow" (dispatch workers, 6 maintenance jobs) became `try/finally` with a success flag;
+  - partition create / prune and the balance snapshot job now propagate (counted by the job metric, logged by Spring)
+    instead of swallowing;
+  - deliberate ones carry `@Suppress` + the reason: saving the PSP answer, releasing the idempotency key, the outbox
+    chain break, a timeout as expected outcome, a card decline, "not a UUID", 3 test helpers.
+- **PSP exceptions** (#2, #7, #29–33): one standard, `PspTransientException` / `PspUnknownException` /
+  `PspPermanentException` with `operation` + `paymentIntentId`; authorize and capture decide with one `when` grouped by
+  outcome; the Stripe translation follows Stripe's guidance (network and 5xx = unknown).
+- **Domain rules**: `Payment`, `PaymentIntent`, `Amount`, `Currency` throw `PaymentDomainException` subtypes
+  (non-retryable → 500 / DLQ) via `require` in `domain/model/common/Preconditions.kt`.
+- **Messages**: every new or touched message names its payment.
+
+**Still open:**
+
+| What | Where |
+|---|---|
+| `${...}` printed literally (pattern 1) | `ProcessPspResultProcessingService` 153, 157, 169; `CapturePspPerformedConsumer` 37; `PaymentTxEntityMapper` 212 (`{entity.txId}` without `$`) |
+| STYLE: `throw IllegalStateException` / `IllegalArgumentException` (18) | `ProcessPspResultProcessingService` (6), `RecordCaptureSubmissionService` (2), `GrossCaptureAllocationConsumer` (2), simulators (4), `TransactionRepositoryAdapter`, `BalanceService`, `RedisIdGeneratorPortAdapter`, `PaymentTxEntityMapper` |
+| Capture retries exhausted (#7): after 5 tries only a log line, nothing owns the payment | decision 2 below |
+| `PENDING_AUTH` without an owner (#3 save failed; also the unknown outcome now) | decision 1 below: the status-check job |
 
 detekt rules: `TooGenericExceptionCaught` (catches `Exception` / `Throwable`), `SwallowedException` (the caught
 error is neither rethrown nor logged with it), `UseCheckOrError` (`throw IllegalStateException(...)` where Kotlin
@@ -220,17 +251,16 @@ Plan:
 Also found while tracing (not error handling, for later): the HTTP adapter silently sends **no** payment method when
 it isn't a card token, while the Stripe adapter throws `PspInvalidPaymentException`: two adapters, two behaviours.
 
-## Decisions needed before fixing
+## Decisions
 
-1. **#3 PENDING_AUTH without an owner** (PSP answered, saving failed): add an owner now (which one?), or accept
-   and note it as known?
-2. **#7 capture retries**: after 5 failed tries, what should happen to the payment: DLQ, a FAILED-like status,
-   an alert? And should a permanent PSP refusal skip the retries?
+1. **#3 PENDING_AUTH without an owner** (PSP answered, saving failed): still open. Since 2026-10-05 an unknown PSP
+   outcome (timeout, reset, 5xx) also stays `PENDING_AUTH` instead of going back to `CREATED` (the PSP may have
+   authorized). The owner for both: a job that asks the PSP for the status of intents stuck in `PENDING_AUTH`.
+2. **#7 capture retries**: a permanent PSP refusal no longer retries (done). Still open: after 5 failed tries,
+   what should happen to the payment: DLQ, a FAILED-like status, an alert?
 3. ~~#29–33 Stripe~~: decided, keep the adapter and fix its translation (see "PSP exceptions" above).
-4. **Domain status guards** (e.g. `Payment.kt:215`, "can't reconcile unless CAPTURED"): `require` throws
-   `IllegalArgumentException` (not retried by the Kafka error handler → DLQ), `check` throws `IllegalStateException`
-   (retried). Semantically these are state rules (`check`); today event order is guaranteed (same outbox write,
-   same partition), so nothing is broken. With a real acquirer, webhook and settlement file can arrive in either
-   order and retrying would heal it. Changing it changes the convention in `payment-domain/CLAUDE.md`
-   ("a transition `require(...)`s the legal source status"): switch all guards, or keep?
-5. Everything else (BUG / CHANGE / STYLE / KEEP) can go ahead as proposed.
+4. ~~Domain status guards: `require` or `check`~~: decided, neither. They throw
+   `PaymentDomainException.InvalidStateTransitionException` (non-retryable → DLQ) through our own `require`
+   (`Preconditions.kt`). Today event order is guaranteed, so a failing guard is our bug. Revisit if a real acquirer
+   makes webhook and settlement file arrive in either order.
+5. Everything else (BUG / CHANGE / STYLE / KEEP) went ahead as proposed; what's left is in **Status** above.
