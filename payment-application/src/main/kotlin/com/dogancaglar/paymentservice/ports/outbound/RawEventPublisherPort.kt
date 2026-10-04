@@ -1,14 +1,9 @@
 package com.dogancaglar.paymentservice.ports.outbound
 
 import com.dogancaglar.common.event.Event
-import com.dogancaglar.common.event.EventEnvelope
-import java.time.Duration
 import java.util.concurrent.CompletableFuture
 
-
 interface RawEventPublisherPort {
-
-
 
     /**
      * Publish an envelope asynchronously.
@@ -22,4 +17,3 @@ interface RawEventPublisherPort {
         payload: String
     ): CompletableFuture<*>
 }
-

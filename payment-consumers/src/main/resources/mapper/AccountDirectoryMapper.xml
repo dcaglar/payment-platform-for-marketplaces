@@ -5,15 +5,14 @@
 
 <mapper namespace="com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.AccountDirectoryMapper">
 
-    <!-- Column order must match the AccountProfile constructor -->
+    <!-- Column order must match the AccountProfile constructor.
+         ledger_account_directory is a view over `accounts`: ledger accounts with their merchant and seller resolved. -->
     <sql id="accountProfileColumns">
         account_code,
         account_type AS type,
         master_account_code,
         sub_entity_id,
         currency,
-        category,
-        country,
         status
     </sql>
 
@@ -23,7 +22,7 @@
             resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
         SELECT
         <include refid="accountProfileColumns"/>
-        FROM account_directory
+        FROM ledger_account_directory
         WHERE account_type = #{accountType}
         AND master_account_code = #{masterAccountCode}
         AND sub_entity_id IS NULL
@@ -36,7 +35,7 @@
             resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
         SELECT
         <include refid="accountProfileColumns"/>
-        FROM account_directory
+        FROM ledger_account_directory
         WHERE account_type = #{accountType}
         AND master_account_code = #{masterAccountCode}
         AND sub_entity_id = #{subEntityId}
@@ -49,7 +48,7 @@
             resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
         SELECT
         <include refid="accountProfileColumns"/>
-        FROM account_directory
+        FROM ledger_account_directory
         WHERE account_type = #{accountType}
         AND sub_entity_id = #{subEntityId}
         ORDER BY currency
@@ -61,11 +60,25 @@
             resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
         SELECT
         <include refid="accountProfileColumns"/>
-        FROM account_directory
+        FROM ledger_account_directory
         WHERE account_type = #{accountType}
         AND master_account_code = #{masterAccountCode}
         AND sub_entity_id IS NULL
         ORDER BY currency
+    </select>
+
+    <!-- All accounts of one type of a merchant's sub entities (sellers), in natural order of the seller code
+         (SELLER-5-2 before SELLER-5-10, collation natural_order in central-accounts.xml): stable paging -->
+    <select id="findAllSubEntitiesByMaster"
+            parameterType="map"
+            resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
+        SELECT
+        <include refid="accountProfileColumns"/>
+        FROM ledger_account_directory
+        WHERE account_type = #{accountType}
+        AND master_account_code = #{masterAccountCode}
+        AND sub_entity_id IS NOT NULL
+        ORDER BY sub_entity_id COLLATE natural_order, currency
     </select>
 
     <select id="findByAccountCode"
@@ -73,7 +86,7 @@
             resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
         SELECT
         <include refid="accountProfileColumns"/>
-        FROM account_directory
+        FROM ledger_account_directory
         WHERE account_code = #{accountCode}
     </select>
 </mapper>

@@ -8,7 +8,8 @@
     <include file="central-edge-watermak-table.xml" relativeToChangelogFile="true"/>
     <include file="central-payments-table.xml" relativeToChangelogFile="true"/>
     <include file="central-accounting-tables.xml" relativeToChangelogFile="true"/>
-    <include file="central-account-profile.xml" relativeToChangelogFile="true"/>
+    <include file="central-accounts.xml" relativeToChangelogFile="true"/>
     <include file="central-account-balances-table.xml" relativeToChangelogFile="true"/>
     <include file="central-transfers-table.xml" relativeToChangelogFile="true"/>
+    <include file="central-transactions-tables.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

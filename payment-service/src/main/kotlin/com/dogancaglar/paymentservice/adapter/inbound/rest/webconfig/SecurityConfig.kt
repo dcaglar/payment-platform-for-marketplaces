@@ -1,21 +1,20 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest.webconfig
 
 import com.dogancaglar.common.time.Utc
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.convert.converter.Converter
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
-import org.springframework.core.convert.converter.Converter
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
 import org.springframework.security.web.SecurityFilterChain
-
-import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
 
 @Configuration
 @EnableWebSecurity
@@ -33,7 +32,7 @@ class SecurityConfig {
                     // internal system (checkout) creates payment intents
                     .requestMatchers(HttpMethod.POST, "/api/v1/payments").hasAuthority("payment:write")
                     // polling for payment intent status
-                    .requestMatchers(HttpMethod.GET, "/api/v1/payments/*").hasAuthority("payment:write")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/payments/*").hasAuthority("payment:read")
                     // internal system (checkout) authorizes payment intents
                     .requestMatchers(HttpMethod.POST, "/api/v1/payments/*/authorize").hasAuthority("payment:write")
                     // balances are served by payment-consumers (GET /api/v1/balances/...), not here
@@ -46,7 +45,8 @@ class SecurityConfig {
                     .authenticationEntryPoint { request, response, authException ->
                         response.status = HttpStatus.UNAUTHORIZED.value()
                         response.contentType = "application/json"
-                        response.writer.write("""
+                        response.writer.write(
+                            """
                             {
                                 "timestamp": "${Utc.nowInstant()}",
                                 "status": 401,
@@ -54,13 +54,15 @@ class SecurityConfig {
                                 "message": "Authentication required. Please provide a valid JWT token.",
                                 "path": "${request.requestURI}"
                             }
-                        """.trimIndent())
+                            """.trimIndent()
+                        )
                     }
                     // Return 403 Forbidden when authorization fails (valid JWT but insufficient permissions)
                     .accessDeniedHandler { request, response, accessDeniedException ->
                         response.status = HttpStatus.FORBIDDEN.value()
                         response.contentType = "application/json"
-                        response.writer.write("""
+                        response.writer.write(
+                            """
                             {
                                 "timestamp": "${Utc.nowInstant()}",
                                 "status": 403,
@@ -68,7 +70,8 @@ class SecurityConfig {
                                 "message": "Access denied. You do not have the required permissions.",
                                 "path": "${request.requestURI}"
                             }
-                        """.trimIndent())
+                            """.trimIndent()
+                        )
                     }
             }
             .csrf { it.disable() }
@@ -91,9 +94,9 @@ class SecurityConfig {
         val customConverter = Converter<Jwt, Collection<GrantedAuthority>> { jwt ->
             val roles = jwt.claims["realm_access"] as? Map<*, *>
             val roleList = roles?.get("roles") as? List<*>
-            
+
             val authorities = mutableListOf<GrantedAuthority>()
-            
+
             roleList?.forEach { role ->
                 val roleName = role.toString()
                 // Add authority without prefix (for hasAuthority checks like "payment:write")
@@ -104,7 +107,7 @@ class SecurityConfig {
                     authorities.add(SimpleGrantedAuthority("ROLE_$roleName"))
                 }
             }
-            
+
             authorities
         }
 

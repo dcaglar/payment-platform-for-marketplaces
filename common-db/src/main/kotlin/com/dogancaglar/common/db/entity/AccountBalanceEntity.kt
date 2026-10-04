@@ -8,7 +8,7 @@ import java.time.Instant
 data class AccountBalanceEntity(
     val accountCode: String, // Primary key: e.g., "MERCHANT_PAYABLE.MERCHANT-456"
     val balance: Long,
-    val lastAppliedEntryId:Long,
+    val lastAppliedEntryId: Long,
     val lastSnapshotAt: Instant,
     val updatedAt: Instant
 )

@@ -2,11 +2,12 @@ package com.dogancaglar.paymentservice.infra.adapter.outbound.psp.simulator
 
 import com.dogancaglar.paymentservice.domain.exception.PspPermanentException
 import com.dogancaglar.paymentservice.domain.exception.PspTransientException
+import com.dogancaglar.paymentservice.domain.model.payment.CardBrand
+import com.dogancaglar.paymentservice.domain.model.payment.CardSummary
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentMethod
 import com.dogancaglar.paymentservice.ports.outbound.PspAuthorizationGatewayPort
 import io.opentelemetry.instrumentation.annotations.WithSpan
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
@@ -22,11 +23,11 @@ class SimulatedPspAuthorizationGatewayAdapter(
     private val simulator: AuthorizationNetworkSimulator,
     private val config: AuthorizationSimulationProperties,
     @param:Qualifier("createPaymentIntentExecutor") private val createPaymentIntentExecutor: ThreadPoolTaskExecutor,
-    @param:Qualifier("authorizePaymentIntentExecutor") private val authorizePaymentIntentExecutor: ThreadPoolTaskExecutor
+    @param:Qualifier("authorizePaymentIntentExecutor") private val authorizePaymentIntentExecutor:
+    ThreadPoolTaskExecutor
 
 ) : PspAuthorizationGatewayPort {
 
-    private val logger = LoggerFactory.getLogger(javaClass)
 
     private val active: AuthorizationSimulationProperties.ScenarioConfig
         get() = config.scenarios[config.scenario]
@@ -47,17 +48,26 @@ class SimulatedPspAuthorizationGatewayAdapter(
                     )
                 }
                 roll < sc.successful + sc.retryable -> {
-                    throw PspTransientException("Simulated transient PSP failure", RuntimeException("transient simulator"))
+                    throw PspTransientException(
+                        "Simulated transient PSP failure",
+                        RuntimeException("transient simulator")
+                    )
                 }
                 else -> {
-                    throw PspPermanentException("Simulated permanent PSP failure", RuntimeException("permanent simulator"))
+                    throw PspPermanentException(
+                        "Simulated permanent PSP failure",
+                        RuntimeException("permanent simulator")
+                    )
                 }
             }
         }
     }
 
     @WithSpan("SimulatedCreatePaymentIntent")
-    override fun authorizePaymentIntent(paymentIntent: PaymentIntent, token: PaymentMethod?): CompletableFuture<PaymentIntent> {
+    override fun authorizePaymentIntent(
+        paymentIntent: PaymentIntent,
+        token: PaymentMethod?
+    ): CompletableFuture<PaymentIntent> {
         return submit(authorizePaymentIntentExecutor) {
             simulator.simulate()
             val sc = active.response
@@ -65,10 +75,14 @@ class SimulatedPspAuthorizationGatewayAdapter(
 
             when {
                 roll < sc.successful -> {
-                    paymentIntent.markAuthorized()
+                    // the simulated card: Visa ending in 4242 (the usual test card)
+                    paymentIntent.markAuthorized(CardSummary.of(CardBrand.VISA, "4242"))
                 }
                 roll < sc.successful + sc.retryable -> {
-                    throw PspTransientException("Simulated transient PSP failure", RuntimeException("transient simulator"))
+                    throw PspTransientException(
+                        "Simulated transient PSP failure",
+                        RuntimeException("transient simulator")
+                    )
                 }
                 else -> {
                     // a decline is a result, not an error
@@ -89,10 +103,16 @@ class SimulatedPspAuthorizationGatewayAdapter(
                     "sim_cs_${UUID.randomUUID()}"
                 }
                 roll < sc.successful + sc.retryable -> {
-                    throw PspTransientException("Simulated transient PSP failure", RuntimeException("transient simulator"))
+                    throw PspTransientException(
+                        "Simulated transient PSP failure",
+                        RuntimeException("transient simulator")
+                    )
                 }
                 else -> {
-                    throw PspPermanentException("Simulated permanent PSP failure", RuntimeException("permanent simulator"))
+                    throw PspPermanentException(
+                        "Simulated permanent PSP failure",
+                        RuntimeException("permanent simulator")
+                    )
                 }
             }
         }

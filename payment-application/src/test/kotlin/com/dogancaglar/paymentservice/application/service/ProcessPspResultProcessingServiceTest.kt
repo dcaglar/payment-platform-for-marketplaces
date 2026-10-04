@@ -4,14 +4,13 @@ import com.dogancaglar.common.id.PublicIdFactory
 import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.application.events.CaptureConfirmed
 import com.dogancaglar.paymentservice.application.events.InternalTransferCommand
+import com.dogancaglar.paymentservice.domain.model.account.AccountStatus
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountCategory
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountStatus
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalType
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 import com.dogancaglar.paymentservice.domain.model.ledger.Tx
 import com.dogancaglar.paymentservice.domain.model.payment.InternalTransfer
 import com.dogancaglar.paymentservice.domain.model.payment.InternalTransferStatus
@@ -29,7 +28,6 @@ import com.dogancaglar.paymentservice.ports.outbound.IdGeneratorPort
 import com.dogancaglar.paymentservice.ports.outbound.OutboxEventFactoryPort
 import com.dogancaglar.paymentservice.ports.outbound.PaymentRepository
 import com.dogancaglar.paymentservice.ports.outbound.PaymentTxPort
-import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
 import com.dogancaglar.paymentservice.ports.outbound.TransferRepository
 import io.mockk.*
 import org.junit.jupiter.api.Assertions.*
@@ -52,7 +50,6 @@ class ProcessPspResultProcessingServiceTest {
     private lateinit var idGeneratorPort: IdGeneratorPort
     private lateinit var paymentRepository: PaymentRepository
     private lateinit var transferRepository: TransferRepository
-    private lateinit var serializationPort: SerializationPort
     private lateinit var outboxEventFactoryPort: OutboxEventFactoryPort
     private lateinit var service: ProcessPspResultProcessingService
 
@@ -73,7 +70,6 @@ class ProcessPspResultProcessingServiceTest {
         idGeneratorPort = mockk()
         paymentRepository = mockk()
         transferRepository = mockk()
-        serializationPort = mockk(relaxed = true)
         outboxEventFactoryPort = mockk(relaxed = true)
 
         // JournalEntry requires globalJournalEntryId > 0, so hand out increasing ids
@@ -81,9 +77,9 @@ class ProcessPspResultProcessingServiceTest {
         every { idGeneratorPort.generateId() } answers { nextId.incrementAndGet() }
 
         every { accountDirectory.getAccountByCode(suspenseCode) } returns
-            profile(suspenseCode, AccountType.CAPTURE_SUSPENSE, AccountCategory.LIABILITY)
+            profile(suspenseCode, LedgerAccountType.CAPTURE_SUSPENSE)
         every { accountDirectory.getAccountByCode(commissionCode) } returns
-            profile(commissionCode, AccountType.MERCHANT_COMMISSION_PAYABLE, AccountCategory.LIABILITY)
+            profile(commissionCode, LedgerAccountType.MERCHANT_COMMISSION_PAYABLE)
 
         service = ProcessPspResultProcessingService(
             centralDbTransactionalFacadePort,
@@ -92,8 +88,8 @@ class ProcessPspResultProcessingServiceTest {
             idGeneratorPort,
             paymentRepository,
             transferRepository,
-            serializationPort,
-            outboxEventFactoryPort
+            outboxEventFactoryPort,
+            mockk() // merchant lookup: not used by these tests (they don't process an authorization)
         )
     }
 
@@ -139,14 +135,14 @@ class ProcessPspResultProcessingServiceTest {
     fun `two captures of one payment get different journal ids`() {
         // Given
         every { paymentRepository.findByPaymentIntentId(paymentIntentId) } returns payment(PaymentStatus.SENT_FOR_SETTLE)
-        every { accountDirectory.getAccountProfile(AccountType.CAPTURE_SUSPENSE, merchant, eur) } returns
-            profile(suspenseCode, AccountType.CAPTURE_SUSPENSE, AccountCategory.LIABILITY)
-        every { accountDirectory.getAccountProfile(AccountType.AUTH_RECEIVABLE, "GLOBAL", eur) } returns
-            profile("AUTH_RECEIVABLE.GLOBAL.EUR", AccountType.AUTH_RECEIVABLE, AccountCategory.ASSET)
-        every { accountDirectory.getAccountProfile(AccountType.AUTH_LIABILITY, "GLOBAL", eur) } returns
-            profile("AUTH_LIABILITY.GLOBAL.EUR", AccountType.AUTH_LIABILITY, AccountCategory.LIABILITY)
-        every { accountDirectory.getAccountProfile(AccountType.PSP_RECEIVABLE, "GLOBAL", eur) } returns
-            profile("PSP_RECEIVABLE.GLOBAL.EUR", AccountType.PSP_RECEIVABLE, AccountCategory.ASSET)
+        every { accountDirectory.getAccountProfile(LedgerAccountType.CAPTURE_SUSPENSE, merchant, eur) } returns
+            profile(suspenseCode, LedgerAccountType.CAPTURE_SUSPENSE)
+        every { accountDirectory.getAccountProfile(LedgerAccountType.AUTH_RECEIVABLE, merchant, eur) } returns
+            profile("AUTH_RECEIVABLE.MARKETPLACE-5.EUR", LedgerAccountType.AUTH_RECEIVABLE)
+        every { accountDirectory.getAccountProfile(LedgerAccountType.AUTH_LIABILITY, merchant, eur) } returns
+            profile("AUTH_LIABILITY.MARKETPLACE-5.EUR", LedgerAccountType.AUTH_LIABILITY)
+        every { accountDirectory.getAccountProfile(LedgerAccountType.PSP_RECEIVABLE, "GLOBAL", eur) } returns
+            profile("PSP_RECEIVABLE.GLOBAL.EUR", LedgerAccountType.PSP_RECEIVABLE)
 
         val firstCaptureTxId = 230392885156118528L
         val secondCaptureTxId = 230392885156118999L
@@ -169,13 +165,26 @@ class ProcessPspResultProcessingServiceTest {
 
     private fun recordedInternalTransferJournalIds(): List<String> {
         val batches = mutableListOf<List<JournalEntry>>()
-        verify { centralDbTransactionalFacadePort.recordInternalTransferOperationInLedger(any(), capture(batches), any()) }
+        verify {
+            centralDbTransactionalFacadePort.recordInternalTransferOperationInLedger(
+                any(),
+                capture(batches),
+                any()
+            )
+        }
         return journalIds(batches, JournalType.INTERNAL_TRANSFER)
     }
 
     private fun recordedCaptureJournalIds(): List<String> {
         val batches = mutableListOf<List<JournalEntry>>()
-        verify { centralDbTransactionalFacadePort.recordPaymentOperationInLedger(any(), any(), capture(batches), any()) }
+        verify {
+            centralDbTransactionalFacadePort.recordPaymentOperationInLedger(
+                any(),
+                any(),
+                capture(batches),
+                any()
+            )
+        }
         return journalIds(batches, JournalType.CAPTURE)
     }
 
@@ -197,7 +206,7 @@ class ProcessPspResultProcessingServiceTest {
             transferId = InternalTransferId(transferId),
             paymentId = paymentId,
             paymentIntentId = paymentIntentId,
-            merchantAccountId = merchant,
+            merchantAccount = merchant,
             amount = Amount.of(100, eur),
             targetAccount = commissionCode,
             sourceAccount = suspenseCode,
@@ -218,13 +227,13 @@ class ProcessPspResultProcessingServiceTest {
         status = InternalTransferStatus.SENT_FOR_TRANSFER.name,
         paymentIntentId = paymentIntentId.value.toString(),
         publicPaymentIntentId = publicPaymentIntentId,
-        merchantAccountId = merchant
+        merchantAccount = merchant
     )
 
     private fun captureConfirmed() = CaptureConfirmed(
         paymentIntentId = paymentIntentId.value.toString(),
         publicPaymentIntentId = publicPaymentIntentId,
-        merchantAccountId = merchant,
+        merchantAccount = merchant,
         amountValue = 3000,
         currency = "EUR"
     )
@@ -256,14 +265,12 @@ class ProcessPspResultProcessingServiceTest {
         )
     }
 
-    private fun profile(code: String, type: AccountType, category: AccountCategory) = AccountProfile(
+    private fun profile(code: String, type: LedgerAccountType) = AccountProfile(
         accountCode = code,
         type = type,
         masterAccountCode = merchant,
         subEntityId = null,
         currency = eur,
-        category = category,
-        country = "NL",
         status = AccountStatus.ACTIVE
     )
 }

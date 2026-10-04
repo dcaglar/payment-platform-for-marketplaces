@@ -1,6 +1,11 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.scheduler
 
+import com.dogancaglar.common.db.partitioning.AbstractOutboxPartitionCreator
 import com.dogancaglar.common.time.Utc
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.api.common.AttributeKey
+import io.opentelemetry.api.common.Attributes
+import io.opentelemetry.context.Context
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.annotation.Bean
@@ -11,18 +16,13 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.stereotype.Component
 import java.time.temporal.ChronoUnit
-import io.opentelemetry.context.Context
-
-
-import io.opentelemetry.api.OpenTelemetry
-import io.opentelemetry.api.common.AttributeKey
-import io.opentelemetry.api.common.Attributes
-import com.dogancaglar.common.db.partitioning.AbstractOutboxPartitionCreator
 
 @Component
 class CentralOutboxMaintenanceJob(
     @Qualifier("maintenanceJdbcTemplate") jdbcTemplate: JdbcTemplate,
-    @param:Qualifier("centralOutboxEventPartitionMaintenanceScheduler") private val taskScheduler: ThreadPoolTaskScheduler,
+    @param:Qualifier(
+        "centralOutboxEventPartitionMaintenanceScheduler"
+    ) private val taskScheduler: ThreadPoolTaskScheduler,
     openTelemetry: OpenTelemetry
 ) : AbstractOutboxPartitionCreator(jdbcTemplate) {
 
@@ -41,9 +41,14 @@ class CentralOutboxMaintenanceJob(
                 ensureCurrentAndNext()
                 val end = Utc.nowLocalDateTime()
                 val durationMs = ChronoUnit.MILLIS.between(start, end)
-                logger.debug("Central partition check complete started at $start, ended at $end, duration: $durationMs ")
+                logger.debug(
+                    "Central partition check complete started at $start, ended at $end, duration: $durationMs "
+                )
             } catch (t: Throwable) {
-                maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "CentralOutboxMaintenanceJob.ensureCurrentAndNext"))
+                maintenanceErrorCounter.add(
+                    1,
+                    Attributes.of(AttributeKey.stringKey("job"), "CentralOutboxMaintenanceJob.ensureCurrentAndNext")
+                )
                 throw t
             }
         }
@@ -57,9 +62,14 @@ class CentralOutboxMaintenanceJob(
                 pruneOldPartitions()
                 val end = Utc.nowLocalDateTime()
                 val durationMs = ChronoUnit.MILLIS.between(start, end)
-                logger.debug("Central partition prune complete started at $start, ended at $end, duration: $durationMs ")
+                logger.debug(
+                    "Central partition prune complete started at $start, ended at $end, duration: $durationMs "
+                )
             } catch (t: Throwable) {
-                maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "CentralOutboxMaintenanceJob.pruneOldPartitions"))
+                maintenanceErrorCounter.add(
+                    1,
+                    Attributes.of(AttributeKey.stringKey("job"), "CentralOutboxMaintenanceJob.pruneOldPartitions")
+                )
                 throw t
             }
         }
@@ -73,9 +83,17 @@ class CentralOutboxMaintenanceJob(
                 vacuumOldPartitionsWithNewRows()
                 val end = Utc.nowLocalDateTime()
                 val durationMs = ChronoUnit.MILLIS.between(start, end)
-                logger.debug("Central partition vacuum check complete started at $start, ended at $end, duration: $durationMs ")
+                logger.debug(
+                    "Central partition vacuum check complete started at $start, ended at $end, duration: $durationMs "
+                )
             } catch (t: Throwable) {
-                maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "CentralOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows"))
+                maintenanceErrorCounter.add(
+                    1,
+                    Attributes.of(
+                        AttributeKey.stringKey("job"),
+                        "CentralOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows"
+                    )
+                )
                 throw t
             }
         }

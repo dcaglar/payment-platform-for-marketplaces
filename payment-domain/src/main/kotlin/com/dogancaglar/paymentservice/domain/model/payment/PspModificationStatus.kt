@@ -1,15 +1,17 @@
 package com.dogancaglar.paymentservice.domain.model.payment
 
-//status of PspModification(captures)
+// status of PspModification(captures)
 enum class PspModificationStatus {
     // Initial state upon creation
     CAPTURE_RECEIVED,
 
-    //probably set this in Enqueuer
+    // probably set this in Enqueuer
     CAPTURE_REQUESTED,
-    //if psp call returned declined,set final response
+
+    // if psp call returned declined,set final response
     CAPTURE_FAILED,
-    //if psp call hypotehtically approved then update to this
+
+    // if psp call hypotehtically approved then update to this
     CAPTURED, // final respinse
     REFUND_REQUESTED,
     REFUND_RECEIVED,
@@ -17,11 +19,10 @@ enum class PspModificationStatus {
     REFUND_DECLINED_FINAL,
     REFUNDED,
 
-
     // RETRYABLE FAILURES
     PENDING_CAPTURE,
     PENDING_REFUND,
-    TIMEOUT_EXCEEDED_1S_TRANSIENT,                // PSP call timeout
+    TIMEOUT_EXCEEDED_1S_TRANSIENT, // PSP call timeout
     PSP_UNAVAILABLE_TRANSIENT;
 
     fun isExternalCapturePspResponse(): Boolean =
@@ -35,7 +36,6 @@ enum class PspModificationStatus {
 
     fun requiresRetry(): Boolean = isRetryablePspResponse()
 }
-
 
 /**
  * Lightweight domain response representing the tracking token and

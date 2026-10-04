@@ -232,10 +232,12 @@ class PaymentTxMapperIntegrationTest {
             paymentTxMapper.upsert(capture("SUCCESS", "UNMATCHED", null, null))
 
             // worker B fails the same capture on another thread, on its own connection
-            val upsertByB: Future<Boolean> = executor.submit(Callable {
-                paymentTxMapper.upsert(capture("FAILED", "UNMATCHED", null, null))
-                true
-            })
+            val upsertByB: Future<Boolean> = executor.submit(
+                Callable {
+                    paymentTxMapper.upsert(capture("FAILED", "UNMATCHED", null, null))
+                    true
+                }
+            )
             assertTrue(isStillWaiting(upsertByB), "B must wait for A's row lock")
 
             transactionManager.commit(transactionA)
@@ -249,7 +251,14 @@ class PaymentTxMapperIntegrationTest {
         }
 
         // nothing told B that A had already moved the row to SUCCESS: the last writer wins
-        assertEquals("FAILED", jdbcTemplate.queryForObject("SELECT status FROM payment_tx WHERE tx_id = ?", String::class.java, captureTxId))
+        assertEquals(
+            "FAILED",
+            jdbcTemplate.queryForObject(
+                "SELECT status FROM payment_tx WHERE tx_id = ?",
+                String::class.java,
+                captureTxId
+            )
+        )
     }
 
     // --------------------------------------------------------------- findByPaymentId
@@ -264,7 +273,12 @@ class PaymentTxMapperIntegrationTest {
         val results = paymentTxMapper.findByPaymentId(paymentId)
 
         val expectedAuthorization = authorization().copy(createdAt = Instant.parse("2026-07-01T12:00:00Z"))
-        val expectedCapture = capture("SUCCESS", "MATCHED", "BATCH-42", 2955L).copy(createdAt = Instant.parse("2026-07-01T12:00:05Z"))
+        val expectedCapture = capture(
+            "SUCCESS",
+            "MATCHED",
+            "BATCH-42",
+            2955L
+        ).copy(createdAt = Instant.parse("2026-07-01T12:00:05Z"))
         assertEquals(listOf(expectedAuthorization, expectedCapture), results)
     }
 

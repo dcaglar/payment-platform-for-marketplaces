@@ -36,7 +36,6 @@ import org.springframework.kafka.core.KafkaTemplate
 @Configuration
 class KafkaProducerConfig(
     private val bootKafkaProps: KafkaProperties,
-    @param:Value("\${app.instance-id}") private val instanceId: String,
     @param:Value("\${spring.application.name}") private val appName: String,
 ) {
 
@@ -64,17 +63,16 @@ class KafkaProducerConfig(
             put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "zstd")
         }
 
-        @Bean("rawBatchProducerFactory")
-        fun rawBatchProducerFactory(): DefaultKafkaProducerFactory<String, String> {
-            // Start with baseProps, but force the StringSerializer
-            val props = baseProps().toMutableMap().apply {
-                put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java)
-                put(ProducerConfig.CLIENT_ID_CONFIG, "$appName-raw-producer-client")
-            }
-
-            return DefaultKafkaProducerFactory<String, String>(props)
+    @Bean("rawBatchProducerFactory")
+    fun rawBatchProducerFactory(): DefaultKafkaProducerFactory<String, String> {
+        // Start with baseProps, but force the StringSerializer
+        val props = baseProps().toMutableMap().apply {
+            put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java)
+            put(ProducerConfig.CLIENT_ID_CONFIG, "$appName-raw-producer-client")
         }
 
+        return DefaultKafkaProducerFactory<String, String>(props)
+    }
 
     @Bean("rawEventKafkaTemplate")
     fun rawEventKafkaTemplate(
@@ -83,7 +81,6 @@ class KafkaProducerConfig(
         KafkaTemplate(rbpf).apply {
             setObservationEnabled(false)
         }
-
 
     @Bean("rawEventPublisher")
     fun rawEventPublisher(

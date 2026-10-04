@@ -2,15 +2,16 @@ package com.dogancaglar.common.kafka.metadata
 
 import com.dogancaglar.common.event.EventEnvelope
 import com.dogancaglar.common.event.metadata.EventMetadata
-import com.dogancaglar.paymentservice.application.events.PaymentAuthorized
-import com.fasterxml.jackson.core.type.TypeReference
-import com.dogancaglar.paymentservice.application.events.CaptureRequested
+import com.dogancaglar.paymentservice.application.events.AccountCreationRequested
 import com.dogancaglar.paymentservice.application.events.CaptureConfirmed
-import com.dogancaglar.paymentservice.application.events.EventType
+import com.dogancaglar.paymentservice.application.events.CaptureRequested
 import com.dogancaglar.paymentservice.application.events.CaptureSubmitted
+import com.dogancaglar.paymentservice.application.events.EventType
 import com.dogancaglar.paymentservice.application.events.InternalTransferCommand
 import com.dogancaglar.paymentservice.application.events.JournalEntriesRecorded
+import com.dogancaglar.paymentservice.application.events.PaymentAuthorized
 import com.dogancaglar.paymentservice.application.events.SettlementReceived
+import com.fasterxml.jackson.core.type.TypeReference
 
 object PaymentEventMetadataCatalog {
 
@@ -46,7 +47,8 @@ object PaymentEventMetadataCatalog {
         override val typeRef = object : TypeReference<EventEnvelope<CaptureConfirmed>>() {}
         // Use publicPaymentIntentId here to ensure it lands in the exact same partition as PaymentAuthorized
     }
-        //publish LEdgerEntriesRecorded
+
+    // publish LEdgerEntriesRecorded
     object JournalEntriesRecordedMetadata : EventMetadata<JournalEntriesRecorded> {
         override val topic = Topics.JOURNAL_ENTRIES_RECORDED
         override val eventType = EventType.JOURNAL_ENTRIES_RECORDED
@@ -69,6 +71,14 @@ object PaymentEventMetadataCatalog {
         override val clazz = SettlementReceived::class.java
         override val typeRef = object : TypeReference<EventEnvelope<SettlementReceived>>() {}
     }
+
+    // 7. Routes POST /api/v1/accounts requests to their own topic
+    object AccountCreationRequestedMetadata : EventMetadata<AccountCreationRequested> {
+        override val topic = Topics.ACCOUNT_CREATION_REQUESTED
+        override val eventType = EventType.ACCOUNT_CREATION_REQUESTED
+        override val clazz = AccountCreationRequested::class.java
+        override val typeRef = object : TypeReference<EventEnvelope<AccountCreationRequested>>() {}
+    }
     val all: List<EventMetadata<*>> = listOf(
         PaymentAuthorizedMetadata,
         CaptureRequestedMetadata,
@@ -76,7 +86,7 @@ object PaymentEventMetadataCatalog {
         CaptureConfirmedMetadata,
         InternalTransferCommandMetadata,
         JournalEntriesRecordedMetadata,
-        SettlementLineReconciledMetadata
+        SettlementLineReconciledMetadata,
+        AccountCreationRequestedMetadata
     )
-
 }

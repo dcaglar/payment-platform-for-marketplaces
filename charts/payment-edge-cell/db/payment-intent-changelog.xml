@@ -32,6 +32,10 @@
 
             <column name="psp_reference" type="VARCHAR(255)"/>
 
+            <!-- the card the PSP authorized: brand + last 4 digits only, null until authorized (or if the PSP did not say) -->
+            <column name="card_brand" type="VARCHAR(16)"/>
+            <column name="card_last4" type="CHAR(4)"/>
+
             <column name="total_amount_value" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
@@ -98,5 +102,6 @@
         </rollback>
 
     </changeSet>
+
 
 </databaseChangeLog>

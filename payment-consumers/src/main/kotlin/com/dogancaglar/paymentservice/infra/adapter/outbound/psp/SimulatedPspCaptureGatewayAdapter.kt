@@ -10,7 +10,6 @@ import com.dogancaglar.paymentservice.ports.outbound.PspCaptureGatewayPort
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.common.Attributes
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
@@ -19,19 +18,15 @@ import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import kotlin.random.Random
 
-
 @Component
 @ConditionalOnProperty(name = ["psp.gateway.type"], havingValue = "SIMULATED")
 class SimulatedPspCaptureGatewayAdapter(
-    private val captureSimulator: CaptureNetworkSimulator,
     private val captureConfig: CaptureSimulationProperties,
-    private val refundSimulator: RefundNetworkSimulator,
     private val refundConfig: RefundSimulationProperties,
     @param:Qualifier("pspExecutionPool") private val pspExecutor: ThreadPoolTaskExecutor,
     openTelemetry: OpenTelemetry
 ) : PspCaptureGatewayPort {
 
-    private val logger = LoggerFactory.getLogger(javaClass)
     private val meter = openTelemetry.meterBuilder("payment-consumers.psp.simulated").build()
     private val pspCallsTotal = meter.counterBuilder("psp_calls_total").build()
     private val pspRefundCallsTotal = meter.counterBuilder("psp_refund_calls_total").build()
@@ -60,11 +55,17 @@ class SimulatedPspCaptureGatewayAdapter(
                 }
                 roll < sc.successful + sc.retryable -> {
                     pspCallsTotal.add(1, Attributes.of(AttributeKey.stringKey("result"), "RETRYABLE"))
-                    throw PspTransientException("Simulated transient gateway network timeout", RuntimeException("capture network lag"))
+                    throw PspTransientException(
+                        "Simulated transient gateway network timeout",
+                        RuntimeException("capture network lag")
+                    )
                 }
                 else -> {
                     pspCallsTotal.add(1, Attributes.of(AttributeKey.stringKey("result"), "DECLINED"))
-                    throw PspPermanentException("Simulated terminal capture rejection by card scheme", RuntimeException("capture declined"))
+                    throw PspPermanentException(
+                        "Simulated terminal capture rejection by card scheme",
+                        RuntimeException("capture declined")
+                    )
                 }
             }
         }, pspExecutor)

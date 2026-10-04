@@ -101,7 +101,9 @@ class PaymentControllerWebExceptionHandler : ResponseEntityExceptionHandler() {
     fun handleAccessDenied(ex: AccessDeniedException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
         log.warn("FORBIDDEN at {}: {}", request.requestURI, ex.message)
         return respond(
-            HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, request,
+            HttpStatus.FORBIDDEN,
+            ErrorCode.FORBIDDEN,
+            request,
             "Access denied. You do not have the required permissions."
         )
     }
@@ -117,8 +119,8 @@ class PaymentControllerWebExceptionHandler : ResponseEntityExceptionHandler() {
     // --- 409: the same request is still being processed ---
 
     @ExceptionHandler(
-        IdempotencyKeyInProgressException::class,   // same key, request still running
-        PaymentNotReadyException::class             // authorize before the PSP created the intent
+        IdempotencyKeyInProgressException::class, // same key, request still running
+        PaymentNotReadyException::class // authorize before the PSP created the intent
     )
     fun handleInProgress(ex: Exception, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
         log.warn("IN_PROGRESS at {}: {}", request.requestURI, ex.message)
@@ -136,18 +138,21 @@ class PaymentControllerWebExceptionHandler : ResponseEntityExceptionHandler() {
     // --- 503: not done, might work next time ---
 
     @ExceptionHandler(
-        PspTransientException::class,               // PSP not reached / temporary PSP problem / our PSP pool full
-        PspUnknownException::class,                 // no usable PSP answer: sending the same request again is safe (PSP idempotency)
-        TransientDataAccessException::class,        // lock, deadlock, query timeout, optimistic lock
-        DataAccessResourceFailureException::class,  // DB connection failed (also CannotGetJdbcConnectionException)
-        CannotCreateTransactionException::class,    // no connection to start a transaction
-        TransactionTimedOutException::class         // transaction rolled back after its timeout
+        PspTransientException::class, // PSP not reached / temporary PSP problem / our PSP pool full
+        PspUnknownException::class, // no usable PSP answer: sending the same request again is safe (PSP idempotency)
+        TransientDataAccessException::class, // lock, deadlock, query timeout, optimistic lock
+        DataAccessResourceFailureException::class, // DB connection failed (also CannotGetJdbcConnectionException)
+        CannotCreateTransactionException::class, // no connection to start a transaction
+        TransactionTimedOutException::class // transaction rolled back after its timeout
     )
     fun handleRetryLater(ex: Exception, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
         log.warn("RETRY_LATER at {}: {}", request.requestURI, causeSummary(ex))
         return respond(
-            HttpStatus.SERVICE_UNAVAILABLE, ErrorCode.RETRY_LATER, request,
-            "Service temporarily unavailable, please retry", retryAfter()
+            HttpStatus.SERVICE_UNAVAILABLE,
+            ErrorCode.RETRY_LATER,
+            request,
+            "Service temporarily unavailable, please retry",
+            retryAfter()
         )
     }
 
@@ -157,7 +162,12 @@ class PaymentControllerWebExceptionHandler : ResponseEntityExceptionHandler() {
     @ExceptionHandler(Exception::class)
     fun handleInternalError(ex: Exception, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
         log.error("INTERNAL_ERROR at {}", request.requestURI, ex)
-        return respond(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_ERROR, request, "An unexpected error occurred")
+        return respond(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            ErrorCode.INTERNAL_ERROR,
+            request,
+            "An unexpected error occurred"
+        )
     }
 
     // --- Helpers ---

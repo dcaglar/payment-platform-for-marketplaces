@@ -12,5 +12,4 @@ import org.springframework.context.annotation.Import
     RedisConfig::class,
     // etc...
 )
-
 class PaymentInfrastructureAutoConfig

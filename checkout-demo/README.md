@@ -14,7 +14,7 @@ It runs in two ways:
 | Part | Port | Role |
 |---|---|---|
 | React page (`src/`, Vite) | 3000 | The checkout form, Stripe's card form, the payment flow |
-| Proxy (`server.js`) | 3001 | Plays the order/checkout service: gets a Keycloak token, calls payment-service, passes status codes and the `Retry-After`, `Location` and `Idempotent-Replayed` headers back (exposed via CORS) |
+| Proxy (`server.js`) | 3001 | Plays the backend of the merchant selected on the page: gets that merchant's Keycloak token (`merchant-api-<merchant>`), calls payment-service, passes status codes and the `Retry-After`, `Location` and `Idempotent-Replayed` headers back (exposed via CORS) |
 | Mock (`mock-server.js`) | 3001 | Replaces the proxy **and** payment-service for `dev:mock` |
 
 ### How the page uses the Idempotency-Key
@@ -131,15 +131,21 @@ npm run dev
 ```
 
 `setup-env` writes `.env`:
-- the client secret from `keycloak/output/secrets.txt`
+- the merchant backends' credentials (`MERCHANT_CREDENTIALS`)
 - the Keycloak and payment API addresses, found with `kubectl` (load-balancer IPs of `keycloak` and
   `ingress-nginx-controller`, the same lookups as the curl commands in `docs/how-to-start.md`)
 - it keeps `VITE_STRIPE_PUBLISHABLE_KEY`
 
-Run it again after a redeploy or a new `provision-keycloak.sh`: the secret and the addresses can change.
+Run it again after a redeploy: the addresses can change.
+
+The proxy plays **the backend of the merchant selected on the page**: for each payment it gets a token for that
+merchant's Keycloak client `merchant-api-<merchant>` (role `MERCHANT`, claim `merchant_id`) and calls the payment API
+with it. `setup-env` writes the merchants it can act for into `.env` (`MERCHANT_CREDENTIALS`, all seed merchants from
+`keycloak/realm/merchants-seed.json`). These are the local seed secrets (`docs/how-to-start.md`, section 1). A merchant without an entry gets `400`
+("no credential"); a payment for another merchant than the token's gets `403` from the payment API.
 
 The form is prefilled with the marketplace payment used by the e2e test (`MARKETPLACE-5`, 3000 EUR,
-`SELLER-5-1` 1400, Commission 100, `SELLER-5-2` 1400, Commission 100). `MARKETPLACE-5` is the
+`SELLER-5-1` 1320, Commission 180, `SELLER-5-2` 1320, Commission 180: a 12% marketplace commission). `MARKETPLACE-5` is the
 simulator target, so after "Pay Now" the payment runs on to `SETTLED`.
 For a direct sale choose `DIRECT_MERCHANT` (no splits).
 
@@ -163,9 +169,9 @@ curl -s http://localhost:3001/__mock/state  # one payment intent
 
 **Against the local platform** (from the project root):
 ```bash
-./keycloak/get-token.sh
+./keycloak/get-access-token.sh merchant-api MARKETPLACE-5
 API=$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-TOKEN=$(cat ./keycloak/output/jwt/payment-service.token)
+TOKEN=$(cat ./keycloak/output/jwt/MARKETPLACE-5.token)
 KEY=$(printf '%08x-%04x-7%03x-8%03x-%04x%08x' $((RANDOM*RANDOM)) $((RANDOM)) $((RANDOM%4096)) $((RANDOM%4096)) $((RANDOM)) $((RANDOM*RANDOM)))
 BODY='{"orderId":"ORDER-IDEM-1","buyerId":"BUYER-1","merchantAccount":"MARKETPLACE-5","processingModel":"DIRECT_MERCHANT","totalAmount":{"quantity":3000,"currency":"EUR"}}'
 send() { curl -s -o /dev/null -w "%{http_code}\n" -X POST "http://$API/api/v1/payments" -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -H "Idempotency-Key: $KEY" -d "$1"; }
@@ -218,7 +224,7 @@ to a lowercased map key `normal`, not the `NORMAL` scenario.)
 |---|---|
 | `EADDRINUSE :3001` or `:3000` | An earlier `npm run dev` is still running: stop it (`lsof -nP -iTCP:3001 -sTCP:LISTEN` shows the PID) |
 | "Cannot reach Keycloak" | Run `npm run setup-env` again; check `kubectl get svc keycloak -n payment` |
-| Keycloak answers 404 for the realm | Keycloak is not provisioned: `./keycloak/provision-keycloak.sh`, then `npm run setup-env` |
+| Keycloak answers 404 for the realm | Keycloak is not set up: `./keycloak/setup-keycloak.sh`, then `npm run setup-env` |
 | `400` with "Must be a valid UUIDv7 format" | The Idempotency-Key is not a UUIDv7 |
 | `400` validation errors | MARKETPLACE: splits must add up to the total; DIRECT_MERCHANT: no splits; one currency |
 | Card form does not appear | `VITE_STRIPE_PUBLISHABLE_KEY` missing in `.env`; restart `npm run dev` after changing `.env` |

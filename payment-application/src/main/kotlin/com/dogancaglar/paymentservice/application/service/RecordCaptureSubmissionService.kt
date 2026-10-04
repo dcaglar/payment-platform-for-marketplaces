@@ -1,11 +1,8 @@
 package com.dogancaglar.paymentservice.application.service
 
-import com.dogancaglar.common.event.EventEnvelopeFactory
-import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.CaptureConfirmed
 import com.dogancaglar.paymentservice.application.events.CaptureSubmitted
 import com.dogancaglar.paymentservice.application.events.SettlementReceived
-import com.dogancaglar.paymentservice.ports.outbound.PspSimulationRulesPort
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.ledger.Tx
@@ -16,10 +13,10 @@ import com.dogancaglar.paymentservice.domain.model.vo.TxId
 import com.dogancaglar.paymentservice.ports.inbound.usecases.RecordCaptureSubmissionUseCase
 import com.dogancaglar.paymentservice.ports.outbound.CentralDbTransactionalFacadePort
 import com.dogancaglar.paymentservice.ports.outbound.IdGeneratorPort
+import com.dogancaglar.paymentservice.ports.outbound.MerchantAccountRepository
 import com.dogancaglar.paymentservice.ports.outbound.OutboxEventFactoryPort
 import com.dogancaglar.paymentservice.ports.outbound.PaymentRepository
 import com.dogancaglar.paymentservice.ports.outbound.PaymentTxPort
-import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
 import org.slf4j.LoggerFactory
 
 open class RecordCaptureSubmissionService(
@@ -28,7 +25,7 @@ open class RecordCaptureSubmissionService(
     private val paymentTxPort: PaymentTxPort,
     private val idGeneratorPort: IdGeneratorPort,
     private val outboxEventFactoryPort: OutboxEventFactoryPort,
-    private val pspSimulationRulesPort: PspSimulationRulesPort
+    private val merchantAccountRepository: MerchantAccountRepository
 ) : RecordCaptureSubmissionUseCase {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -60,14 +57,18 @@ open class RecordCaptureSubmissionService(
             status = PENDING
         )
 
-        //TODO simulation ,here also just create one Outbox<CaptureConfirmed> for simulator purposes.
+        // 4. An auto-settled merchant has no acquirer: its capture confirmation and settlement are simulated here
+        val merchant = merchantAccountRepository.findByCode(event.merchantAccount)
+            ?: throw IllegalStateException("Merchant account absent for merchantAccount=${event.merchantAccount}")
         val outboxEvents = mutableListOf<OutboxEvent>()
-        if (pspSimulationRulesPort.isSimulationTarget(event.merchantAccountId)) {
-            logger.debug("Simulation target profile verified for merchant=${event.merchantAccountId}. Generating automatic Stage 2 loopback confirmation.")
+        if (merchant.isAutoSettled) {
+            logger.debug(
+                "Merchant ${event.merchantAccount} is auto-settled: simulating capture confirmation and settlement."
+            )
             val captureConfirmed = CaptureConfirmed(
                 paymentIntentId = event.paymentIntentId,
                 publicPaymentIntentId = event.publicPaymentIntentId,
-                merchantAccountId = event.merchantAccountId,
+                merchantAccount = event.merchantAccount,
                 amountValue = event.amountValue,
                 currency = event.currency
             )
@@ -76,26 +77,45 @@ open class RecordCaptureSubmissionService(
             outboxEvents.add(captureConfirmedOutboxEvent,)
             val grossAmountValue = event.amountValue
 
-            // Compute standard network overhead fees (1.5% processing baseline fee reduction)
-            val feeAmountValue = (grossAmountValue * 0.015).toLong().coerceAtLeast(1L)
+            val feeAmountValue = simulatedPspFee(grossAmountValue)
             val netCashAmountValue = grossAmountValue - feeAmountValue
 
             val settlementLineEvent = SettlementReceived(
                 paymentIntentId = event.paymentIntentId,
                 publicPaymentIntentId = event.publicPaymentIntentId,
-                merchantAccountId = event.merchantAccountId,
-                grossAmountValue =grossAmountValue,
-                pspFeeAmountValue =feeAmountValue,
+                merchantAccount = event.merchantAccount,
+                grossAmountValue = grossAmountValue,
+                pspFeeAmountValue = feeAmountValue,
                 netCashAmountValue = netCashAmountValue,
                 currency = event.currency
             )
-                val settlementLineOutboxEvent = outboxEventFactoryPort.create(settlementLineEvent)
+            val settlementLineOutboxEvent = outboxEventFactoryPort.create(settlementLineEvent)
 
             outboxEvents.add(settlementLineOutboxEvent,)
         }
 
         // 5. Commit atomic units through outbound database gateways
-        logger.debug("Atomically persisting pending state modifications and transaction outbox event for track ref=${event.pspReference}")
-        centralDbTransactionalFacadePort.recordPaymentOperationInLedger(updatedPayment, captureTx, emptyList(), outboxEvents)
+        logger.debug(
+            "Atomically persisting pending state modifications and transaction outbox event for track ref=${event.pspReference}"
+        )
+        centralDbTransactionalFacadePort.recordPaymentOperationInLedger(
+            updatedPayment,
+            captureTx,
+            emptyList(),
+            outboxEvents
+        )
+    }
+
+    /**
+     * The PSP fee the simulated settlement reports, like a blended EU card price: [SIMULATED_PSP_FEE_BPS] of the gross
+     * (rounded down to the cent) plus [SIMULATED_PSP_FEE_FIXED]. A real PSP reports its own fee; we only book it.
+     * E.g. 3000 cents: 3000 × 150 / 10,000 + 25 = 45 + 25 = 70.
+     */
+    private fun simulatedPspFee(grossAmountValue: Long): Long =
+        grossAmountValue * SIMULATED_PSP_FEE_BPS / 10_000 + SIMULATED_PSP_FEE_FIXED
+
+    private companion object {
+        const val SIMULATED_PSP_FEE_BPS = 150L // 1.5%
+        const val SIMULATED_PSP_FEE_FIXED = 25L // €0.25 in cents
     }
 }

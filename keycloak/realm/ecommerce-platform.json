@@ -1,0 +1,195 @@
+{
+  "realm": "ecommerce-platform",
+  "enabled": true,
+  "sslRequired": "none",
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      {
+        "name": "payment:read",
+        "description": "Read payments"
+      },
+      {
+        "name": "payment:write",
+        "description": "Create and authorize payments"
+      },
+      {
+        "name": "balance:read",
+        "description": "Read balances"
+      },
+      {
+        "name": "transaction:read",
+        "description": "Read back-office transactions"
+      },
+      {
+        "name": "ledger:read",
+        "description": "Read Txs, journal entries, postings"
+      },
+      {
+        "name": "account:write",
+        "description": "Create merchants and sellers"
+      },
+      {
+        "name": "merchant:all",
+        "description": "Access to every merchant (platform staff)"
+      },
+      {
+        "name": "MERCHANT",
+        "description": "bundle",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "payment:read",
+            "payment:write",
+            "balance:read",
+            "transaction:read"
+          ]
+        }
+      },
+      {
+        "name": "SELLER",
+        "description": "bundle",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "balance:read"
+          ]
+        }
+      },
+      {
+        "name": "SUPPORT",
+        "description": "bundle",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "balance:read",
+            "transaction:read",
+            "merchant:all"
+          ]
+        }
+      },
+      {
+        "name": "FINANCE",
+        "description": "bundle",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "SUPPORT",
+            "ledger:read"
+          ]
+        }
+      },
+      {
+        "name": "ADMIN",
+        "description": "bundle",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "FINANCE",
+            "account:write"
+          ]
+        }
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "backoffice-ui",
+      "name": "Back office (people log in here)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "fullScopeAllowed": true,
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "merchant_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "merchant_id",
+            "claim.name": "merchant_id",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "seller_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "seller_id",
+            "claim.name": "seller_id",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "support-ops",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "support123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "SUPPORT"
+      ]
+    },
+    {
+      "username": "finance-ops",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "finance123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "FINANCE"
+      ]
+    },
+    {
+      "username": "backoffice-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ADMIN"
+      ]
+    }
+  ]
+}

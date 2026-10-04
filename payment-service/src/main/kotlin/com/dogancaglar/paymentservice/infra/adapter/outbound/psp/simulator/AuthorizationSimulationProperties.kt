@@ -24,9 +24,8 @@ class AuthorizationSimulationProperties {
 
     class TimeoutConfig {
         var enabled: Boolean = true
-        var probability: Int = 5  // default: 5% chance of timeout
+        var probability: Int = 5 // default: 5% chance of timeout
     }
-
 
     class LatencyConfig {
         var fast = LatencyBucket()
@@ -41,10 +40,10 @@ class AuthorizationSimulationProperties {
     }
 
     class ResponseDistribution {
-        var successful: Int = 80      // 60% of responses
-        var retryable: Int = 17      // 25% of responses
-        var statusCheck: Int = 0     // 10% of responses
-        var nonRetryable: Int = 3     // 5% of responses
+        var successful: Int = 80 // 60% of responses
+        var retryable: Int = 17 // 25% of responses
+        var statusCheck: Int = 0 // 10% of responses
+        var nonRetryable: Int = 3 // 5% of responses
     }
     // existing inner classes TimeoutConfig, LatencyConfig, ResponseDistribution…
 }

@@ -27,7 +27,7 @@ class CentralOutboxDispatchWorker(
     fun centralOutboxRelayBatchWorker() {
         val tSafe = centralOutboxRepository.computeTSafe() ?: Utc.nowInstant()
         val workerId = "$appInstanceId-poll-${UUID.randomUUID()}"
-        
+
         val batch = centralOutboxRepository.findEligible(tSafe, batchSize, workerId)
         if (batch.isEmpty()) {
             return
@@ -44,11 +44,15 @@ class CentralOutboxDispatchWorker(
                         try {
                             kafkaHelper.processEntryAsync(entry).await()
 
-                            logger.debug("✅ Marked dispatched outboxevent with ${entry.eventType} and oeid ${entry.oeid}")
+                            logger.debug(
+                                "✅ Marked dispatched outboxevent with ${entry.eventType} and oeid ${entry.oeid}"
+                            )
                             markDispatched(entry.oeid, Utc.toInstant(entry.createdAt))
-
                         } catch (exception: Exception) {
-                            logger.error("🛑 Breaking chain for aggregate $aggregateId at oeid=${entry.oeid}", exception)
+                            logger.error(
+                                "🛑 Breaking chain for aggregate $aggregateId at oeid=${entry.oeid}",
+                                exception
+                            )
                             unclaimSpecific(entry.oeid, Utc.toInstant(entry.createdAt), workerId)
                             break
                         }

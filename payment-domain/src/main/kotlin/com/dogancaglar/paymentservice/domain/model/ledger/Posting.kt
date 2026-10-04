@@ -1,13 +1,17 @@
 package com.dogancaglar.paymentservice.domain.model.ledger
 
 import com.dogancaglar.paymentservice.domain.model.common.Amount
-sealed class Posting(open val account: Account, open val amount: Amount) {
+sealed class Posting(open val account: LedgerAccount, open val amount: Amount) {
 
     abstract fun getSignedAmount(): Amount
-    class Debit private  constructor(override val account: Account, override val amount: Amount) : Posting(account, amount) {
+    class Debit private constructor(override val account: LedgerAccount, override val amount: Amount) : Posting(
+        account,
+        amount
+    ) {
         override fun getSignedAmount(): Amount {
             if (
-                account.isDebitAccount()) {
+                account.isDebitAccount()
+            ) {
                 return amount
             } else {
                 return amount.negate()
@@ -18,15 +22,16 @@ sealed class Posting(open val account: Account, open val amount: Amount) {
             return "Debit(account=$account, amount=$amount)"
         }
 
-        companion object{
-            fun create(account: Account,amount: Amount): Debit
-            {
-                return Debit(account,amount)
+        companion object {
+            fun create(account: LedgerAccount, amount: Amount): Debit {
+                return Debit(account, amount)
             }
         }
-
     }
-    class Credit private  constructor(override val account: Account, override val amount: Amount) : Posting(account, amount) {
+    class Credit private constructor(override val account: LedgerAccount, override val amount: Amount) : Posting(
+        account,
+        amount
+    ) {
         override fun getSignedAmount(): Amount {
             if (account.isCreditAccount()) {
                 return amount
@@ -39,12 +44,10 @@ sealed class Posting(open val account: Account, open val amount: Amount) {
             return "Credit(account=$account, amount=$amount)"
         }
 
-        companion object{
-            fun create(account: Account,amount: Amount): Credit
-            {
-                return Credit(account,amount)
+        companion object {
+            fun create(account: LedgerAccount, amount: Amount): Credit {
+                return Credit(account, amount)
             }
         }
-
     }
 }

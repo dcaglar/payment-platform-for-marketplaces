@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.serialization
 
+import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.EventEnvelopeFactory
 import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.JournalEntriesRecorded
@@ -37,9 +38,26 @@ class OutboxEventEventFactory(
         )
     }
 
+    override fun create(event: Event, aggregateId: String, partitionKey: String): OutboxEvent {
+        val envelope = EventEnvelopeFactory.envelopeFor(
+            data = event,
+            aggregateId = aggregateId,
+            parentEventId = EventLogContext.getEventId()
+        )
+        return OutboxEvent.Companion.createNew(
+            oeid = idGeneratorPort.generateId(),
+            partitionKey = partitionKey,
+            eventType = envelope.eventType,
+            aggregateId = envelope.aggregateId,
+            eventId = envelope.eventId,
+            parentEventId = envelope.parentEventId,
+            payload = serializationPort.toJson(envelope),
+        )
+    }
+
     private fun getPartitionKey(event: PaymentBaseEvent): String {
         return when (event) {
-            is JournalEntriesRecorded -> event.merchantAccountId
+            is JournalEntriesRecorded -> event.merchantAccount
             else -> event.paymentIntentId
         }
     }

@@ -1,15 +1,15 @@
 package com.dogancaglar.paymentservice.application.events
 
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 
 /**
  * Serializable representation of a posting for event publication.
- * 
+ *
  * This class is only created through the factory method to ensure invariants are maintained.
  */
 data class PostingEventData private constructor(
     val accountCode: String, // e.g., "MERCHANT_PAYABLE.MERCHANT-456"
-    val accountType: AccountType,
+    val accountType: LedgerAccountType,
     val amount: Long, // quantity in minor currency units
     val currency: String, // e.g., "USD"
     val direction: PostingDirection // DEBIT or CREDIT
@@ -17,7 +17,7 @@ data class PostingEventData private constructor(
     companion object {
         /**
          * Factory method to create PostingEventData.
-         * 
+         *
          * @param accountCode Account code (e.g., "MERCHANT_PAYABLE.MERCHANT-456")
          * @param accountType Account type
          * @param amount Amount in minor currency units
@@ -27,7 +27,7 @@ data class PostingEventData private constructor(
          */
         fun create(
             accountCode: String,
-            accountType: AccountType,
+            accountType: LedgerAccountType,
             amount: Long,
             currency: String,
             direction: PostingDirection

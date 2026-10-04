@@ -33,7 +33,6 @@ class ResilientExecutionAdapter(
         return try {
             // ② Block the Tomcat thread for at most timeoutMs milliseconds
             future.get(timeoutMs, TimeUnit.MILLISECONDS)
-
         } catch (e: TimeoutException) {
             logger.warn("Task timed out after ${timeoutMs}ms. Returning fallback and continuing in background.")
 
@@ -53,9 +52,7 @@ class ResilientExecutionAdapter(
                     logger.info("Background task completed successfully after timeout")
                     onBackgroundSuccess(result)
                 }
-            }
-
-                , executor)
+            }, executor)
 
             onTimeoutFallback()
         } catch (e: Exception) {

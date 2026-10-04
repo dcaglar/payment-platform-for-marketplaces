@@ -1,7 +1,7 @@
 package com.dogancaglar.paymentservice.domain.model.payment
 
 import com.dogancaglar.paymentservice.domain.model.common.Amount
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 
 /**
  * PaymentSplit
@@ -15,7 +15,7 @@ import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
  *  - account must be non-blank (identifies the seller, sub-merchant,
  *    or platform entity that is the beneficiary of this split).
  *  - amount must be positive.
- *  - accountType must be one of the canonical AccountType values.
+ *  - accountType must be one of the canonical LedgerAccountType values.
  *
  * No cart items, product lines, or order-level concepts exist here.
  * This is a pure fintech routing primitive.
@@ -25,7 +25,7 @@ import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
  * @param amount             The monetary amount to route to this account.
  */
 data class PaymentSplit(
-    val accountType: AccountType,
+    val accountType: LedgerAccountType,
     val account: String,
     val amount: Amount
 ) {
@@ -44,7 +44,7 @@ data class PaymentSplit(
          * and a validation gate for incoming split instructions.
          */
         fun of(
-            accountType: AccountType,
+            accountType: LedgerAccountType,
             account: String,
             amount: Amount
         ): PaymentSplit = PaymentSplit(

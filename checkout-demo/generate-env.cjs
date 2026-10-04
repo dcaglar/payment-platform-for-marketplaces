@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Helper script to generate .env file from Keycloak secrets
- * Reads from keycloak/output/secrets.txt and creates/updates .env
+ * Helper script to generate the .env file: the cluster's addresses and the merchant backends' credentials
+ * Creates/updates .env with the Keycloak and API addresses of the running cluster
  */
 
 const fs = require('fs');
@@ -10,7 +10,6 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
-const SECRETS_FILE = path.join(PROJECT_ROOT, 'keycloak', 'output', 'secrets.txt');
 const ENV_FILE = path.join(__dirname, '.env');
 const ENV_EXAMPLE = path.join(__dirname, '.env.example');
 
@@ -18,41 +17,15 @@ const ENV_EXAMPLE = path.join(__dirname, '.env.example');
 const defaults = {
   VITE_KEYCLOAK_URL: 'http://keycloak.payment.svc.cluster.local:8080',
   VITE_KEYCLOAK_REALM: 'ecommerce-platform',
-  VITE_KEYCLOAK_CLIENT_ID: 'payment-service',
-  VITE_KEYCLOAK_CLIENT_SECRET: '',
   VITE_API_BASE_URL: 'http://localhost',
 };
 
-function readSecrets() {
-  if (!fs.existsSync(SECRETS_FILE)) {
-    console.error(`❌ Secrets file not found: ${SECRETS_FILE}`);
-    console.error('💡 Please run ./keycloak/provision-keycloak.sh first');
-    process.exit(1);
-  }
-
-  const content = fs.readFileSync(SECRETS_FILE, 'utf8');
-  const secrets = {};
-  
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    
-    const match = trimmed.match(/^([^=]+)=(.*)$/);
-    if (match) {
-      const key = match[1].trim();
-      const value = match[2].trim();
-      secrets[key] = value;
-    }
-  }
-
-  return secrets;
-}
 
 
 
 /**
  * Load-balancer IP of a service, found the same way as the terminal commands in
- * docs/how-to-start.md and keycloak/get-token.sh. Returns null when kubectl cannot tell.
+ * docs/how-to-start.md and keycloak/get-access-token.sh. Returns null when kubectl cannot tell.
  */
 function loadBalancerIp(namespace, service) {
   try {
@@ -91,16 +64,6 @@ function readExistingEnv() {
 function generateEnv() {
   console.log('🔧 Generating .env file...\n');
 
-  // Read secrets
-  const secrets = readSecrets();
-  const clientSecret = secrets.PAYMENT_SERVICE_CLIENT_SECRET;
-  
-  if (!clientSecret) {
-    console.error('❌ PAYMENT_SERVICE_CLIENT_SECRET not found in secrets file');
-    process.exit(1);
-  }
-
-
   // Read existing .env to preserve custom values
   const existing = readExistingEnv();
 
@@ -108,10 +71,16 @@ function generateEnv() {
   const env = {
     ...defaults,
     ...existing, // Preserve existing custom values
-    VITE_KEYCLOAK_CLIENT_SECRET: clientSecret,
-    // Always use correct client ID (override any existing wrong value)
-    VITE_KEYCLOAK_CLIENT_ID: defaults.VITE_KEYCLOAK_CLIENT_ID,
   };
+
+  // The merchants the proxy may act for: every merchant backend client loaded into Keycloak by
+  // keycloak/setup-keycloak.sh (keycloak/realm/merchants-seed.json), with its local secret.
+  const seedFile = path.join(PROJECT_ROOT, 'keycloak', 'realm', 'merchants-seed.json');
+  const credentials = [];
+  for (const client of JSON.parse(fs.readFileSync(seedFile, 'utf8')).clients) {
+    credentials.push(`${client.clientId.replace(/^merchant-api-/, '')}:${client.secret}`);
+  }
+  env.MERCHANT_CREDENTIALS = credentials.join(',');
 
   // Addresses come from the running cluster, like the curl commands in how-to-start.md.
   // They replace older values in .env, because a redeploy can change them.
@@ -135,8 +104,7 @@ function generateEnv() {
     '# Keycloak Configuration',
     `VITE_KEYCLOAK_URL=${env.VITE_KEYCLOAK_URL}`,
     `VITE_KEYCLOAK_REALM=${env.VITE_KEYCLOAK_REALM}`,
-    `VITE_KEYCLOAK_CLIENT_ID=${env.VITE_KEYCLOAK_CLIENT_ID}`,
-    `VITE_KEYCLOAK_CLIENT_SECRET=${env.VITE_KEYCLOAK_CLIENT_SECRET}`,
+    ...(env.MERCHANT_CREDENTIALS ? [`MERCHANT_CREDENTIALS=${env.MERCHANT_CREDENTIALS}`] : []),
     '',
     '# Payment API Configuration',
     `VITE_API_BASE_URL=${env.VITE_API_BASE_URL}`,
@@ -154,8 +122,7 @@ function generateEnv() {
   console.log('📋 Configuration:');
   console.log(`   Keycloak URL: ${env.VITE_KEYCLOAK_URL}`);
   console.log(`   Realm: ${env.VITE_KEYCLOAK_REALM}`);
-  console.log(`   Client ID: ${env.VITE_KEYCLOAK_CLIENT_ID}`);
-  console.log(`   Client Secret: ${clientSecret.substring(0, 8)}... (hidden)`);
+  console.log(`   Merchants the proxy can act for: ${credentials.length} (${credentials.map((c) => c.split(':')[0]).join(', ')})`);
   console.log(`   API Base URL: ${env.VITE_API_BASE_URL}\n`);
   console.log('💡 You can now run: npm run dev');
 }

@@ -4,7 +4,7 @@ import java.time.Instant
 
 data class PaymentIntentEntity(
     val paymentIntentId: Long,
-    val pspReference: String?="",
+    val pspReference: String? = "",
     val buyerId: String,
     val orderId: String,
     val merchantAccount: String,
@@ -14,5 +14,7 @@ data class PaymentIntentEntity(
     val status: String,
     val createdAt: Instant,
     val updatedAt: Instant,
-    val splitsJson: String
+    val splitsJson: String,
+    val cardBrand: String? = null,
+    val cardLast4: String? = null
 )

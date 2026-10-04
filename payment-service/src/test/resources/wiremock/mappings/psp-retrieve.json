@@ -1,0 +1,25 @@
+{
+  "mappings": [
+    {
+      "priority": 10,
+      "request": {
+        "method": "GET",
+        "urlPathPattern": "/v1/intents/[^/]+"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "id": "{{request.pathSegments.[2]}}",
+          "clientSecret": "cs_{{randomValue type='UUID'}}",
+          "status": "CREATED"
+        },
+        "transformers": [
+          "response-template"
+        ]
+      }
+    }
+  ]
+}

@@ -7,6 +7,8 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.net.HttpURLConnection.HTTP_CREATED
+import java.net.HttpURLConnection.HTTP_OK
 import java.time.Duration
 
 /**
@@ -26,8 +28,8 @@ import java.time.Duration
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PaymentFlowE2EIntegrationTest {
 
-    private val forwarding = Duration.ofSeconds(90)   // edge-worker dispatch has initialDelay=30s
-    private val settlement = Duration.ofSeconds(240)  // full AUTHORIZED->SETTLED chain
+    private val forwarding = Duration.ofSeconds(90) // edge-worker dispatch has initialDelay=30s
+    private val settlement = Duration.ofSeconds(240) // full AUTHORIZED->SETTLED chain
     private val poll = Duration.ofSeconds(1)
 
     @BeforeAll
@@ -37,7 +39,7 @@ class PaymentFlowE2EIntegrationTest {
 
     @Test
     fun `create then authorize drives payment to SETTLED with full ledger`() {
-        val token = E2eSupport.fetchToken(PlatformStack.keycloakBaseUrl)
+        val token = E2eSupport.merchantToken("MARKETPLACE-5")
 
         // ---- 1. createPayment -------------------------------------------------
         val createBody = marketplace5Body()
@@ -49,7 +51,7 @@ class PaymentFlowE2EIntegrationTest {
         )
         assertThat(create.status)
             .withFailMessage("createPayment failed: ${create.status} ${create.rawBody}")
-            .isEqualTo(201)
+            .isEqualTo(HTTP_CREATED)
         val publicId = create.body!!.get("paymentIntentId").asText()
         assertThat(publicId).startsWith("pi_")
         val pkInt = PublicIdFactory.toInternalId(publicId)
@@ -69,11 +71,15 @@ class PaymentFlowE2EIntegrationTest {
         )
         assertThat(authorize.status)
             .withFailMessage("authorize failed: ${authorize.status} ${authorize.rawBody}")
-            .isEqualTo(200)
+            .isEqualTo(HTTP_OK)
 
         // ---- M1/M2: edge outbox row created, intent AUTHORIZED -----------------
         await().atMost(forwarding).pollInterval(poll).untilAsserted {
-            assertThat(edgeCount("SELECT count(*) FROM outbox_event WHERE event_type='payment_authorized' AND aggregate_id='$publicId'"))
+            assertThat(
+                edgeCount(
+                    "SELECT count(*) FROM outbox_event WHERE event_type='payment_authorized' AND aggregate_id='$publicId'"
+                )
+            )
                 .isGreaterThanOrEqualTo(1L)
             assertThat(edgeScalar("SELECT status FROM payment_intents WHERE payment_intent_id=$pkInt"))
                 .isEqualTo("AUTHORIZED")
@@ -81,7 +87,11 @@ class PaymentFlowE2EIntegrationTest {
 
         // ---- M3: local outbox forwarded to central (edge-worker) --------------
         await().atMost(forwarding).pollInterval(poll).untilAsserted {
-            assertThat(edgeScalar("SELECT status FROM outbox_event WHERE event_type='payment_authorized' AND aggregate_id='$publicId' LIMIT 1"))
+            assertThat(
+                edgeScalar(
+                    "SELECT status FROM outbox_event WHERE event_type='payment_authorized' AND aggregate_id='$publicId' LIMIT 1"
+                )
+            )
                 .isEqualTo("SENT")
         }
 
@@ -119,9 +129,17 @@ class PaymentFlowE2EIntegrationTest {
 
         // ---- M7: auth transaction + auth-hold journal -------------------------
         await().atMost(settlement).pollInterval(poll).untilAsserted {
-            assertThat(centralScalar("SELECT status FROM payment_tx WHERE payment_id=$paymentIdSub AND tx_type='AUTHORIZATION'"))
+            assertThat(
+                centralScalar(
+                    "SELECT status FROM payment_tx WHERE payment_id=$paymentIdSub AND tx_type='AUTHORIZATION'"
+                )
+            )
                 .isEqualTo("SUCCESS")
-            assertThat(centralCount("SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='AUTHORIZATION'"))
+            assertThat(
+                centralCount(
+                    "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='AUTHORIZATION'"
+                )
+            )
                 .isEqualTo(1L)
             // the card hold: 3000 on both auth accounts
             assertThat(postings(authReceivable, "AUTHORIZATION", paymentIdSub)).containsExactly("DEBIT|3000")
@@ -132,7 +150,11 @@ class PaymentFlowE2EIntegrationTest {
         await().atMost(settlement).pollInterval(poll).untilAsserted {
             assertThat(centralScalar("SELECT status FROM payments WHERE payment_intent_id=$pkInt"))
                 .isIn("SENT_FOR_SETTLE", "CAPTURED", "SETTLED") // may race past by poll time
-            assertThat(centralCount("SELECT count(*) FROM outbox_event WHERE event_type='capture_submitted' AND status='SENT' AND aggregate_id='$publicId'"))
+            assertThat(
+                centralCount(
+                    "SELECT count(*) FROM outbox_event WHERE event_type='capture_submitted' AND status='SENT' AND aggregate_id='$publicId'"
+                )
+            )
                 .isGreaterThanOrEqualTo(1L)
         }
 
@@ -142,9 +164,17 @@ class PaymentFlowE2EIntegrationTest {
                 .isIn("CAPTURED", "SETTLED")
             assertThat(centralScalar("SELECT captured_amount_value FROM payments WHERE payment_intent_id=$pkInt"))
                 .isEqualTo("3000")
-            assertThat(centralCount("SELECT count(*) FROM payment_tx WHERE payment_id=$paymentIdSub AND tx_type='CAPTURE' AND status='SUCCESS'"))
+            assertThat(
+                centralCount(
+                    "SELECT count(*) FROM payment_tx WHERE payment_id=$paymentIdSub AND tx_type='CAPTURE' AND status='SUCCESS'"
+                )
+            )
                 .isEqualTo(1L)
-            assertThat(centralCount("SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='CAPTURE'"))
+            assertThat(
+                centralCount(
+                    "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='CAPTURE'"
+                )
+            )
                 .isEqualTo(1L)
             // the hold is released, the PSP now owes us 3000, and the 3000 waits in suspense
             assertThat(postings(authReceivable, "CAPTURE", paymentIdSub)).containsExactly("CREDIT|3000")
@@ -155,43 +185,75 @@ class PaymentFlowE2EIntegrationTest {
 
         // ---- M10: marketplace allocation to sellers + commission --------------
         await().atMost(settlement).pollInterval(poll).untilAsserted {
-            assertThat(centralCount("SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='INTERNAL_TRANSFER'"))
+            assertThat(
+                centralCount(
+                    "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='INTERNAL_TRANSFER'"
+                )
+            )
                 .isGreaterThanOrEqualTo(2L)
-            assertThat(centralCount("SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND target_account='$seller1'"))
+            assertThat(
+                centralCount(
+                    "SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND target_account='$seller1'"
+                )
+            )
                 .isEqualTo(1L)
-            assertThat(centralCount("SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND target_account='$seller2'"))
+            assertThat(
+                centralCount(
+                    "SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND target_account='$seller2'"
+                )
+            )
                 .isEqualTo(1L)
             // both Commission splits land on the operator's commission account (not the merchant id)
-            assertThat(centralCount("SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND source_account='$suspense' AND target_account='$commission'"))
+            assertThat(
+                centralCount(
+                    "SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND source_account='$suspense' AND target_account='$commission'"
+                )
+            )
                 .isEqualTo(2L)
             // the platform fee is taken from that same commission account into the fee reserve
-            assertThat(centralCount("SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND source_account='$commission' AND target_account='$feeReserve'"))
+            assertThat(
+                centralCount(
+                    "SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND source_account='$commission' AND target_account='$feeReserve'"
+                )
+            )
                 .isEqualTo(1L)
-            assertThat(centralCount("SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='COMMISSION_FEE'"))
+            assertThat(
+                centralCount(
+                    "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='COMMISSION_FEE'"
+                )
+            )
                 .isEqualTo(1L)
             // the 3000 leaves suspense in four splits
             assertThat(postings(suspense, "INTERNAL_TRANSFER", paymentIdSub))
-                .containsExactlyInAnyOrder("DEBIT|1400", "DEBIT|1400", "DEBIT|100", "DEBIT|100")
+                .containsExactlyInAnyOrder("DEBIT|1320", "DEBIT|1320", "DEBIT|180", "DEBIT|180")
             // each seller is owed its split
-            assertThat(postings(seller1, "INTERNAL_TRANSFER", paymentIdSub)).containsExactly("CREDIT|1400")
-            assertThat(postings(seller2, "INTERNAL_TRANSFER", paymentIdSub)).containsExactly("CREDIT|1400")
+            assertThat(postings(seller1, "INTERNAL_TRANSFER", paymentIdSub)).containsExactly("CREDIT|1320")
+            assertThat(postings(seller2, "INTERNAL_TRANSFER", paymentIdSub)).containsExactly("CREDIT|1320")
             // the operator is owed both commissions...
             assertThat(postings(commission, "INTERNAL_TRANSFER", paymentIdSub))
-                .containsExactlyInAnyOrder("CREDIT|100", "CREDIT|100")
-            // ...minus our fee, which goes into the fee reserve
-            assertThat(postings(commission, "COMMISSION_FEE", paymentIdSub)).containsExactly("DEBIT|50")
-            assertThat(postings(feeReserve, "COMMISSION_FEE", paymentIdSub)).containsExactly("CREDIT|50")
+                .containsExactlyInAnyOrder("CREDIT|180", "CREDIT|180")
+            // ...minus our fee (MARKETPLACE-5: 50 + 5% of 3000 = 200), which goes into the fee reserve
+            assertThat(postings(commission, "COMMISSION_FEE", paymentIdSub)).containsExactly("DEBIT|200")
+            assertThat(postings(feeReserve, "COMMISSION_FEE", paymentIdSub)).containsExactly("CREDIT|200")
         }
 
         // ---- M11: settlement reconciled (MATCHED) + settlement journal --------
         await().atMost(settlement).pollInterval(poll).untilAsserted {
-            assertThat(centralCount("SELECT count(*) FROM payment_tx WHERE payment_id=$paymentIdSub AND tx_type='SETTLEMENT' AND settle_status='MATCHED'"))
+            assertThat(
+                centralCount(
+                    "SELECT count(*) FROM payment_tx WHERE payment_id=$paymentIdSub AND tx_type='SETTLEMENT' AND settle_status='MATCHED'"
+                )
+            )
                 .isGreaterThanOrEqualTo(1L)
-            assertThat(centralCount("SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='SETTLEMENT'"))
+            assertThat(
+                centralCount(
+                    "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='SETTLEMENT'"
+                )
+            )
                 .isEqualTo(1L)
-            // the PSP pays: 2955 reaches our bank, 45 is its fee, and its 3000 debt is cleared
-            assertThat(postings(platformCash, "SETTLEMENT", paymentIdSub)).containsExactly("DEBIT|2955")
-            assertThat(postings(pspFeeExpense, "SETTLEMENT", paymentIdSub)).containsExactly("DEBIT|45")
+            // the PSP pays: 2930 reaches our bank, 70 is its fee (simulated: 1.5% of 3000 + 25), and its 3000 debt is cleared
+            assertThat(postings(platformCash, "SETTLEMENT", paymentIdSub)).containsExactly("DEBIT|2930")
+            assertThat(postings(pspFeeExpense, "SETTLEMENT", paymentIdSub)).containsExactly("DEBIT|70")
             assertThat(postings(pspReceivable, "SETTLEMENT", paymentIdSub)).containsExactly("CREDIT|3000")
         }
 
@@ -212,39 +274,47 @@ class PaymentFlowE2EIntegrationTest {
             )
         ).withFailMessage("Found unbalanced journal entries").isEqualTo(0L)
 
-        // M14: every posting of this payment is on an account that exists in account_directory,
+        // M14: every posting of this payment is on a ledger account that exists in `accounts`,
         // with the same account type (postings.account_code has no foreign key, so check it here)
         assertThat(
             centralCount(
                 "SELECT count(*) FROM postings p JOIN journal_entries j ON j.id = p.journal_id " +
-                    "LEFT JOIN account_directory a ON a.account_code = p.account_code " +
-                    "WHERE j.payment_id=$paymentIdSub AND (a.account_code IS NULL OR a.account_type <> p.account_type)"
+                    "LEFT JOIN accounts a ON a.account_code = p.account_code AND a.kind = 'LEDGER' " +
+                    "WHERE j.payment_id=$paymentIdSub AND (a.account_code IS NULL OR a.ledger_type <> p.account_type)"
             )
-        ).withFailMessage("Found postings on accounts missing from account_directory").isEqualTo(0L)
+        ).withFailMessage("Found postings on ledger accounts missing from accounts").isEqualTo(0L)
 
         // Seller and operator accounts are touched only by the journals above, nothing else
-        assertThat(allPostings(seller1, paymentIdSub)).containsExactly("INTERNAL_TRANSFER|CREDIT|1400")
-        assertThat(allPostings(seller2, paymentIdSub)).containsExactly("INTERNAL_TRANSFER|CREDIT|1400")
+        assertThat(allPostings(seller1, paymentIdSub)).containsExactly("INTERNAL_TRANSFER|CREDIT|1320")
+        assertThat(allPostings(seller2, paymentIdSub)).containsExactly("INTERNAL_TRANSFER|CREDIT|1320")
         assertThat(allPostings(commission, paymentIdSub))
-            .containsExactlyInAnyOrder("INTERNAL_TRANSFER|CREDIT|100", "INTERNAL_TRANSFER|CREDIT|100", "COMMISSION_FEE|DEBIT|50")
+            .containsExactlyInAnyOrder(
+                "INTERNAL_TRANSFER|CREDIT|180",
+                "INTERNAL_TRANSFER|CREDIT|180",
+                "COMMISSION_FEE|DEBIT|200"
+            )
         assertThat(allPostings(directPayable, paymentIdSub)).isEmpty()
 
-        // M15: account balances after this payment (3000 captured, 45 PSP fee, 50 platform fee).
+        // M15: account balances after this payment (3000 captured, 70 PSP fee, 200 platform fee).
         // Positive = the account's normal side. Clearing accounts are back to 0; what is left is
-        // cash + expense on one side (2955 + 45) and what we owe on the other (1400+1400+150+50).
+        // cash + expense on one side (2930 + 70) and what we owe on the other (1320+1320+160+200).
         assertThat(debitBalance(authReceivable, paymentIdSub)).isEqualTo(0L)
         assertThat(creditBalance(authLiability, paymentIdSub)).isEqualTo(0L)
         assertThat(debitBalance(pspReceivable, paymentIdSub)).isEqualTo(0L)
         assertThat(creditBalance(suspense, paymentIdSub)).isEqualTo(0L)
-        assertThat(creditBalance(seller1, paymentIdSub)).isEqualTo(1400L)
-        assertThat(creditBalance(seller2, paymentIdSub)).isEqualTo(1400L)
-        assertThat(creditBalance(commission, paymentIdSub)).isEqualTo(150L)   // 100 + 100 - 50 fee
-        assertThat(creditBalance(feeReserve, paymentIdSub)).isEqualTo(50L)
-        assertThat(debitBalance(platformCash, paymentIdSub)).isEqualTo(2955L)
-        assertThat(debitBalance(pspFeeExpense, paymentIdSub)).isEqualTo(45L)
+        assertThat(creditBalance(seller1, paymentIdSub)).isEqualTo(1320L)
+        assertThat(creditBalance(seller2, paymentIdSub)).isEqualTo(1320L)
+        assertThat(creditBalance(commission, paymentIdSub)).isEqualTo(160L) // 180 + 180 - 200 fee
+        assertThat(creditBalance(feeReserve, paymentIdSub)).isEqualTo(200L)
+        assertThat(debitBalance(platformCash, paymentIdSub)).isEqualTo(2930L)
+        assertThat(debitBalance(pspFeeExpense, paymentIdSub)).isEqualTo(70L)
 
         // These journal types belong to later batch jobs, not this flow:
-        assertThat(centralCount("SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type IN ('REFUND','PAYOUT','REVENUE_RECOGNITION')"))
+        assertThat(
+            centralCount(
+                "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type IN ('REFUND','PAYOUT','REVENUE_RECOGNITION')"
+            )
+        )
             .isEqualTo(0L)
 
         printTAccounts("Marketplace payment $publicId (3000 EUR, 2 sellers + commission)", paymentIdSub)
@@ -252,12 +322,12 @@ class PaymentFlowE2EIntegrationTest {
 
     /**
      * One direct sale (no splits) of 5000 EUR, then an exact comparison of everything the
-     * ledger holds for that payment. The simulator settles with a 1.5% PSP fee (75) and the
-     * platform fee is a fixed 50, so every row is known in advance.
+     * ledger holds for that payment. The simulator settles with a PSP fee of 1.5% + 25 (100) and the
+     * platform fee is MARKETPLACE-5's 50 + 5% (300), so every row is known in advance.
      */
     @Test
     fun `direct sale of 5000 records exactly the expected journals, postings, transfers and txs`() {
-        val token = E2eSupport.fetchToken(PlatformStack.keycloakBaseUrl)
+        val token = E2eSupport.merchantToken("MARKETPLACE-5")
         val publicId = createAndAuthorize(token, directSaleBody())
         val pkInt = PublicIdFactory.toInternalId(publicId)
 
@@ -297,12 +367,12 @@ class PaymentFlowE2EIntegrationTest {
             "CAPTURE|$authReceivable|CREDIT|5000",
             "CAPTURE|$suspense|CREDIT|5000",
             "CAPTURE|$pspReceivable|DEBIT|5000",
-            "COMMISSION_FEE|$directPayable|DEBIT|50",
-            "COMMISSION_FEE|$feeReserve|CREDIT|50",
+            "COMMISSION_FEE|$directPayable|DEBIT|300",
+            "COMMISSION_FEE|$feeReserve|CREDIT|300",
             "INTERNAL_TRANSFER|$suspense|DEBIT|5000",
             "INTERNAL_TRANSFER|$directPayable|CREDIT|5000",
-            "SETTLEMENT|$platformCash|DEBIT|4925",
-            "SETTLEMENT|$pspFeeExpense|DEBIT|75",
+            "SETTLEMENT|$platformCash|DEBIT|4900",
+            "SETTLEMENT|$pspFeeExpense|DEBIT|100",
             "SETTLEMENT|$pspReceivable|CREDIT|5000"
         )
 
@@ -314,7 +384,7 @@ class PaymentFlowE2EIntegrationTest {
                         "FROM transfers WHERE payment_id=$paymentIdSub ORDER BY 1"
                 )
             ).containsExactlyInAnyOrder(
-                "COMMISSION_FEE|$directPayable|$feeReserve|50|TRANSFERRED",
+                "COMMISSION_FEE|$directPayable|$feeReserve|300|TRANSFERRED",
                 "INTERNAL_TRANSFER|$suspense|$directPayable|5000|TRANSFERRED"
             )
         }
@@ -331,15 +401,15 @@ class PaymentFlowE2EIntegrationTest {
             "SETTLEMENT|SUCCESS|MATCHED"
         )
 
-        // balances this payment leaves behind: 4925 + 75 on one side, 4950 + 50 on the other
+        // balances this payment leaves behind: 4900 + 100 on one side, 4700 + 300 on the other
         assertThat(debitBalance(authReceivable, paymentIdSub)).isEqualTo(0L)
         assertThat(creditBalance(authLiability, paymentIdSub)).isEqualTo(0L)
         assertThat(debitBalance(pspReceivable, paymentIdSub)).isEqualTo(0L)
         assertThat(creditBalance(suspense, paymentIdSub)).isEqualTo(0L)
-        assertThat(creditBalance(directPayable, paymentIdSub)).isEqualTo(4950L)
-        assertThat(creditBalance(feeReserve, paymentIdSub)).isEqualTo(50L)
-        assertThat(debitBalance(platformCash, paymentIdSub)).isEqualTo(4925L)
-        assertThat(debitBalance(pspFeeExpense, paymentIdSub)).isEqualTo(75L)
+        assertThat(creditBalance(directPayable, paymentIdSub)).isEqualTo(4700L)
+        assertThat(creditBalance(feeReserve, paymentIdSub)).isEqualTo(300L)
+        assertThat(debitBalance(platformCash, paymentIdSub)).isEqualTo(4900L)
+        assertThat(debitBalance(pspFeeExpense, paymentIdSub)).isEqualTo(100L)
 
         printTAccounts("Direct sale $publicId (5000 EUR)", paymentIdSub)
     }
@@ -354,7 +424,7 @@ class PaymentFlowE2EIntegrationTest {
         )
         assertThat(create.status)
             .withFailMessage("createPayment failed: ${create.status} ${create.rawBody}")
-            .isEqualTo(201)
+            .isEqualTo(HTTP_CREATED)
         val publicId = create.body!!.get("paymentIntentId").asText()
 
         val authorize = E2eSupport.postJson(
@@ -364,13 +434,13 @@ class PaymentFlowE2EIntegrationTest {
         )
         assertThat(authorize.status)
             .withFailMessage("authorize failed: ${authorize.status} ${authorize.rawBody}")
-            .isEqualTo(200)
+            .isEqualTo(HTTP_OK)
         return publicId
     }
 
     // --------------------------------------------------------------- accounts (ACCOUNT_TYPE.MERCHANT.[SELLER].CURRENCY)
-    private val authReceivable = "AUTH_RECEIVABLE.GLOBAL.EUR"
-    private val authLiability = "AUTH_LIABILITY.GLOBAL.EUR"
+    private val authReceivable = "AUTH_RECEIVABLE.MARKETPLACE-5.EUR"
+    private val authLiability = "AUTH_LIABILITY.MARKETPLACE-5.EUR"
     private val pspReceivable = "PSP_RECEIVABLE.GLOBAL.EUR"
     private val platformCash = "PLATFORM_CASH.GLOBAL.EUR"
     private val pspFeeExpense = "PSP_FEE_EXPENSE.GLOBAL.EUR"
@@ -499,7 +569,12 @@ class PaymentFlowE2EIntegrationTest {
 
     /** Every row of a one-column query, as text, in the order the query returns them. */
     private fun centralRows(sql: String): List<String> =
-        E2eSupport.query(PlatformStack.centralJdbcUrl, PlatformStack.dbUser, PlatformStack.dbPass, sql) { rs -> rs.getString(1) }
+        E2eSupport.query(
+            PlatformStack.centralJdbcUrl,
+            PlatformStack.dbUser,
+            PlatformStack.dbPass,
+            sql
+        ) { rs -> rs.getString(1) }
 
     private fun marketplace5Body(): String = """
         {
@@ -509,10 +584,10 @@ class PaymentFlowE2EIntegrationTest {
           "processingModel": "MARKETPLACE",
           "totalAmount": { "quantity": 3000, "currency": "EUR" },
           "splits": [
-            { "type": "BalanceAccount", "account": "SELLER-5-1", "amount": { "quantity": 1400, "currency": "EUR" }},
-            { "type": "Commission", "amount": { "quantity": 100, "currency": "EUR" }},
-            { "type": "BalanceAccount", "account": "SELLER-5-2", "amount": { "quantity": 1400, "currency": "EUR" }},
-            { "type": "Commission", "amount": { "quantity": 100, "currency": "EUR" }}
+            { "type": "BalanceAccount", "account": "SELLER-5-1", "amount": { "quantity": 1320, "currency": "EUR" }},
+            { "type": "Commission", "amount": { "quantity": 180, "currency": "EUR" }},
+            { "type": "BalanceAccount", "account": "SELLER-5-2", "amount": { "quantity": 1320, "currency": "EUR" }},
+            { "type": "Commission", "amount": { "quantity": 180, "currency": "EUR" }}
           ]
         }
     """.trimIndent()

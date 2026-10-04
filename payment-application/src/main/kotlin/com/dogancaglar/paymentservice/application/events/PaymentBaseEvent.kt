@@ -15,9 +15,9 @@ import java.time.Instant
  * Override only when additional discriminators are needed (e.g. attempt, targetAccountId).
  */
 abstract class PaymentBaseEvent(
-    override val paymentIntentId: String,
-    override val publicPaymentIntentId: String,
-    override val merchantAccountId: String,
+    open val paymentIntentId: String,
+    open val publicPaymentIntentId: String,
+    open val merchantAccount: String,
     open val amountValue: Long,
     open val currency: String,
     override val timestamp: Instant = Utc.nowInstant()

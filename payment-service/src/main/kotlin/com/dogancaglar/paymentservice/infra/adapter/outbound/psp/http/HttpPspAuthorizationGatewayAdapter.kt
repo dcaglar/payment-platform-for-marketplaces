@@ -5,6 +5,7 @@ import com.dogancaglar.paymentservice.domain.exception.PspTransientException
 import com.dogancaglar.paymentservice.domain.exception.PspUnknownException
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentMethod
+import com.dogancaglar.paymentservice.infra.adapter.outbound.psp.PspCardSummary
 import com.dogancaglar.paymentservice.ports.outbound.PspAuthorizationGatewayPort
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -21,13 +22,14 @@ import java.net.ConnectException
 import java.net.http.HttpClient
 import java.net.http.HttpConnectTimeoutException
 import java.time.Duration
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.RejectedExecutionException
 
 /**
  * Talks to a PSP over HTTP. The PSP API (played by WireMock in tests):
  *   POST /v1/intents                  create    -> 200 {"id", "clientSecret", "status": "CREATED"}
- *   POST /v1/intents/{id}/authorize   authorize -> 200 {"id", "status": "AUTHORIZED" | "DECLINED" | "PENDING"}, 402 = declined
+ *   POST /v1/intents/{id}/authorize   authorize -> 200 {"id", "status": "AUTHORIZED" | "DECLINED" | "PENDING", "card": {"brand", "last4"}}, 402 = declined
  *   GET  /v1/intents/{id}             retrieve  -> 200 {"id", "clientSecret", "status"}
  * Every call carries an Idempotency-Key derived from our payment intent id, so a retry of the
  * same step never makes the PSP do it twice.
@@ -49,7 +51,9 @@ class HttpPspAuthorizationGatewayAdapter(
     @Value("\${psp.http.read-timeout-ms:10000}") readTimeoutMs: Long,
     @param:Qualifier("myObjectMapper") private val objectMapper: ObjectMapper,
     @param:Qualifier("createPaymentIntentExecutor") private val createPaymentIntentExecutor: ThreadPoolTaskExecutor,
-    @param:Qualifier("authorizePaymentIntentExecutor") private val authorizePaymentIntentExecutor: ThreadPoolTaskExecutor
+    @param:Qualifier(
+        "authorizePaymentIntentExecutor"
+    ) private val authorizePaymentIntentExecutor: ThreadPoolTaskExecutor
 ) : PspAuthorizationGatewayPort {
 
     private val restClient: RestClient
@@ -119,7 +123,9 @@ class HttpPspAuthorizationGatewayAdapter(
             } else {
                 val intent = readIntent("authorize", answer)
                 when (intent.status) {
-                    "AUTHORIZED" -> paymentIntent.markAuthorized()
+                    "AUTHORIZED" -> paymentIntent.markAuthorized(
+                        PspCardSummary.of(intent.card?.brand, intent.card?.last4)
+                    )
                     "DECLINED" -> paymentIntent.markDeclined()
                     "PENDING" -> paymentIntent // not decided yet: stays PENDING_AUTH
                     else -> throw PspUnknownException("PSP authorize answered unknown status=${intent.status}", null)
@@ -171,7 +177,14 @@ class HttpPspAuthorizationGatewayAdapter(
                 throw PspTransientException("PSP $action not sent: ${cause::class.simpleName}", e)
             }
             // read timeout, connection reset, empty or garbled answer: the PSP may have done it
-            throw PspUnknownException("PSP $action sent but no usable answer: ${cause?.let { it::class.simpleName }}", e)
+            throw PspUnknownException(
+                "PSP $action sent but no usable answer: ${cause?.let { it::class.simpleName }}",
+                e
+            )
+        } catch (e: CancellationException) {
+            // also a read timeout: Spring's JdkClientHttpRequest cancels the request when our read timeout
+            // passes, racing the JDK's own timeout (which arrives as ResourceAccessException above)
+            throw PspUnknownException("PSP $action sent but no answer within our read timeout", e)
         }
     }
 
@@ -211,6 +224,14 @@ class HttpPspAuthorizationGatewayAdapter(
     data class IntentResponse(
         val id: String? = null,
         val clientSecret: String? = null,
-        val status: String? = null
+        val status: String? = null,
+        val card: CardResponse? = null
+    )
+
+    /** The card the PSP authorized: brand and last 4 digits only. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    data class CardResponse(
+        val brand: String? = null,
+        val last4: String? = null
     )
 }

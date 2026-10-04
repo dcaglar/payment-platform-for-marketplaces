@@ -6,17 +6,14 @@ import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.CaptureSubmitted
 import com.dogancaglar.paymentservice.application.service.RecordCaptureSubmissionService
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.dogancaglar.paymentservice.ports.outbound.EventDeduplicationPort
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.stereotype.Component
 
-import com.dogancaglar.paymentservice.ports.outbound.EventDeduplicationPort
-
 @Component
 class CapturePspPerformedConsumer(
-    private val objectMapper: ObjectMapper,
     private val recordCaptureSubmissionService: RecordCaptureSubmissionService,
     private val dedupe: EventDeduplicationPort
 ) {
@@ -45,7 +42,9 @@ class CapturePspPerformedConsumer(
                     parentEventId = envelope.eventId
                 )
                 dedupe.markProcessed(CONSUMER_GROUPS.CAPTURE_SUBMITTED_CONSUMER, eventId, 3600)
-                logger.info("Capture PSP performed consumer executed successfully for paymentIntentId=${eventData.publicPaymentIntentId}")
+                logger.info(
+                    "Capture PSP performed consumer executed successfully for paymentIntentId=${eventData.publicPaymentIntentId}"
+                )
             } catch (e: Exception) {
                 logger.error("❌ Failed to process capture PSP performed event", e)
                 throw e

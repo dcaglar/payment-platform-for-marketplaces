@@ -1,6 +1,11 @@
 package com.dogancaglar.paymentservice.config
 
 
+import com.dogancaglar.paymentservice.ports.outbound.AccountCreationTransactionalFacadePort
+import com.dogancaglar.paymentservice.application.service.TransactionService
+import com.dogancaglar.paymentservice.application.service.CreateAccountService
+import com.dogancaglar.paymentservice.ports.outbound.TransactionRepository
+import com.dogancaglar.paymentservice.application.service.RequestAccountCreationService
 import com.dogancaglar.paymentservice.application.service.ProcessPspResultProcessingService
 import com.dogancaglar.paymentservice.application.service.ProcessCaptureService
 import com.dogancaglar.paymentservice.application.events.CaptureRequested
@@ -19,7 +24,6 @@ import com.dogancaglar.paymentservice.ports.outbound.CentralDbTransactionalFacad
 import com.dogancaglar.paymentservice.ports.outbound.PaymentRepository
 import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
 import com.dogancaglar.paymentservice.ports.outbound.PaymentTxPort
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -53,8 +57,8 @@ open class PaymentConsumerConfig(serializationPort: SerializationPort) {
         idGeneratorPort: IdGeneratorPort,
         paymentRepository: PaymentRepository,
         transferRepository: com.dogancaglar.paymentservice.ports.outbound.TransferRepository,
-        serializationPort: SerializationPort,
-        outboxEventFactoryPort: OutboxEventFactoryPort
+        outboxEventFactoryPort: OutboxEventFactoryPort,
+        merchantAccountRepository: com.dogancaglar.paymentservice.ports.outbound.MerchantAccountRepository
     ): ProcessPspResultUseCase{
         return ProcessPspResultProcessingService(
             centralDbTransactionalFacadePort = centralDbTransactionalFacadePort,
@@ -64,7 +68,7 @@ open class PaymentConsumerConfig(serializationPort: SerializationPort) {
             paymentRepository = paymentRepository,
             transferRepository = transferRepository,
             outboxEventFactoryPort = outboxEventFactoryPort,
-            serializationPort = serializationPort
+            merchantAccountRepository = merchantAccountRepository
         )
     }
 
@@ -75,7 +79,7 @@ open class PaymentConsumerConfig(serializationPort: SerializationPort) {
         paymentTxPort: PaymentTxPort,
         idGeneratorPort: IdGeneratorPort,
         outboxEventFactoryPort : OutboxEventFactoryPort,
-        pspSimulationRulesPort: com.dogancaglar.paymentservice.ports.outbound.PspSimulationRulesPort
+        merchantAccountRepository: com.dogancaglar.paymentservice.ports.outbound.MerchantAccountRepository
     ): RecordCaptureSubmissionService {
         return RecordCaptureSubmissionService(
             centralDbTransactionalFacadePort = centralDbTransactionalFacadePort,
@@ -83,7 +87,7 @@ open class PaymentConsumerConfig(serializationPort: SerializationPort) {
             paymentTxPort = paymentTxPort,
             idGeneratorPort = idGeneratorPort,
             outboxEventFactoryPort = outboxEventFactoryPort,
-            pspSimulationRulesPort = pspSimulationRulesPort
+            merchantAccountRepository = merchantAccountRepository
         )
     }
 
@@ -117,16 +121,40 @@ open class PaymentConsumerConfig(serializationPort: SerializationPort) {
         paymentRepository: PaymentRepository,
         retryQueuePort: RetryQueuePort<CaptureRequested>,
         @Qualifier("centralOutboxWriterAdapter") centralOutboxWriterPort: CentralOutboxWriterPort,
-        outboxEventFactoryPort : OutboxEventFactoryPort,
-        serializationPort: SerializationPort
+        outboxEventFactoryPort : OutboxEventFactoryPort
     ): ProcessCaptureService {
         return ProcessCaptureService(
             pspCaptureGatewayPort,
             paymentRepository,
             retryQueuePort,
             centralOutboxWriterPort,
-            outboxEventFactoryPort,
-            serializationPort
+            outboxEventFactoryPort
         )
+    }
+
+    @Bean
+    fun requestAccountCreationService(
+        outboxEventFactoryPort: OutboxEventFactoryPort,
+        @Qualifier("centralOutboxWriterAdapter") centralOutboxWriterPort: CentralOutboxWriterPort
+    ): RequestAccountCreationService {
+        return RequestAccountCreationService(outboxEventFactoryPort, centralOutboxWriterPort)
+    }
+
+    @Bean
+    fun createAccountService(accountCreationFacadePort: AccountCreationTransactionalFacadePort): CreateAccountService {
+        return CreateAccountService(accountCreationFacadePort)
+    }
+
+    @Bean
+    fun transactionService(transactionRepository: TransactionRepository): TransactionService {
+        return TransactionService(transactionRepository)
+    }
+
+    @Bean
+    fun txService(
+        paymentTxPort: PaymentTxPort,
+        journalEntryRepository: com.dogancaglar.paymentservice.ports.outbound.JournalEntryRepository
+    ): com.dogancaglar.paymentservice.application.service.TxService {
+        return com.dogancaglar.paymentservice.application.service.TxService(paymentTxPort, journalEntryRepository)
     }
 }

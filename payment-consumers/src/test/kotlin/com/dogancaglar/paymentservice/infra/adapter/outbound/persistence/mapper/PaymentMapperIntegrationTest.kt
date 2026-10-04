@@ -115,7 +115,10 @@ class PaymentMapperIntegrationTest {
 
         paymentMapper.upsert(payment(paymentId).copy(status = "CAPTURED", capturedAmountValue = 3000L))
 
-        val row = jdbcTemplate.queryForMap("SELECT status, captured_amount_value FROM payments WHERE payment_id = ?", paymentId)
+        val row = jdbcTemplate.queryForMap(
+            "SELECT status, captured_amount_value FROM payments WHERE payment_id = ?",
+            paymentId
+        )
         assertEquals("CAPTURED", row["status"])
         assertEquals(3000L, row["captured_amount_value"])
     }

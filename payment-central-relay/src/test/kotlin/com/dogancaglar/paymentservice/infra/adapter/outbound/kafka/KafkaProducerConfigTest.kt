@@ -14,24 +14,32 @@ import org.springframework.boot.autoconfigure.kafka.KafkaProperties
  */
 class KafkaProducerConfigTest {
 
-    private val config = KafkaProducerConfig(KafkaProperties(), "test-instance", "test-app")
+    private val config = KafkaProducerConfig(KafkaProperties(), "test-app")
 
     @Test
     fun `raw producer must pair idempotence=true with in-flight at most 5`() {
         val props = config.rawBatchProducerFactory().configurationProperties
 
-        assertEquals(true, props[ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG],
-            "idempotence must stay enabled — it is what makes in-flight>1 retry-safe for ordering")
+        assertEquals(
+            true,
+            props[ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG],
+            "idempotence must stay enabled — it is what makes in-flight>1 retry-safe for ordering"
+        )
         val inFlight = (props[ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION] as Number).toInt()
-        assertTrue(inFlight in 1..5,
-            "max.in.flight must be <=5 for the idempotent producer's ordering guarantee (was $inFlight)")
+        assertTrue(
+            inFlight in 1..5,
+            "max.in.flight must be <=5 for the idempotent producer's ordering guarantee (was $inFlight)"
+        )
     }
 
     @Test
     fun `raw producer must serialize values as plain strings - no envelope serializer on the raw path`() {
         val props = config.rawBatchProducerFactory().configurationProperties
 
-        assertEquals(StringSerializer::class.java, props[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG],
-            "the relay streams pre-serialized raw bytes; the envelope serializer must not be on this path")
+        assertEquals(
+            StringSerializer::class.java,
+            props[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG],
+            "the relay streams pre-serialized raw bytes; the envelope serializer must not be on this path"
+        )
     }
 }

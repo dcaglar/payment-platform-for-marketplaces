@@ -1,7 +1,5 @@
 package com.dogancaglar.paymentservice.application.service
 
-import com.dogancaglar.common.event.EventEnvelopeFactory
-import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.CaptureRequested
 import com.dogancaglar.paymentservice.application.events.CaptureSubmitted
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
@@ -13,7 +11,6 @@ import com.dogancaglar.paymentservice.ports.outbound.OutboxEventFactoryPort
 import com.dogancaglar.paymentservice.ports.outbound.PaymentRepository
 import com.dogancaglar.paymentservice.ports.outbound.PspCaptureGatewayPort
 import com.dogancaglar.paymentservice.ports.outbound.RetryQueuePort
-import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 import kotlin.math.min
@@ -25,8 +22,7 @@ open class ProcessCaptureService(
     private val paymentRepository: PaymentRepository,
     private val retryQueuePort: RetryQueuePort<CaptureRequested>,
     private val centralOutboxWriterPort: CentralOutboxWriterPort,
-    private val outboxEventFactoryPort: OutboxEventFactoryPort,
-    private val serializationPort: SerializationPort
+    private val outboxEventFactoryPort: OutboxEventFactoryPort
 ) : ExecuteCaptureUseCase {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -36,7 +32,9 @@ open class ProcessCaptureService(
     }
 
     override fun execute(captureRequested: CaptureRequested) {
-        logger.debug("Executing network capture execution for paymentIntentId: \${captureRequested.publicPaymentIntentId}")
+        logger.debug(
+            "Executing network capture execution for paymentIntentId: \${captureRequested.publicPaymentIntentId}"
+        )
 
         try {
             val payment = paymentRepository.findByPaymentIntentId(PaymentIntentId(captureRequested.paymentIntentId.toLong()))
@@ -46,16 +44,17 @@ open class ProcessCaptureService(
             val responseFuture = pspCaptureGatewayPort.capture(payment)
             val pspResponse = responseFuture.get(GATEWAY_TIMEOUT_MS, TimeUnit.MILLISECONDS)
 
-
             // 3.store an outbox event
             val outboxEvent = toOutboxCaptureSubmittedEvent(captureRequested, pspResponse)
             centralOutboxWriterPort.save(outboxEvent)
 
             logger.debug("Capture transaction state and outbox events safely persisted atomically.")
-
         } catch (e: Exception) {
             val actualCause = e.cause ?: e
-            logger.error("❌ Exception encountered during PSP capture network execution layer for paymentIntentId: \${captureRequested.publicPaymentIntentId}", actualCause)
+            logger.error(
+                "❌ Exception encountered during PSP capture network execution layer for paymentIntentId: \${captureRequested.publicPaymentIntentId}",
+                actualCause
+            )
             handleRetry(captureRequested, actualCause.message)
         }
     }
@@ -63,7 +62,11 @@ open class ProcessCaptureService(
     private fun handleRetry(event: CaptureRequested, lastError: String?) {
         val nextAttempt = event.attempt + 1
         if (nextAttempt > MAX_RETRIES) {
-            logger.error("[RETRY-FAILURE] paymentIntentId={} reached max retries. Cause='{}'", event.publicPaymentIntentId, lastError ?: "UNKNOWN")
+            logger.error(
+                "[RETRY-FAILURE] paymentIntentId={} reached max retries. Cause='{}'",
+                event.publicPaymentIntentId,
+                lastError ?: "UNKNOWN"
+            )
             return
         }
         val backoffMs = computeEqualJitterBackoff(nextAttempt)

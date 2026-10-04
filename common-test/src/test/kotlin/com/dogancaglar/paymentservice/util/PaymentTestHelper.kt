@@ -2,10 +2,10 @@ package com.dogancaglar.paymentservice.util
 
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
-import com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit
+import com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel
 import com.dogancaglar.paymentservice.domain.model.vo.BuyerId
 import com.dogancaglar.paymentservice.domain.model.vo.OrderId
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
@@ -30,13 +30,17 @@ object PaymentTestHelper {
             merchantAccount = merchantAccount,
             processingModel = processingModel,
             totalAmount = amount,
-            splits = if (processingModel == ProcessingModel.MARKETPLACE) listOf(
-                PaymentSplit.of(
-                    accountType = AccountType.SELLER_PAYABLE,
-                    account = sellerId,
-                    amount = amount
+            splits = if (processingModel == ProcessingModel.MARKETPLACE) {
+                listOf(
+                    PaymentSplit.of(
+                        accountType = LedgerAccountType.SELLER_PAYABLE,
+                        account = sellerId,
+                        amount = amount
+                    )
                 )
-            ) else emptyList()
+            } else {
+                emptyList()
+            }
         )
     }
 }

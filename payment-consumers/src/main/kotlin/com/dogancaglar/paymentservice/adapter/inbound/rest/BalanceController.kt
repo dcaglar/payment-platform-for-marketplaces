@@ -1,21 +1,25 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
 import com.dogancaglar.port.out.web.dto.BalanceDto
+import com.dogancaglar.port.out.web.dto.PageDto
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
-import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.access.prepost.PreAuthorize
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 /**
- * Balance API (base URL .../api/v1). Who the caller is comes from the JWT:
- * - seller: role SELLER (user) or SELLER_API (client), claim seller_id
- * - merchant: role MERCHANT (client), claim merchant_id
- * - back office: role FINANCE or ADMIN
+ * Balance API (base URL .../api/v1/balances), permission balance:read. Each endpoint has one kind of caller:
+ *   - a seller (claim seller_id): its own balance;
+ *   - a merchant (claim merchant_id): its own balance, its sellers, one of its sellers (another merchant's: 404);
+ *   - staff (merchant:all): the balance and the sellers of the merchant named in the path, any seller.
+ * URL convention (also TransactionController): /<api>/merchants/me… = the token's merchant, /<api>/merchants/{merchantAccount}… = staff.
+ * See new-backoffice.md, "Security".
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -24,48 +28,83 @@ class BalanceController(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    /** The caller's own balance: a seller's account, or a merchant's two payable accounts. */
-    @PreAuthorize("hasAnyRole('SELLER', 'SELLER_API', 'MERCHANT')")
-    @GetMapping("/balances/me")
-    fun getMyBalance(authentication: JwtAuthenticationToken): ResponseEntity<BalanceDto> {
-        if (hasRole(authentication, "SELLER") || hasRole(authentication, "SELLER_API")) {
-            val sellerId = claim(authentication, "seller_id")
-            logger.debug("📊 Balance of seller {} (own)", sellerId)
-            return ResponseEntity.ok(balanceService.getSellerBalance(sellerId))
-        }
-        val merchantId = claim(authentication, "merchant_id")
-        logger.debug("📊 Balance of merchant {} (own)", merchantId)
-        return ResponseEntity.ok(balanceService.getMerchantBalance(merchantId))
+    // --- seller ---
+
+    /** A seller's own balance (its one account). */
+    @PreAuthorize("hasAuthority('balance:read') and principal.claims['seller_id'] != null")
+    @GetMapping("/balances/sellers/me")
+    fun getMySellerBalance(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<BalanceDto> {
+        return ResponseEntity.ok(balanceService.getSellerBalance(jwt.getClaimAsString("seller_id")))
     }
 
-    /** One seller's balance: a merchant reads only its own sellers; finance/admin read any seller. */
-    @PreAuthorize("hasAnyRole('MERCHANT', 'FINANCE', 'ADMIN')")
-    @GetMapping("/balances/{sellerId}")
-    fun getSellerBalance(
+    // --- merchant: always its own, from the token ---
+
+    /** A merchant's own balance (its two payable accounts). */
+    @PreAuthorize("hasAuthority('balance:read') and principal.claims['merchant_id'] != null")
+    @GetMapping("/balances/merchants/me")
+    fun getMyMerchantBalance(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<BalanceDto> {
+        return ResponseEntity.ok(balanceService.getMerchantBalance(jwt.getClaimAsString("merchant_id")))
+    }
+
+    /** A merchant's own sellers with their balances, one page. */
+    @PreAuthorize("hasAuthority('balance:read') and principal.claims['merchant_id'] != null")
+    @GetMapping("/balances/merchants/me/sellers")
+    fun getMySellerBalances(
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int,
+        @AuthenticationPrincipal jwt: Jwt
+    ): ResponseEntity<PageDto<BalanceDto>> {
+        val sellers = balanceService.getSellerBalancesOfMerchant(jwt.getClaimAsString("merchant_id"), page, size)
+        return ResponseEntity.ok(withDetailUrls(sellers, "/api/v1/balances/merchants/me/sellers/"))
+    }
+
+    /** One of the merchant's own sellers; another merchant's seller is not found (404). */
+    @PreAuthorize("hasAuthority('balance:read') and principal.claims['merchant_id'] != null")
+    @GetMapping("/balances/merchants/me/sellers/{sellerId}")
+    fun getMySellersBalance(
         @PathVariable sellerId: String,
-        authentication: JwtAuthenticationToken
+        @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<BalanceDto> {
-        if (hasRole(authentication, "FINANCE") || hasRole(authentication, "ADMIN")) {
-            logger.debug("📊 Balance of seller {} (back office)", sellerId)
-            return ResponseEntity.ok(balanceService.getSellerBalance(sellerId))
-        }
-        val merchantId = claim(authentication, "merchant_id")
-        logger.debug("📊 Balance of seller {} (merchant {})", sellerId, merchantId)
-        return ResponseEntity.ok(balanceService.getSellerBalanceForMerchant(sellerId, merchantId))
+        return ResponseEntity.ok(
+            balanceService.getSellerBalanceForMerchant(sellerId, jwt.getClaimAsString("merchant_id"))
+        )
     }
 
-    private fun hasRole(authentication: JwtAuthenticationToken, role: String): Boolean {
-        for (authority in authentication.authorities) {
-            if (authority.authority == "ROLE_$role") {
-                return true
-            }
-        }
-        return false
+    // --- staff: the merchant or seller is named in the path ---
+
+    /** The named merchant's balance (its two payable accounts); an unknown merchant is not found (404). */
+    @PreAuthorize("hasAuthority('balance:read') and hasAuthority('merchant:all')")
+    @GetMapping("/balances/merchants/{merchantAccount}")
+    fun getMerchantBalance(@PathVariable merchantAccount: String): ResponseEntity<BalanceDto> {
+        return ResponseEntity.ok(balanceService.getMerchantBalance(merchantAccount))
     }
 
-    // A token without the owner claim cannot say whose balance it may read
-    private fun claim(authentication: JwtAuthenticationToken, name: String): String {
-        return authentication.token.claims[name] as? String
-            ?: throw AccessDeniedException("Token has no $name claim")
+    /** The sellers of the named merchant with their balances, one page. */
+    @PreAuthorize("hasAuthority('balance:read') and hasAuthority('merchant:all')")
+    @GetMapping("/balances/merchants/{merchantAccount}/sellers")
+    fun getSellerBalancesOfMerchant(
+        @PathVariable merchantAccount: String,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int
+    ): ResponseEntity<PageDto<BalanceDto>> {
+        logger.debug("📊 Sellers of merchant {}, page {} (staff)", merchantAccount, page)
+        val sellers = balanceService.getSellerBalancesOfMerchant(merchantAccount, page, size)
+        return ResponseEntity.ok(withDetailUrls(sellers, "/api/v1/balances/sellers/"))
+    }
+
+    /** Any seller's balance. */
+    @PreAuthorize("hasAuthority('balance:read') and hasAuthority('merchant:all')")
+    @GetMapping("/balances/sellers/{sellerId}")
+    fun getSellerBalance(@PathVariable sellerId: String): ResponseEntity<BalanceDto> {
+        return ResponseEntity.ok(balanceService.getSellerBalance(sellerId))
+    }
+
+    /** Each seller in the page links to its balance, at the URL the same caller can read. */
+    private fun withDetailUrls(sellers: PageDto<BalanceDto>, prefix: String): PageDto<BalanceDto> {
+        val items = mutableListOf<BalanceDto>()
+        for (seller in sellers.items) {
+            items.add(seller.copy(detailUrl = prefix + seller.ownerId))
+        }
+        return sellers.copy(items = items)
     }
 }

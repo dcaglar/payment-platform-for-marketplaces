@@ -3,6 +3,7 @@ package com.dogancaglar.e2e
 import dasniko.testcontainers.keycloak.KeycloakContainer
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.NewTopic
+import org.slf4j.LoggerFactory
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.Network
 import org.testcontainers.containers.PostgreSQLContainer
@@ -10,7 +11,6 @@ import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.kafka.KafkaContainer
 import org.testcontainers.lifecycle.Startables
 import org.testcontainers.utility.DockerImageName
-import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.Properties
 
@@ -36,6 +36,7 @@ object PlatformStack {
     private const val KAFKA_INTERNAL = "kafka:19092"
     private const val CENTRAL_URL_INTERNAL =
         "jdbc:postgresql://central-db-postgresql:5432/central-db?options=-c%20timezone=UTC"
+
     // Must match the edge-db network alias below; edge-workers derives this exact host.
     private const val EDGE_URL_INTERNAL =
         "jdbc:postgresql://payment-edge-cell-0.payment-edge-cell-headless:5432/edge-db?options=-c%20timezone=UTC"
@@ -49,7 +50,7 @@ object PlatformStack {
 
     // ---------------------------------------------------------------- infra
     val keycloak: KeycloakContainer = KeycloakContainer("quay.io/keycloak/keycloak:23.0.7")
-        .withRealmImportFile("keycloak/ecommerce-platform-realm.json")
+        .withRealmImportFile("keycloak/ecommerce-platform.json") // keycloak/realm/ecommerce-platform.json
         .withNetwork(network)
         .withNetworkAliases("keycloak")
         // Pin the issued token issuer to the in-network URL so payment-service (which validates
@@ -184,9 +185,12 @@ object PlatformStack {
                 "CENTRAL_DB_PAYMENT_CONSUMERS_USERNAME" to PG_USER,
                 "CENTRAL_DB_PAYMENT_CONSUMERS_PASSWORD" to PG_PASS,
                 "SPRING_DATA_REDIS_URL" to REDIS_URL,
-                "SPRING_KAFKA_BOOTSTRAP_SERVERS" to KAFKA_INTERNAL
+                "SPRING_KAFKA_BOOTSTRAP_SERVERS" to KAFKA_INTERNAL,
+                // balance + account APIs validate tokens against the same issuer payment-service uses
+                "KEYCLOAK_ISSUER_URL" to ISSUER_INTERNAL
             )
         )
+        .withExposedPorts(8080)
         .withStartupTimeout(Duration.ofMinutes(3))
         .also { it.waitingFor(logWait("PaymentConsumersApplication")) }
 
@@ -203,6 +207,7 @@ object PlatformStack {
     val dbPass get() = PG_PASS
     val paymentServiceBaseUrl: String get() = "http://${paymentService.host}:${paymentService.getMappedPort(8080)}"
     val keycloakBaseUrl: String get() = keycloak.authServerUrl.trimEnd('/')
+    val consumersBaseUrl: String get() = "http://${consumers.host}:${consumers.getMappedPort(8080)}"
 
     // --------------------------------------------------------------- startup
     @Volatile private var started = false
@@ -213,6 +218,7 @@ object PlatformStack {
 
         // 1. infra in parallel
         Startables.deepStart(listOf(keycloak, edgeDb, centralDb, kafka, redis)).join()
+        loadMerchantsSeed()
 
         // 2. migrate both DBs from the real production changelogs
         val edgeChangelogDir = E2eSupport.projectRoot.resolve("charts/payment-edge-cell/db")
@@ -229,6 +235,17 @@ object PlatformStack {
         started = true
     }
 
+    /**
+     * Loads Keycloak the way keycloak/setup-keycloak.sh does on the cluster: the realm (platform roles, backoffice-ui,
+     * staff) was imported at startup; on top, the seed merchants and sellers (keycloak/realm/merchants-seed.json,
+     * generated from merchants.json like the central-db seed), with their roles, as one partial import.
+     */
+    private fun loadMerchantsSeed() {
+        val admin = E2eSupport.adminToken(keycloakBaseUrl, keycloak.adminUsername, keycloak.adminPassword)
+        val seed = javaClass.classLoader.getResource("keycloak/merchants-seed.json")!!.readText()
+        E2eSupport.adminCall("POST", "$keycloakBaseUrl/admin/realms/ecommerce-platform/partialImport", admin, seed)
+    }
+
     private fun createTopics() {
         val props = Properties().apply { put("bootstrap.servers", kafka.bootstrapServers) }
         Admin.create(props).use { admin ->
@@ -236,7 +253,8 @@ object PlatformStack {
                 "payment.psp.results",
                 "gateway.capture.requested",
                 "gateway.capture.submitted",
-                "journal.entries.recorded"
+                "journal.entries.recorded",
+                "account.creation.requested"
             )
             val topics = names.flatMap { listOf(it, "$it.DLQ") }
                 .map { NewTopic(it, 12, 1.toShort()) }

@@ -18,7 +18,7 @@ interface IdempotencyKeyMapper {
     )
 
     fun updateResponsePayload(
-       @Param("key") key: java.util.UUID,
+        @Param("key") key: java.util.UUID,
         @Param("payload") payload: String,
         @Param("paymentIntentId") paymentIntentId: Long
     )

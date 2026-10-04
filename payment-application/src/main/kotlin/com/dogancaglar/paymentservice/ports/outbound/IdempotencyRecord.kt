@@ -14,7 +14,8 @@ data class IdempotencyRecord(
     val status: InitialRequestStatus = InitialRequestStatus.PENDING,
     val createdAt: Instant = Utc.nowInstant()
 )
-//this tell if the intial request is pending or completed already
+
+// this tell if the intial request is pending or completed already
 enum class InitialRequestStatus {
     PENDING,
     COMPLETED

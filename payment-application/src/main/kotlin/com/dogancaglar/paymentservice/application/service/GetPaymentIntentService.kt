@@ -9,7 +9,6 @@ import com.dogancaglar.paymentservice.ports.inbound.usecases.GetPaymentIntentUse
 import com.dogancaglar.paymentservice.ports.outbound.PaymentIntentRepository
 import com.dogancaglar.paymentservice.ports.outbound.PspAuthorizationGatewayPort
 import com.dogancaglar.paymentservice.ports.outbound.ResilientExecutionPort
-
 import org.slf4j.LoggerFactory
 
 class GetPaymentIntentService(
@@ -21,7 +20,7 @@ class GetPaymentIntentService(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     override fun getPaymentIntent(cmd: GetPaymentIntentCommand): PaymentIntent {
-        val paymentIntent = paymentIntentRepository.findById(cmd.paymentIntentId)
+        val paymentIntent = paymentIntentRepository.findByIdForMerchant(cmd.paymentIntentId, cmd.merchantAccount)
             ?: throw PaymentIntentNotFoundException("PaymentIntent ${cmd.paymentIntentId.value} not found")
 
         // The client secret (never persisted) is only needed to show the card form, i.e. while CREATED.
@@ -38,7 +37,8 @@ class GetPaymentIntentService(
             timeoutMs = 2000,
             onTimeoutFallback = {
                 throw PspTransientException(
-                    "Timed out retrieving the client secret for ${cmd.paymentIntentId.value}", null
+                    "Timed out retrieving the client secret for ${cmd.paymentIntentId.value}",
+                    null
                 )
             },
             // a late answer is not needed: the client retries the GET
@@ -46,7 +46,8 @@ class GetPaymentIntentService(
             onBackgroundFailure = { error ->
                 logger.warn(
                     "Late client secret retrieval failed for {}: {}",
-                    cmd.paymentIntentId.value, error.message
+                    cmd.paymentIntentId.value,
+                    error.message
                 )
             }
         )

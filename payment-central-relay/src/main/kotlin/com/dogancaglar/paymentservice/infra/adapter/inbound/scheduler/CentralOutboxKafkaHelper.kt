@@ -16,7 +16,11 @@ class CentralOutboxKafkaHelper(
     @WithSpan("publish-outbox-event")
     fun processEntryAsync(entry: OutboxEvent): CompletableFuture<*> {
         return try {
-            logger.debug("🚀 CentralOutboxKafkaHelper: Processing outbox event oeid={} of type={}", entry.oeid, entry.eventType)
+            logger.debug(
+                "🚀 CentralOutboxKafkaHelper: Processing outbox event oeid={} of type={}",
+                entry.oeid,
+                entry.eventType
+            )
             rawEventPublisher.publishRaw(entry)
         } catch (e: Exception) {
             CompletableFuture.failedFuture<Any>(e)

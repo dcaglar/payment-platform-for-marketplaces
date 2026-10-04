@@ -13,7 +13,9 @@ data class BalanceDto(
     val ownerId: String,
     val currency: CurrencyEnum,
     val total: Long,
-    val accounts: List<AccountBalanceDto>
+    val accounts: List<AccountBalanceDto>,
+    /** In a list of sellers: where this seller's own balance is (GET /api/v1/balances/{sellerId}). */
+    val detailUrl: String? = null
 )
 
 data class AccountBalanceDto(

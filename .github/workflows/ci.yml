@@ -42,6 +42,32 @@ jobs:
             **/target/surefire-reports/*.txt
           if-no-files-found: ignore
 
+  # 🔐 Security scan: gitleaks (secrets, whole git history) + Trivy (vulnerable dependencies, misconfigurations).
+  # Same script as locally; findings listed in .gitleaksignore / .trivyignore are ignored, new ones fail.
+  # (detekt, the Kotlin code check, runs inside `mvn verify` in the integration-tests job.)
+  security-scan:
+    name: Security Scan (gitleaks + Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (full history for gitleaks)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      # Trivy reads the dependencies from ~/.m2 offline; installing fills it
+      - name: Fill the local Maven repository
+        run: mvn -B -q install -DskipTests -Ddetekt.phase=none
+
+      - name: Scan
+        run: infra/scripts/security-scan.sh
+
   # ⚙️ 2. Integration Tests
   integration-tests:
     name: Integration Tests (Failsafe)

@@ -17,7 +17,7 @@ class LiquibaseJobExiter(private val context: ApplicationContext) : CommandLineR
         logger.info("=========================================================")
         logger.info("Liquibase migration completed successfully. Exiting JVM.")
         logger.info("=========================================================")
-        
+
         val exitCode = SpringApplication.exit(context)
         exitProcess(exitCode)
     }

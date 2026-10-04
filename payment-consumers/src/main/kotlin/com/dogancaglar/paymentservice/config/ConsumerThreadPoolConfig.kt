@@ -11,8 +11,6 @@ import kotlin.use
 @Configuration
 class ConsumerThreadPoolConfig {
 
-
-
     @Bean("pspExecutionPool")
     fun pspExecutionPool(): ThreadPoolTaskExecutor {
         val pspExecutor = ThreadPoolTaskExecutor()
@@ -24,12 +22,11 @@ class ConsumerThreadPoolConfig {
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
-        return  pspExecutor
+        return pspExecutor
     }
 
     @Bean("resilientExecutor")
     fun resilientExecutor(): ThreadPoolTaskExecutor {
-
         val resilientExecutor = ThreadPoolTaskExecutor()
         resilientExecutor.corePoolSize = 32
         resilientExecutor.maxPoolSize = 32

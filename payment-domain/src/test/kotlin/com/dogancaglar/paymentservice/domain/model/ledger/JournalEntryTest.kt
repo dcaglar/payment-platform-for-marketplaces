@@ -26,36 +26,77 @@ class JournalEntryTest {
 
     // === MOCK ACCOUNT DIRECTORY ===
     // Assets (Normal Balance: DEBIT)
-    private val platformCashAccount = Account.create(AccountType.PLATFORM_CASH, "PLATFORM_CASH.GLOBAL.EUR")
-    private val pspReceivableAccount = Account.create(AccountType.PSP_RECEIVABLE, "PSP_RECEIVABLE.GLOBAL.EUR")
-    private val authReceivableAccount = Account.create(AccountType.AUTH_RECEIVABLE, "AUTH_RECEIVABLE.GLOBAL.EUR")
+    private val platformCashAccount = LedgerAccount.fromCode(
+        LedgerAccountType.PLATFORM_CASH,
+        "PLATFORM_CASH.GLOBAL.EUR"
+    )
+    private val pspReceivableAccount = LedgerAccount.fromCode(
+        LedgerAccountType.PSP_RECEIVABLE,
+        "PSP_RECEIVABLE.GLOBAL.EUR"
+    )
+    private val authReceivableAccount = LedgerAccount.fromCode(
+        LedgerAccountType.AUTH_RECEIVABLE,
+        "AUTH_RECEIVABLE.M-1.EUR"
+    )
 
     // Expenses (Normal Balance: DEBIT)
-    private val pspFeeExpenseAccount = Account.create(AccountType.PSP_FEE_EXPENSE, "PSP_FEE_EXPENSE.GLOBAL.EUR")
+    private val pspFeeExpenseAccount = LedgerAccount.fromCode(
+        LedgerAccountType.PSP_FEE_EXPENSE,
+        "PSP_FEE_EXPENSE.GLOBAL.EUR"
+    )
 
     // Liabilities (Normal Balance: CREDIT)
-    private val authLiabilityAccount = Account.create(AccountType.AUTH_LIABILITY, "AUTH_LIABILITY.GLOBAL.EUR")
-    private val merchantSuspenseAccount = Account.create(AccountType.CAPTURE_SUSPENSE, "CAPTURE_SUSPENSE.M-1.EUR")
-    private val operatorCommissionAccount = Account.create(AccountType.MERCHANT_COMMISSION_PAYABLE, "MERCHANT_COMMISSION_PAYABLE.M-1.EUR")
-    private val subSellerAccount = Account.create(AccountType.SELLER_PAYABLE, "SELLER_PAYABLE.M-1.S-1.EUR")
-    private val feeReserveAccount = Account.create(AccountType.PLATFORM_FEE_RESERVE, "PLATFORM_FEE_RESERVE.M-1.EUR")
+    private val authLiabilityAccount = LedgerAccount.fromCode(
+        LedgerAccountType.AUTH_LIABILITY,
+        "AUTH_LIABILITY.M-1.EUR"
+    )
+    private val merchantSuspenseAccount = LedgerAccount.fromCode(
+        LedgerAccountType.CAPTURE_SUSPENSE,
+        "CAPTURE_SUSPENSE.M-1.EUR"
+    )
+    private val operatorCommissionAccount = LedgerAccount.fromCode(
+        LedgerAccountType.MERCHANT_COMMISSION_PAYABLE,
+        "MERCHANT_COMMISSION_PAYABLE.M-1.EUR"
+    )
+    private val subSellerAccount = LedgerAccount.fromCode(
+        LedgerAccountType.SELLER_PAYABLE,
+        "SELLER_PAYABLE.M-1.S-1.EUR"
+    )
+    private val feeReserveAccount = LedgerAccount.fromCode(
+        LedgerAccountType.PLATFORM_FEE_RESERVE,
+        "PLATFORM_FEE_RESERVE.M-1.EUR"
+    )
 
     // Revenue (Normal Balance: CREDIT)
-    private val platformRevenueAccount = Account.create(AccountType.PLATFORM_REVENUE, "PLATFORM_REVENUE.GLOBAL.EUR")
+    private val platformRevenueAccount = LedgerAccount.fromCode(
+        LedgerAccountType.PLATFORM_REVENUE,
+        "PLATFORM_REVENUE.GLOBAL.EUR"
+    )
 
     // === HELPER ASSERTIONS ===
 
     private fun assertBalanced(entry: JournalEntry) {
         val totalDebits = entry.postings.filterIsInstance<Posting.Debit>().sumOf { it.amount.quantity }
         val totalCredits = entry.postings.filterIsInstance<Posting.Credit>().sumOf { it.amount.quantity }
-        assertEquals(totalDebits, totalCredits, "CRITICAL LEDGER FAILURE: Journal entry [${entry.id}] is not balanced. Debits: $totalDebits, Credits: $totalCredits")
+        assertEquals(
+            totalDebits,
+            totalCredits,
+            "CRITICAL LEDGER FAILURE: Journal entry [${entry.id}] is not balanced. Debits: $totalDebits, Credits: $totalCredits"
+        )
         assertTrue(totalDebits > 0, "Journal entry has zero financial movement.")
     }
 
-    private fun assertPostingContains(entry: JournalEntry, account: Account, isDebit: Boolean, expectedAmount: Long) {
-        val matchingPostings = entry.postings.filter { it.account == account && ((isDebit && it is Posting.Debit) || (!isDebit && it is Posting.Credit)) }
-        assertTrue(matchingPostings.isNotEmpty(), "Expected ${if(isDebit) "Debit (DR)" else "Credit (CR)"} for account ${account.type} was not found.")
-        assertEquals(expectedAmount, matchingPostings.sumOf { it.amount.quantity }, "Financial miscalculation for account ${account.accountCode}")
+    private fun assertPostingContains(entry: JournalEntry, account: LedgerAccount, isDebit: Boolean, expectedAmount: Long) {
+        val matchingPostings = entry.postings.filter {
+            it.account == account && ((isDebit && it is Posting.Debit) || (!isDebit && it is Posting.Credit))
+        }
+        assertTrue(
+            matchingPostings.isNotEmpty(),
+            "Expected ${if (isDebit) "Debit (DR)" else "Credit (CR)"} for account ${account.type} was not found."
+        )
+        assertEquals(expectedAmount, matchingPostings.sumOf {
+            it.amount.quantity
+        }, "Financial miscalculation for account ${account.accountCode}")
     }
 
     // =========================================================================
@@ -72,7 +113,15 @@ class JournalEntryTest {
          */
         val amount = Amount.of(10_000, eur) // €100.00
 
-        val entries = JournalEntry.authHold(1L, paymentId, txId, journalId, amount, authReceivableAccount, authLiabilityAccount)
+        val entries = JournalEntry.authHold(
+            1L,
+            paymentId,
+            txId,
+            journalId,
+            amount,
+            authReceivableAccount,
+            authLiabilityAccount
+        )
         val entry = entries.first()
 
         assertBalanced(entry)
@@ -114,7 +163,15 @@ class JournalEntryTest {
          */
         val amount = Amount.of(5_000, eur) // €50.00
 
-        val entries = JournalEntry.internalTransfer(3L, paymentId,  journalId, amount, merchantSuspenseAccount, subSellerAccount,"ts")
+        val entries = JournalEntry.internalTransfer(
+            3L,
+            paymentId,
+            journalId,
+            amount,
+            merchantSuspenseAccount,
+            subSellerAccount,
+            "ts"
+        )
         val entry = entries.first()
 
         assertBalanced(entry)
@@ -159,7 +216,14 @@ class JournalEntryTest {
          */
         val amount = Amount.of(200, eur)
 
-        val entries = JournalEntry.commissionFeeRegistered(5L, paymentId, journalId, amount, feeReserveAccount, operatorCommissionAccount)
+        val entries = JournalEntry.commissionFeeRegistered(
+            5L,
+            paymentId,
+            journalId,
+            amount,
+            feeReserveAccount,
+            operatorCommissionAccount
+        )
         val entry = entries.first()
 
         assertBalanced(entry)
@@ -181,7 +245,13 @@ class JournalEntryTest {
          */
         val amount = Amount.of(200, eur)
 
-        val entries = JournalEntry.recognizePlatformRevenue(6L, journalId, amount, feeReserveAccount, platformRevenueAccount)
+        val entries = JournalEntry.recognizePlatformRevenue(
+            6L,
+            journalId,
+            amount,
+            feeReserveAccount,
+            platformRevenueAccount
+        )
         val entry = entries.first()
 
         assertBalanced(entry)

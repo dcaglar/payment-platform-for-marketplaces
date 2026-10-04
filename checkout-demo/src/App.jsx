@@ -52,10 +52,10 @@ function App() {
   const [currency, setCurrency] = useState('EUR');
   // type is 'BalanceAccount' (a seller, needs an account) or 'Commission' (the marketplace's cut)
   const [splits, setSplits] = useState([
-    { id: 1, type: 'BalanceAccount', account: 'SELLER-5-1', amount: '1400' },
-    { id: 2, type: 'Commission', account: '', amount: '100' },
-    { id: 3, type: 'BalanceAccount', account: 'SELLER-5-2', amount: '1400' },
-    { id: 4, type: 'Commission', account: '', amount: '100' }
+    { id: 1, type: 'BalanceAccount', account: 'SELLER-5-1', amount: '1320' },
+    { id: 2, type: 'Commission', account: '', amount: '180' },
+    { id: 3, type: 'BalanceAccount', account: 'SELLER-5-2', amount: '1320' },
+    { id: 4, type: 'Commission', account: '', amount: '180' }
   ]);
 
   // Payment flow state
@@ -155,7 +155,7 @@ function App() {
     setPaymentIntentId(payment.paymentIntentId);
     
     try {
-      const pollResult = await pollPaymentStatus(payment.paymentIntentId);
+      const pollResult = await pollPaymentStatus(payment.paymentIntentId, merchantAccount.trim());
       if (pollResult.payment?.clientSecret) {
         setClientSecret(pollResult.payment.clientSecret);
         setPaymentIntentId(pollResult.payment.paymentIntentId || payment.paymentIntentId);
@@ -319,7 +319,7 @@ function App() {
     setError(null);
 
     try {
-      const result = await authorizePayment(paymentIntentId, paymentMethodId);
+      const result = await authorizePayment(paymentIntentId, paymentMethodId, merchantAccount.trim());
       const { status } = result.payment;
 
       if (status === 'AUTHORIZED' || status === 'SUCCEEDED') {

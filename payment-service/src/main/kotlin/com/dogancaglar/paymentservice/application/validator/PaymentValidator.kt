@@ -1,11 +1,9 @@
 package com.dogancaglar.paymentservice.application.validator
 
-import com.dogancaglar.paymentservice.adapter.inbound.rest.mapper.AmountMapper
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CreatePaymentIntentRequestDTO
-import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.ProcessingModelDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PaymentSplitRequestDTO
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
-import com.dogancaglar.paymentservice.ports.outbound.AccountDirectoryPort
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.ProcessingModelDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.mapper.AmountMapper
 import org.springframework.stereotype.Service
 
 @Service
@@ -16,12 +14,11 @@ class PaymentValidator {
         validateCurrencies(request)
     }
 
-
     private fun validateProcessingModel(request: CreatePaymentIntentRequestDTO) {
         val processingModel = request.processingModel
         require(
-                (processingModel == ProcessingModelDto.DIRECT_MERCHANT && request.splits.isNullOrEmpty()) ||
-                    (processingModel == ProcessingModelDto.MARKETPLACE && !request.splits.isNullOrEmpty())
+            (processingModel == ProcessingModelDto.DIRECT_MERCHANT && request.splits.isNullOrEmpty()) ||
+                (processingModel == ProcessingModelDto.MARKETPLACE && !request.splits.isNullOrEmpty())
         ) {
             "Invalid processing model: DIRECT_MERCHANT must have no splits, MARKETPLACE must have splits"
         }
@@ -41,15 +38,14 @@ class PaymentValidator {
         val paymentCurrency = AmountMapper.toDomain(request.totalAmount).currency
 
         request.splits?.forEach { split ->
-            val account = when(split) {
+            val account = when (split) {
                 is PaymentSplitRequestDTO.BalanceAccount -> split.account
                 is PaymentSplitRequestDTO.Commission -> "commission"
             }
             require(AmountMapper.toDomain(split.amount).currency == paymentCurrency) {
-                "PaymentOrder for seller ${account} has ${split.amount.currency}, " +
-                        "but payment currency is $paymentCurrency"
+                "PaymentOrder for seller $account has ${split.amount.currency}, " +
+                    "but payment currency is $paymentCurrency"
             }
         }
     }
-
 }

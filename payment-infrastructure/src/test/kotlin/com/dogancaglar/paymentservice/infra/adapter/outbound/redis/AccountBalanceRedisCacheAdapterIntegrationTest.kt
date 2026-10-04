@@ -17,11 +17,10 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.DockerImageName
-import java.util.concurrent.TimeUnit
 
 /**
  * Integration tests for AccountBalanceRedisCacheAdapter with real Redis (Testcontainers).
- * 
+ *
  * These tests validate:
  * - Atomic Lua script execution for addDeltaAndWatermark
  * - Atomic Lua script execution for getAndResetDeltaWithWatermark
@@ -29,7 +28,7 @@ import java.util.concurrent.TimeUnit
  * - Hash operations for getRealTimeBalance
  * - TTL expiration
  * - Concurrent access safety
- * 
+ *
  * Tagged as @integration for selective execution:
  * - mvn test                             -> Runs ALL tests (unit + integration)
  * - mvn test -Dgroups=integration        -> Runs integration tests only
@@ -45,7 +44,11 @@ class AccountBalanceRedisCacheAdapterIntegrationTest {
     class TestConfig {
         @Bean
         fun accountBalanceRedisCacheAdapter(redisTemplate: StringRedisTemplate): AccountBalanceRedisCacheAdapter {
-            return AccountBalanceRedisCacheAdapter(redisTemplate, deltaTtlSeconds = 60, openTelemetry = io.opentelemetry.api.OpenTelemetry.noop()) // 60 seconds TTL for testing
+            return AccountBalanceRedisCacheAdapter(
+                redisTemplate,
+                deltaTtlSeconds = 60,
+                openTelemetry = io.opentelemetry.api.OpenTelemetry.noop()
+            ) // 60 seconds TTL for testing
         }
     }
 
@@ -320,4 +323,3 @@ class AccountBalanceRedisCacheAdapterIntegrationTest {
         assertEquals(watermark, wm)
     }
 }
-

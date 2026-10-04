@@ -50,6 +50,10 @@ It declares that this module is:
 
     <properties>
         <java.version>21</java.version>
+        <!-- when detekt runs; the no-sources profile turns it off for modules without Kotlin -->
+        <detekt.phase>verify</detekt.phase>
+        <!-- each module's list of ignored findings; -Ddetekt.baselineFile= (empty) shows every finding -->
+        <detekt.baselineFile>${project.basedir}/detekt-baseline.xml</detekt.baselineFile>
         <kotlin.version>2.1.0</kotlin.version>
         <postgresql.version>42.7.3</postgresql.version>
         <mybatis.version>3.0.3</mybatis.version>
@@ -285,6 +289,38 @@ Kotlin dependencies (keep versions here for consistent management) -->
                     </execution>
                 </executions>
             </plugin>
+            <!-- 🔍 CODE QUALITY: detekt checks every module's Kotlin (src/main + src/test) in `verify`.
+                 Rules: detekt's defaults + config/detekt/detekt.yml. Findings that existed when detekt was
+                 introduced are listed per module in detekt-baseline.xml and ignored; only new findings fail
+                 the build. Fix an old one, then regenerate that module's baseline:
+                 mvn -pl <module> detekt:create-baseline -->
+            <plugin>
+                <groupId>com.github.ozsie</groupId>
+                <artifactId>detekt-maven-plugin</artifactId>
+                <version>1.23.8</version>
+                <configuration>
+                    <config>${maven.multiModuleProjectDirectory}/config/detekt/detekt.yml</config>
+                    <buildUponDefaultConfig>true</buildUponDefaultConfig>
+                    <baseline>${detekt.baselineFile}</baseline>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>detekt-check</id>
+                        <phase>${detekt.phase}</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <!-- ktlint-based formatting rules (unused imports, import order, ...) -->
+                    <dependency>
+                        <groupId>io.gitlab.arturbosch.detekt</groupId>
+                        <artifactId>detekt-formatting</artifactId>
+                        <version>1.23.8</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
             <!-- 🧠 UNIT TESTS: Surefire runs only *Test.kt -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -399,4 +435,36 @@ Kotlin dependencies (keep versions here for consistent management) -->
             </plugins>
         </pluginManagement>
     </build>
+
+    <profiles>
+        <!-- detekt has nothing to check in a module without sources (this aggregator pom) -->
+        <profile>
+            <id>no-sources</id>
+            <activation>
+                <file>
+                    <missing>${project.basedir}/src</missing>
+                </file>
+            </activation>
+            <properties>
+                <detekt.phase>none</detekt.phase>
+            </properties>
+        </profile>
+        <!--
+          e2e-tests is not a reactor module: a normal build (mvn, the Docker image builds) must not build it,
+          it builds the service images itself (run it with mvn -f e2e-tests/pom.xml clean verify).
+          IntelliJ sets idea.maven.embedder.version while importing the Maven project, so only the IDE sees
+          e2e-tests as a module (Kotlin configured, tests runnable from the editor).
+        -->
+        <profile>
+            <id>ide-e2e-tests</id>
+            <activation>
+                <property>
+                    <name>idea.maven.embedder.version</name>
+                </property>
+            </activation>
+            <modules>
+                <module>e2e-tests</module>
+            </modules>
+        </profile>
+    </profiles>
 </project>

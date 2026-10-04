@@ -1,17 +1,10 @@
 package com.dogancaglar.common.event
 
-import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.Instant
-import java.time.LocalDateTime
 
-
+/** Anything that travels through the outbox and Kafka inside an [EventEnvelope]. */
 interface Event {
     val eventType: String
-    val paymentIntentId: String
-    val publicPaymentIntentId: String
-    val merchantAccountId: String
     fun deterministicEventId(): String
-    val timestamp: Instant   // when this event was produced
+    val timestamp: Instant // when this event was produced
 }
-
-

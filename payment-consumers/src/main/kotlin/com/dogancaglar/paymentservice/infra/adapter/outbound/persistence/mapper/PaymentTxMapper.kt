@@ -2,6 +2,7 @@ package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper
 
 import com.dogancaglar.common.db.entity.PaymentTxEntity
 import org.apache.ibatis.annotations.Mapper
+import org.apache.ibatis.annotations.Param
 
 /**
  * PaymentTxMapper
@@ -16,4 +17,13 @@ interface PaymentTxMapper {
     fun upsert(entity: PaymentTxEntity)
 
     fun findByPaymentId(paymentId: Long): List<PaymentTxEntity>
+
+    fun findByPaymentIdForMerchant(
+        @Param("paymentId") paymentId: Long,
+        @Param("merchantAccount") merchantAccount: String
+    ): List<PaymentTxEntity>
+
+    fun findByTxIdForMerchant(@Param(
+        "txId"
+    ) txId: Long, @Param("merchantAccount") merchantAccount: String): PaymentTxEntity?
 }

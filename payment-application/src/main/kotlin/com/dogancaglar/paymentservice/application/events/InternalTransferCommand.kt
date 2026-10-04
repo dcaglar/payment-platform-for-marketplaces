@@ -16,23 +16,27 @@ InternalTransferCommand(
     val status: String,
     override val paymentIntentId: String,
     override val publicPaymentIntentId: String,
-    override val merchantAccountId: String,
+    override val merchantAccount: String,
     override val timestamp: Instant = Utc.nowInstant()
-) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, merchantAccountId,amountValue, currency, timestamp) {
+) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, merchantAccount, amountValue, currency, timestamp) {
     override val eventType: String = EventType.INTERNAL_TRANSFER_COMMAND
     override fun deterministicEventId(): String = "${PublicIdFactory.publicPaymentId(transferId)}:$eventType"
 
     companion object {
-        fun from(transfer: InternalTransfer, paymentIntentId: String,journalType: String, // ◄ Passed from submission layer
-                 publicPaymentIntentId: String): InternalTransferCommand {
+        fun from(
+            transfer: InternalTransfer,
+            paymentIntentId: String,
+            journalType: String, // ◄ Passed from submission layer
+            publicPaymentIntentId: String
+        ): InternalTransferCommand {
             return InternalTransferCommand(
                 transferId = transfer.transferId.value,
                 paymentIntentId = paymentIntentId,
                 publicPaymentIntentId = publicPaymentIntentId,
-                merchantAccountId = transfer.merchantAccountId,
+                merchantAccount = transfer.merchantAccount,
                 amountValue = transfer.amount.quantity,
                 currency = transfer.amount.currency.currencyCode,
-                journalType= journalType,
+                journalType = journalType,
                 sourceAccount = transfer.sourceAccount,
                 targetAccount = transfer.targetAccount,
                 status = transfer.status.name,
@@ -40,6 +44,3 @@ InternalTransferCommand(
         }
     }
 }
-
-
-

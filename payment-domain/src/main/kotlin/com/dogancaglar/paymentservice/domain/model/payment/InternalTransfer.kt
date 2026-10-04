@@ -2,18 +2,16 @@ package com.dogancaglar.paymentservice.domain.model.payment
 
 import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.domain.model.common.Amount
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
 import com.dogancaglar.paymentservice.domain.model.vo.InternalTransferId
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
-import com.dogancaglar.paymentservice.domain.model.vo.TxId
 import java.time.LocalDateTime
 
 class InternalTransfer private constructor(
     val transferId: InternalTransferId,
     val paymentId: PaymentId,
     val paymentIntentId: PaymentIntentId,
-    val merchantAccountId: String,
+    val merchantAccount: String,
     val amount: Amount,
     val targetAccount: String,
     val sourceAccount: String,
@@ -37,10 +35,10 @@ class InternalTransfer private constructor(
         require(amount.isPositive()) {
             "amount must be positive, but was ${amount.quantity}"
         }
-        require(paymentIntentId.value >0) {
+        require(paymentIntentId.value > 0) {
             "paymentIntentId must not be zero or negative"
         }
-        require(paymentId.value>0) {
+        require(paymentId.value > 0) {
             "paymentId must not be zero or negative"
         }
     }
@@ -48,7 +46,6 @@ class InternalTransfer private constructor(
     // =========================================================================
     // State Machine
     // =========================================================================
-
 
     // =========================================================================
     // Internal Immutable Copy
@@ -72,17 +69,17 @@ class InternalTransfer private constructor(
         status: InternalTransferStatus = this.status,
         updatedAt: LocalDateTime = Utc.nowLocalDateTime()
     ): InternalTransfer = InternalTransfer(
-        transferId          = transferId,
+        transferId = transferId,
         paymentIntentId = paymentIntentId,
-        merchantAccountId = merchantAccountId,
+        merchantAccount = merchantAccount,
         paymentId = paymentId,
-        amount              = amount,
-        targetAccount      = targetAccount,
-        sourceAccount      = sourceAccount,
-        transferType        = transferType,
-        status              = status,
-        createdAt           = createdAt,
-        updatedAt           = updatedAt
+        amount = amount,
+        targetAccount = targetAccount,
+        sourceAccount = sourceAccount,
+        transferType = transferType,
+        status = status,
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 
     // =========================================================================
@@ -91,7 +88,7 @@ class InternalTransfer private constructor(
 
     override fun toString(): String =
         "amount=$amount, target=$targetAccount/$targetAccount, " +
-        "source=$sourceAccount/$sourceAccount, status=$status, transferType= $transferType createdAt=$createdAt, updatedAt=$updatedAt)"
+            "source=$sourceAccount/$sourceAccount, status=$status, transferType= $transferType createdAt=$createdAt, updatedAt=$updatedAt)"
 
     // =========================================================================
     // Factory Methods
@@ -103,25 +100,25 @@ class InternalTransfer private constructor(
             transferId: InternalTransferId,
             paymentIntentId: PaymentIntentId,
             paymentId: PaymentId,
-            merchantAccountId: String,
+            merchantAccount: String,
             amount: Amount,
             sourceAccount: String,
             targetAccount: String,
-            transferType :String,
+            transferType: String,
             now: LocalDateTime = Utc.nowLocalDateTime()
         ): InternalTransfer {
             return InternalTransfer(
-                transferId          = transferId,
+                transferId = transferId,
                 paymentId = paymentId,
                 paymentIntentId = paymentIntentId,
-                merchantAccountId = merchantAccountId,
-                amount              = amount,
-                targetAccount      = targetAccount,
-                sourceAccount      = sourceAccount,
+                merchantAccount = merchantAccount,
+                amount = amount,
+                targetAccount = targetAccount,
+                sourceAccount = sourceAccount,
                 transferType = transferType,
-                status              = InternalTransferStatus.CREATED_PENDING,
-                createdAt           = now,
-                updatedAt           = now
+                status = InternalTransferStatus.CREATED_PENDING,
+                createdAt = now,
+                updatedAt = now
             )
         }
 
@@ -129,30 +126,26 @@ class InternalTransfer private constructor(
             transferId: InternalTransferId,
             paymentId: PaymentId,
             paymentIntentId: PaymentIntentId,
-            merchantAccountId: String,
+            merchantAccount: String,
             amount: Amount,
             targetAccount: String,
             sourceAccount: String,
             status: InternalTransferStatus,
-            transferType : String,
+            transferType: String,
             createdAt: LocalDateTime,
             updatedAt: LocalDateTime
         ): InternalTransfer = InternalTransfer(
-            transferId          = transferId,
+            transferId = transferId,
             paymentIntentId = paymentIntentId,
             paymentId = paymentId,
-            merchantAccountId = merchantAccountId,
-            amount              = amount,
-            targetAccount      = targetAccount,
-            sourceAccount      = sourceAccount,
+            merchantAccount = merchantAccount,
+            amount = amount,
+            targetAccount = targetAccount,
+            sourceAccount = sourceAccount,
             transferType = transferType,
-            status              = status,
-            createdAt           = createdAt,
-            updatedAt           = updatedAt
+            status = status,
+            createdAt = createdAt,
+            updatedAt = updatedAt
         )
     }
 }
-
-
-
-

@@ -1,7 +1,5 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.id
 
-import com.dogancaglar.paymentservice.infra.adapter.outbound.id.IdGenerationProperties
-import com.dogancaglar.paymentservice.infra.adapter.outbound.id.SnowflakeCore
 import com.dogancaglar.paymentservice.ports.outbound.IdGeneratorPort
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component

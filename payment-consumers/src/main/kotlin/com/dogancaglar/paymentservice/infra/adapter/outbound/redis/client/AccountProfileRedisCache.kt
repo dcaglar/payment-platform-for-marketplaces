@@ -2,7 +2,7 @@ package com.dogancaglar.paymentservice.infra.adapter.outbound.redis.client
 
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
@@ -17,7 +17,7 @@ class AccountProfileRedisCache(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    fun getProfile(accountType: AccountType, masterAccountCode: String, subEntityId: String?, currency: Currency): AccountProfile? {
+    fun getProfile(accountType: LedgerAccountType, masterAccountCode: String, subEntityId: String?, currency: Currency): AccountProfile? {
         val key = buildKey(accountType, masterAccountCode, subEntityId, currency)
         val json = redisTemplate.opsForValue().get(key)
         return if (json != null) {
@@ -42,7 +42,7 @@ class AccountProfileRedisCache(
         }
     }
 
-    private fun buildKey(accountType: AccountType, masterAccountCode: String, subEntityId: String?, currency: Currency): String {
+    private fun buildKey(accountType: LedgerAccountType, masterAccountCode: String, subEntityId: String?, currency: Currency): String {
         if (subEntityId == null) {
             return "account:profile:${accountType.name}:$masterAccountCode:${currency.currencyCode}"
         }

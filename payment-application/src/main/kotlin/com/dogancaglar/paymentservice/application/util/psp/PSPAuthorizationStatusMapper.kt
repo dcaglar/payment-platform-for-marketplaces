@@ -2,7 +2,6 @@ package com.dogancaglar.paymentservice.application.util.psp
 
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntentStatus
 
-
 /**
  * Maps PSP authorization responses to internal PaymentIntentStatus values.
  * Used only in the synchronous authorization (web/API) flow.

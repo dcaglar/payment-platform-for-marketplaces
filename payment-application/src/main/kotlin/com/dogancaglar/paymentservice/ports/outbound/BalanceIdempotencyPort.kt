@@ -9,11 +9,10 @@ interface BalanceIdempotencyPort {
      * @return true if ANY of the IDs were already processed, false otherwise
      */
     fun areLedgerEntryIdsProcessed(ledgerEntryIds: List<Long>): Boolean
-    
+
     /**
      * Marks ledger entry IDs as processed (idempotent: safe to call multiple times).
      * @param ledgerEntryIds List of IDs to mark as processed
      */
     fun markLedgerEntryIdsProcessed(ledgerEntryIds: List<Long>)
 }
-

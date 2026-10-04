@@ -9,12 +9,12 @@ import java.time.Instant
 data class CaptureRequested(
     override val paymentIntentId: String,
     override val publicPaymentIntentId: String,
-    override val merchantAccountId: String,
+    override val merchantAccount: String,
     override val amountValue: Long,
     override val currency: String,
     val attempt: Int = 1,
     override val timestamp: Instant = Utc.nowInstant()
-) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, merchantAccountId,amountValue, currency, timestamp) {
+) : PaymentBaseEvent(paymentIntentId, publicPaymentIntentId, merchantAccount, amountValue, currency, timestamp) {
 
     override val eventType: String = EventType.CAPTURE_REQUESTED
 
@@ -24,10 +24,14 @@ data class CaptureRequested(
     fun withIncrementedAttempt(): CaptureRequested = copy(attempt = attempt + 1, timestamp = Utc.nowInstant())
 
     companion object {
-        fun from(paymentIntent: PaymentIntent, captureAmount: Amount, timestamp: Instant = Utc.nowInstant()) = CaptureRequested(
+        fun from(
+            paymentIntent: PaymentIntent,
+            captureAmount: Amount,
+            timestamp: Instant = Utc.nowInstant()
+        ) = CaptureRequested(
             paymentIntentId = paymentIntent.paymentIntentId.value.toString(),
             publicPaymentIntentId = paymentIntent.paymentIntentId.toPublicPaymentIntentId(),
-            merchantAccountId = paymentIntent.merchantAccount,
+            merchantAccount = paymentIntent.merchantAccount,
             amountValue = captureAmount.quantity,
             currency = captureAmount.currency.currencyCode,
             attempt = 1,

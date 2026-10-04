@@ -19,6 +19,8 @@
         <result property="splitsJson"        column="splits_json" jdbcType="VARCHAR"/>
         <result property="merchantAccount" column="merchant_account"/>
         <result property="processingModel" column="processing_model"/>
+        <result property="cardBrand" column="card_brand"/>
+        <result property="cardLast4" column="card_last4"/>
     </resultMap>
 
     <select id="getMaxPaymentIntentId" resultType="long">
@@ -41,7 +43,9 @@
         status,
         splits_json,
         created_at,
-        updated_at
+        updated_at,
+        card_brand,
+        card_last4
         ) VALUES (
         #{paymentIntentId},
         #{pspReference},
@@ -54,7 +58,9 @@
         #{status},
         CAST(#{splitsJson} AS jsonb),
         #{createdAt},
-        #{updatedAt}
+        #{updatedAt},
+        #{cardBrand},
+        #{cardLast4}
         )
     </insert>
 
@@ -70,9 +76,32 @@
         status,
         created_at,
         updated_at,
-        splits_json::text AS splits_json
+        splits_json::text AS splits_json,
+        card_brand,
+        card_last4
         FROM payment_intents
         WHERE payment_intent_id = #{id}
+    </select>
+
+    <!-- only the caller's own intent: another merchant's is not found -->
+    <select id="findByIdForMerchant" resultMap="PaymentIntentResultMap">
+        SELECT payment_intent_id,
+        psp_reference,
+        buyer_id,
+        order_id,
+        merchant_account,
+        processing_model,
+        total_amount_value,
+        currency,
+        status,
+        created_at,
+        updated_at,
+        splits_json::text AS splits_json,
+        card_brand,
+        card_last4
+        FROM payment_intents
+        WHERE payment_intent_id = #{id}
+        AND merchant_account = #{merchantAccount}
     </select>
 
     <delete id="deleteAll">
@@ -100,6 +129,8 @@
         UPDATE payment_intents
         SET psp_reference = #{pspReference, jdbcType=VARCHAR},
         status = #{status},
+        card_brand = #{cardBrand, jdbcType=VARCHAR},
+        card_last4 = #{cardLast4, jdbcType=CHAR},
         updated_at = #{updatedAt, typeHandler=com.dogancaglar.common.db.typehandler.InstantTypeHandler}
         WHERE payment_intent_id = #{paymentIntentId}
     </update>

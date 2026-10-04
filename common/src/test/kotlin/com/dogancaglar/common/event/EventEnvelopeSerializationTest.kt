@@ -22,10 +22,7 @@ class EventEnvelopeSerializationTest {
     data class TestEvent(
         override val eventType: String = "test_event",
         val x: Int,
-        override val timestamp: Instant = Utc.nowInstant(),
-        override val paymentIntentId: String ="121212",
-        override val publicPaymentIntentId: String = "pi-121313",
-        override val merchantAccountId: String= "Test"
+        override val timestamp: Instant = Utc.nowInstant()
     ) : Event {
         override fun deterministicEventId() = "id-$x"
     }
@@ -48,7 +45,7 @@ class EventEnvelopeSerializationTest {
 
     @Test
     fun `serialize handles null parentEventId`() {
-        val evt = TestEvent(x=2)
+        val evt = TestEvent(x = 2)
         val env = EventEnvelope(
             eventId = "abc",
             eventType = "test_event",
@@ -59,7 +56,7 @@ class EventEnvelopeSerializationTest {
         )
 
         val json = mapper.writeValueAsString(env)
-        val back = mapper.readValue(json, object: TypeReference<EventEnvelope<TestEvent>>() {})
+        val back = mapper.readValue(json, object : TypeReference<EventEnvelope<TestEvent>>() {})
 
         assertNull(back.parentEventId)
     }
@@ -74,6 +71,6 @@ class EventEnvelopeSerializationTest {
 
         val json = mapper.writeValueAsString(env)
 
-        assertTrue(json.contains("T"))   // quick check for ISO
+        assertTrue(json.contains("T")) // quick check for ISO
     }
 }

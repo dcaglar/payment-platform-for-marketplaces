@@ -1,6 +1,8 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
 import com.zaxxer.hikari.HikariDataSource
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.instrumentation.hikaricp.v3_0.HikariTelemetry
 import org.apache.ibatis.session.SqlSessionFactory
 import org.mybatis.spring.SqlSessionFactoryBean
 import org.mybatis.spring.annotation.MapperScan
@@ -9,11 +11,9 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import javax.sql.DataSource
-import io.opentelemetry.api.OpenTelemetry
-import io.opentelemetry.instrumentation.hikaricp.v3_0.HikariTelemetry
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 
 @Configuration
 @MapperScan(
@@ -44,7 +44,7 @@ class AccountSnapshotJobDataSourceConfig {
     fun snapshotSqlSessionFactory(@Qualifier("snapshotDataSource") snapshotDataSource: DataSource): SqlSessionFactory {
         val factoryBean = SqlSessionFactoryBean()
         factoryBean.setDataSource(snapshotDataSource)
-        
+
         val configuration = org.apache.ibatis.session.Configuration()
         configuration.isMapUnderscoreToCamelCase = true
         factoryBean.setConfiguration(configuration)
@@ -53,12 +53,14 @@ class AccountSnapshotJobDataSourceConfig {
         factoryBean.setMapperLocations(*resolver.getResources("classpath*:mapper/snapshotmapper/*.xml"))
         factoryBean.setTypeAliasesPackage("com.dogancaglar.common.db.entity")
         factoryBean.setTypeHandlersPackage("com.dogancaglar.common.db.typehandler")
-        
+
         return factoryBean.`object`!!
     }
 
     @Bean("snapshotTransactionManager")
-    fun snapshotTransactionManager(@Qualifier("snapshotDataSource") snapshotDataSource: DataSource): DataSourceTransactionManager {
+    fun snapshotTransactionManager(
+        @Qualifier("snapshotDataSource") snapshotDataSource: DataSource
+    ): DataSourceTransactionManager {
         return DataSourceTransactionManager(snapshotDataSource)
     }
 }

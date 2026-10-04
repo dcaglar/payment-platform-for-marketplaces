@@ -9,7 +9,7 @@ The first **runnable** module: a Spring Boot app (`PaymentServiceApplication`, h
 
 ## Left side of the hexagon — inbound (driving) adapters (`adapter/inbound/rest`)
 - `PaymentController` — the checkout API: `POST /api/v1/payments` (create) and `POST /api/v1/payments/{id}/authorize`. Thin: map HTTP → command → use case → HTTP. No business logic in controllers.
-- `WebhookController`, `AdyenWebhookController` — inbound PSP webhooks.
+- `WebhookController` — inbound PSP webhooks.
 - `rest/dto`, `rest/mapper` — HTTP request/response DTOs and HTTP⇄`command` mappers (controllers speak DTO/command, never touch domain aggregates directly).
 - `rest/validation` — request validation (e.g. the UUIDv7 idempotency-key check).
 - `rest/webconfig` — `SecurityConfig` (JWT/Keycloak resource-server; issuer `KEYCLOAK_ISSUER_URL`), `GlobalExceptionHandler` + `PaymentControllerWebExceptionHandler` (domain exceptions → HTTP codes; note PSP timeout → **202 Accepted**, not an error), `TraceFilter` (OTel trace context on inbound requests).

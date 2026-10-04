@@ -1,4 +1,4 @@
-package com.dogancaglar.paymentservice.adapter.inbound.rest// 2. In payment-service (Infrastructure layer)
+package com.dogancaglar.paymentservice.adapter.inbound.rest // 2. In payment-service (Infrastructure layer)
 import com.dogancaglar.paymentservice.application.service.IdempotencyResult
 import com.dogancaglar.paymentservice.application.service.IdempotencyService
 import com.dogancaglar.paymentservice.ports.outbound.HasherPort

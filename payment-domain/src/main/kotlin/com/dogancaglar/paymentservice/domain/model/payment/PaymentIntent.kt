@@ -18,8 +18,8 @@ import java.time.LocalDateTime
  */
 class PaymentIntent private constructor(
     val paymentIntentId: PaymentIntentId,
-    val clientSecret: String? ="",
-    val pspReference: String?,          // Stripe PaymentIntent id (nullable only before CREATED)
+    val clientSecret: String? = "",
+    val pspReference: String?, // Stripe PaymentIntent id (nullable only before CREATED)
     val buyerId: BuyerId,
     val orderId: OrderId,
     val totalAmount: Amount,
@@ -28,7 +28,8 @@ class PaymentIntent private constructor(
     private val splitsDelegate: Lazy<List<PaymentSplit>>,
     val status: PaymentIntentStatus,
     val createdAt: LocalDateTime,
-    val updatedAt: LocalDateTime
+    val updatedAt: LocalDateTime,
+    val cardSummary: CardSummary? = null // brand + last 4, known once the PSP authorized (null if it did not say)
 ) {
     val splits: List<PaymentSplit> by splitsDelegate
 
@@ -46,7 +47,7 @@ class PaymentIntent private constructor(
             PaymentIntentStatus.PENDING_AUTH,
             PaymentIntentStatus.AUTHORIZED,
             PaymentIntentStatus.DECLINED,
-             ->{
+            -> {
                 require(!pspReference.isNullOrBlank()) {
                     "pspReference is required in status=$status"
                 }
@@ -76,7 +77,6 @@ class PaymentIntent private constructor(
         return copy(status = PaymentIntentStatus.PENDING_AUTH, updatedAt = now)
     }
 
-
     fun markAsCreated(now: LocalDateTime = Utc.nowLocalDateTime()): PaymentIntent {
         require(status == PaymentIntentStatus.CREATED_PENDING) {
             "Can only start authorization from CREATED (current=$status)"
@@ -84,28 +84,37 @@ class PaymentIntent private constructor(
         return copy(status = PaymentIntentStatus.CREATED, updatedAt = now)
     }
 
-
     /**
      *      * CREATED_PENDING -> CREATED (must provide PSP reference,client secret,seecret never persisted)
      */
-    fun markAsCreatedWithPspReferenceAndClientSecret(pspReference: String, clientSecret: String, now: LocalDateTime = Utc.nowLocalDateTime()): PaymentIntent {
+    fun markAsCreatedWithPspReferenceAndClientSecret(
+        pspReference: String,
+        clientSecret: String,
+        now: LocalDateTime = Utc.nowLocalDateTime()
+    ): PaymentIntent {
         require(status == PaymentIntentStatus.CREATED_PENDING) {
             "Can only mark CREATED from CREATED_PENDING (current=$status)"
         }
         require(pspReference.isNotBlank()) { "pspReference must not be blank" }
         // Note: clientSecret is only set in-memory for response, never persisted
-        return copy(status = PaymentIntentStatus.CREATED, updatedAt = now, pspReference = pspReference, clientSecret = clientSecret)
+        return copy(
+            status = PaymentIntentStatus.CREATED,
+            updatedAt = now,
+            pspReference = pspReference,
+            clientSecret = clientSecret
+        )
     }
 
     /**
-     * Apply a successful authorization result from the PSP.
+     * Apply a successful authorization result from the PSP, with the card it was paid with when the PSP said
+     * (brand + last 4 only).
      * PENDING_AUTH -> AUTHORIZED
      */
-    fun markAuthorized(now: LocalDateTime = Utc.nowLocalDateTime()): PaymentIntent {
+    fun markAuthorized(cardSummary: CardSummary? = null, now: LocalDateTime = Utc.nowLocalDateTime()): PaymentIntent {
         require(status == PaymentIntentStatus.PENDING_AUTH) {
             "Can only mark AUTHORIZED from PENDING_AUTH (current=$status)"
         }
-        return copy(status = PaymentIntentStatus.AUTHORIZED, updatedAt = now)
+        return copy(status = PaymentIntentStatus.AUTHORIZED, updatedAt = now, cardSummary = cardSummary)
     }
 
     /**
@@ -153,7 +162,7 @@ class PaymentIntent private constructor(
     fun markCancelled(now: LocalDateTime = Utc.nowLocalDateTime()): PaymentIntent {
         require(
             status == PaymentIntentStatus.CREATED ||
-                    status == PaymentIntentStatus.PENDING_AUTH
+                status == PaymentIntentStatus.PENDING_AUTH
         ) { "Can only cancel from CREATED or PENDING_AUTH (current=$status)" }
 
         return copy(status = PaymentIntentStatus.CANCELLED, updatedAt = now)
@@ -176,19 +185,21 @@ class PaymentIntent private constructor(
         updatedAt: LocalDateTime = Utc.nowLocalDateTime(),
         pspReference: String? = this.pspReference,
         clientSecret: String? = this.clientSecret,
+        cardSummary: CardSummary? = this.cardSummary,
     ): PaymentIntent = PaymentIntent(
         paymentIntentId = paymentIntentId,
         pspReference = pspReference,
         clientSecret = clientSecret,
         buyerId = buyerId,
         orderId = orderId,
-        processingModel =  processingModel,
+        processingModel = processingModel,
         merchantAccount = merchantAccount,
         totalAmount = totalAmount,
         splitsDelegate = splitsDelegate,
         status = status,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        cardSummary = cardSummary
     )
 
     // ------------------------
@@ -210,7 +221,7 @@ class PaymentIntent private constructor(
             splits: List<PaymentSplit>
         ): PaymentIntent {
             val now = Utc.nowLocalDateTime()
-            
+
             // Same rule as Payment: only a MARKETPLACE payment has splits (a DIRECT_MERCHANT sale has none)
             if (processingModel == ProcessingModel.MARKETPLACE) {
                 require(splits.isNotEmpty()) { "MARKETPLACE PaymentIntent must have at least one payment line" }
@@ -229,7 +240,7 @@ class PaymentIntent private constructor(
                 pspReference = null,
                 buyerId = buyerId,
                 orderId = orderId,
-                processingModel =  processingModel,
+                processingModel = processingModel,
                 merchantAccount = merchantAccount,
                 totalAmount = totalAmount,
                 splitsDelegate = lazyOf(splits),
@@ -239,10 +250,9 @@ class PaymentIntent private constructor(
             )
         }
 
-
         fun rehydrate(
             paymentIntentId: PaymentIntentId,
-            pspReference: String? ="",
+            pspReference: String? = "",
             buyerId: BuyerId,
             orderId: OrderId,
             totalAmount: Amount,
@@ -251,10 +261,11 @@ class PaymentIntent private constructor(
             splitsDelegate: Lazy<List<PaymentSplit>>,
             status: PaymentIntentStatus,
             createdAt: LocalDateTime,
-            updatedAt: LocalDateTime
+            updatedAt: LocalDateTime,
+            cardSummary: CardSummary? = null
         ): PaymentIntent = PaymentIntent(
             paymentIntentId = paymentIntentId,
-            pspReference =pspReference,
+            pspReference = pspReference,
             buyerId = buyerId,
             orderId = orderId,
             merchantAccount = merchantAccount,
@@ -263,7 +274,8 @@ class PaymentIntent private constructor(
             splitsDelegate = splitsDelegate,
             status = status,
             createdAt = createdAt,
-            updatedAt = updatedAt
+            updatedAt = updatedAt,
+            cardSummary = cardSummary
         )
     }
 }
