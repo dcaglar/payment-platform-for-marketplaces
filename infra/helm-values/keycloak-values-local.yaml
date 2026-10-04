@@ -24,10 +24,11 @@ extraEnvVars:
     value: "kubernetes"
   - name: KC_PROXY
     value: "edge"
-  # Configure hostname to use cluster-internal DNS so JWT issuer matches payment service config
-  # This ensures tokens have issuer: http://keycloak:8080/realms/ecommerce-platform
+  # Keycloak's own name, used in every URL it gives out (login page, logout, token issuer): the full service name,
+  # which resolves both inside the cluster and on the Mac (OrbStack), so a browser can open the login page.
+  # Tokens have issuer: http://keycloak.payment.svc.cluster.local:8080/realms/ecommerce-platform (KEYCLOAK_ISSUER_URL of the services)
   - name: KC_HOSTNAME
-    value: "keycloak"
+    value: "keycloak.payment.svc.cluster.local"
   - name: KC_HOSTNAME_PORT
     value: "8080"
   - name: KC_HOSTNAME_STRICT

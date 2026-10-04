@@ -64,7 +64,7 @@ kafka:
   bootstrapServers: kafka.payment.svc.cluster.local:9092
 config:
   POSTHOG_TRACE_ENDPOINT: "https://eu.i.posthog.com/i/v1/traces"
-  KEYCLOAK_ISSUER_URL: "http://keycloak:8080/realms/ecommerce-platform"
+  KEYCLOAK_ISSUER_URL: "http://keycloak.payment.svc.cluster.local:8080/realms/ecommerce-platform"
   EDGE_DB_URL: "jdbc:postgresql://localhost:5432/edge-db?options=-c%20timezone=UTC"
   EDGE_DB_NAME: "edge-db"
   SPRING_DATA_REDIS_URL: "redis://redis-master.payment.svc.cluster.local:6379"

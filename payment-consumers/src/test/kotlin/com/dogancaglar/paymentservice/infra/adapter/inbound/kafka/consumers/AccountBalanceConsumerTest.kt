@@ -15,9 +15,7 @@ class AccountBalanceConsumerTest {
     fun setUp() {
         accountBalanceService = mockk(relaxed = true)
         eventDeduplicationPort = mockk(relaxed = true)
-        
-        consumer = AccountBalanceConsumer(accountBalanceService,eventDeduplicationPort)
+
+        consumer = AccountBalanceConsumer(accountBalanceService, eventDeduplicationPort)
     }
-
 }
-

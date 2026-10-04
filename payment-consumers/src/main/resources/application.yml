@@ -253,10 +253,3 @@ psp:
             statusCheck: 0
             nonRetryable: 0
 
-payment:
-  processor:
-    simulation:
-      simulated-merchant-accounts:
-        - "ADYEN_MOCK_MERCHANT_NL"
-        - "MARKETPLACE-5"
-        - "MARKETPLACE_PERF_TEST_EU"

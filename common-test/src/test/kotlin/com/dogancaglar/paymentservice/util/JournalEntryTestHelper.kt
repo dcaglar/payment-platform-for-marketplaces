@@ -16,8 +16,18 @@ object JournalEntryTestHelper {
         paymentId: String = "PO-$ledgerEntryId",
         amount: Amount
     ): JournalEntry {
-        val authReceivable = Account.create(AccountType.AUTH_RECEIVABLE, "GLOBAL")
-        val authLiability = Account.create(AccountType.AUTH_LIABILITY, "GLOBAL")
+        val authReceivable = LedgerAccount.createNew(
+            LedgerAccountType.AUTH_RECEIVABLE,
+            "MERCHANT-1",
+            null,
+            Currency("EUR")
+        )
+        val authLiability = LedgerAccount.createNew(
+            LedgerAccountType.AUTH_LIABILITY,
+            "MERCHANT-1",
+            null,
+            Currency("EUR")
+        )
         val pId = paymentId.filter { it.isDigit() }.toLongOrNull() ?: 100L
         val result = JournalEntry.authHold(
             globalJournalEntryId = 1L,
@@ -35,13 +45,22 @@ object JournalEntryTestHelper {
         ledgerEntryId: Long,
         paymentOrderId: String = "PO-$ledgerEntryId",
         merchantId: String = "SELLER-1",
-        amount: Amount = Amount.of(1000, Currency( "EUR"))
+        amount: Amount = Amount.of(1000, Currency("EUR"))
     ): JournalEntry {
-        val authReceivable = Account.create(AccountType.AUTH_RECEIVABLE, "GLOBAL")
-        val authLiability = Account.create(AccountType.AUTH_LIABILITY, "GLOBAL")
-        val merchantGrossPool = Account.create(AccountType.CAPTURE_SUSPENSE, merchantId)
-        val pspReceivable = Account.create(AccountType.PSP_RECEIVABLE, "GLOBAL")
-        val poId = paymentOrderId.filter { it.isDigit() }.toLongOrNull() ?: 200L
+        val authReceivable = LedgerAccount.createNew(
+            LedgerAccountType.AUTH_RECEIVABLE,
+            merchantId,
+            null,
+            amount.currency
+        )
+        val authLiability = LedgerAccount.createNew(LedgerAccountType.AUTH_LIABILITY, merchantId, null, amount.currency)
+        val merchantGrossPool = LedgerAccount.createNew(
+            LedgerAccountType.CAPTURE_SUSPENSE,
+            merchantId,
+            null,
+            amount.currency
+        )
+        val pspReceivable = LedgerAccount.createNew(LedgerAccountType.PSP_RECEIVABLE, "GLOBAL", null, amount.currency)
         val result = JournalEntry.captureGrossAsset(
             globalJournalEntryId = 2L,
             paymentId = PaymentId(100L),
@@ -59,7 +78,9 @@ object JournalEntryTestHelper {
     fun printEntry(entry: JournalEntry) {
         println("JournalEntry(id=${entry.id}, type=${entry.journalType})")
         entry.postings.forEach {
-            println("  ${it::class.simpleName?.padEnd(6)} | ${it.account.accountCode.padEnd(30)} | ${it.amount.quantity}")
+            println(
+                "  ${it::class.simpleName?.padEnd(6)} | ${it.account.accountCode.padEnd(30)} | ${it.amount.quantity}"
+            )
         }
         val net = entry.postings.sumOf { it.getSignedAmount().quantity }
         println("  -> Net = $net (should be 0)\n")

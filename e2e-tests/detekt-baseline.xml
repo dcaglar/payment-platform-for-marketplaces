@@ -1,0 +1,49 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongMethod:AccountCreationE2EIntegrationTest.kt$AccountCreationE2EIntegrationTest$@Test fun `create account request ends with exactly the expected merchant, seller and ledger accounts`()</ID>
+    <ID>LongMethod:BalanceAmountsE2EIntegrationTest.kt$BalanceAmountsE2EIntegrationTest$@Test fun `a marketplace payment of 3000 gives each seller its part and the merchant its commission minus the platform fee`()</ID>
+    <ID>LongMethod:FinanceTxE2EIntegrationTest.kt$FinanceTxE2EIntegrationTest$@Test fun `finance sees a settled marketplace payment's txs, its allocation entries, and each tx's journal entries`()</ID>
+    <ID>LongMethod:MerchantApiE2EIntegrationTest.kt$MerchantApiE2EIntegrationTest$@Test fun `a merchant creates, reads and authorizes its own payment, and its transaction shows what was paid`()</ID>
+    <ID>LongMethod:MerchantApiE2EIntegrationTest.kt$MerchantApiE2EIntegrationTest$@Test fun `it sees only its own transactions, even when it asks for another merchant's`()</ID>
+    <ID>LongMethod:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$@Test fun `create then authorize drives payment to SETTLED with full ledger`()</ID>
+    <ID>LongMethod:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$@Test fun `direct sale of 5000 records exactly the expected journals, postings, transfers and txs`()</ID>
+    <ID>MaxLineLength:AccountCreationE2EIntegrationTest.kt$AccountCreationE2EIntegrationTest$"SELECT count(*) FROM outbox_event WHERE event_type='account_creation_requested' AND aggregate_id='$merchant' AND status='SENT'"</ID>
+    <ID>MaxLineLength:AccountCreationE2EIntegrationTest.kt$AccountCreationE2EIntegrationTest$"SELECT kind || '|' || status || '|' || currency || '|' || is_auto_captured || '|' || is_auto_settled || '|' || "</ID>
+    <ID>MaxLineLength:AccountCreationE2EIntegrationTest.kt$AccountCreationE2EIntegrationTest$"SELECT payload FROM outbox_event WHERE event_type='account_creation_requested' AND aggregate_id='$merchant'"</ID>
+    <ID>MaxLineLength:AccountCreationE2EIntegrationTest.kt$AccountCreationE2EIntegrationTest$"SELECT status FROM outbox_event WHERE event_type='account_creation_requested' AND aggregate_id='$merchant'"</ID>
+    <ID>MaxLineLength:AccountCreationE2EIntegrationTest.kt$AccountCreationE2EIntegrationTest$"platform_fee_fixed || '|' || platform_fee_bps || '|' || (profile-&gt;&gt;'legalName') || '|' || (profile-&gt;'address'-&gt;&gt;'country') "</ID>
+    <ID>MaxLineLength:BackofficeAccessE2EIntegrationTest.kt$BackofficeAccessE2EIntegrationTest$paymentOf1 = E2eSupport.authorizedPayment(E2eSupport.merchantToken("MARKETPLACE-1"), "MARKETPLACE-1", "SELLER-1-1", "ORDER-BO1-$run")</ID>
+    <ID>MaxLineLength:BackofficeAccessE2EIntegrationTest.kt$BackofficeAccessE2EIntegrationTest$paymentOf5 = E2eSupport.authorizedPayment(E2eSupport.merchantToken("MARKETPLACE-5"), "MARKETPLACE-5", "SELLER-5-1", "ORDER-BO5-$run")</ID>
+    <ID>MaxLineLength:BalanceAmountsE2EIntegrationTest.kt$BalanceAmountsE2EIntegrationTest$fun</ID>
+    <ID>MaxLineLength:E2eSupport.kt$E2eSupport$"platform never became quiet: edge unsent=$edgeUnsent, central unsent=$centralUnsent, postings still changing"</ID>
+    <ID>MaxLineLength:E2eSupport.kt$E2eSupport$/** A merchant backend's token: client credentials of merchant-api-&lt;merchant&gt; (bundle MERCHANT, claim merchant_id). */</ID>
+    <ID>MaxLineLength:E2eSupport.kt$E2eSupport$val</ID>
+    <ID>MaxLineLength:FinanceTxE2EIntegrationTest.kt$FinanceTxE2EIntegrationTest$*</ID>
+    <ID>MaxLineLength:FinanceTxE2EIntegrationTest.kt$FinanceTxE2EIntegrationTest$// every posting, balanced per entry: e.g. each seller 1320, our fee 200 from the commission, the authorization hold</ID>
+    <ID>MaxLineLength:FinanceTxE2EIntegrationTest.kt$FinanceTxE2EIntegrationTest$// the payment: its txs and all its journal entries (the allocation runs after the capture: wait for all of them)</ID>
+    <ID>MaxLineLength:FinanceTxE2EIntegrationTest.kt$FinanceTxE2EIntegrationTest$posting.get("accountType").asText() + "|" + posting.get("direction").asText() + "|" + posting.get("amount").get("quantity").asLong()</ID>
+    <ID>MaxLineLength:MerchantApiE2EIntegrationTest.kt$MerchantApiE2EIntegrationTest$split.get("accountType").asText() + "|" + split.get("account").asText() + "|" + split.get("amount").get("quantity").asLong()</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type IN ('REFUND','PAYOUT','REVENUE_RECOGNITION')"</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='AUTHORIZATION'"</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='COMMISSION_FEE'"</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='INTERNAL_TRANSFER'"</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT count(*) FROM outbox_event WHERE event_type='capture_submitted' AND status='SENT' AND aggregate_id='$publicId'"</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT count(*) FROM outbox_event WHERE event_type='payment_authorized' AND aggregate_id='$publicId'"</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT count(*) FROM payment_tx WHERE payment_id=$paymentIdSub AND tx_type='CAPTURE' AND status='SUCCESS'"</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT count(*) FROM payment_tx WHERE payment_id=$paymentIdSub AND tx_type='SETTLEMENT' AND settle_status='MATCHED'"</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND source_account='$commission' AND target_account='$feeReserve'"</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND source_account='$suspense' AND target_account='$commission'"</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND target_account='$seller1'"</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND target_account='$seller2'"</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT j.journal_type || '|' || p.direction || '|' || p.amount FROM postings p JOIN journal_entries j ON j.id = p.journal_id "</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT processing_model || '|' || total_amount_value || '|' || captured_amount_value || '|' || status "</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT status FROM outbox_event WHERE event_type='payment_authorized' AND aggregate_id='$publicId' LIMIT 1"</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$"SELECT transfer_type || '|' || source_account || '|' || target_account || '|' || amount_value || '|' || status "</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$// --------------------------------------------------------------- accounts (ACCOUNT_TYPE.MERCHANT.[SELLER].CURRENCY)</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$// the PSP pays: 2930 reaches our bank, 70 is its fee (simulated: 1.5% of 3000 + 25), and its 3000 debt is cleared</ID>
+    <ID>MaxLineLength:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$val</ID>
+    <ID>NestedBlockDepth:E2eSupport.kt$E2eSupport$fun &lt;T&gt; query(jdbcUrl: String, user: String, pass: String, sql: String, map: (ResultSet) -&gt; T): List&lt;T&gt;</ID>
+  </CurrentIssues>
+</SmellBaseline>

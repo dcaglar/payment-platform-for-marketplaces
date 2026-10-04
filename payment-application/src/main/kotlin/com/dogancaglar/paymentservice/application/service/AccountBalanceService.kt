@@ -51,8 +51,11 @@ class AccountBalanceService(
             }
         }
 
-        logger.debug("✅ Updated {} accounts with new deltas ({} journal entries total)",
-            updatedIds.size, entries.size)
+        logger.debug(
+            "✅ Updated {} accounts with new deltas ({} journal entries total)",
+            updatedIds.size,
+            entries.size
+        )
         return updatedIds.toList()
     }
 }

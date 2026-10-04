@@ -20,15 +20,18 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.PostgreSQLContainer
@@ -110,22 +113,140 @@ class PaymentApiIntegrationTest {
         //   the PSP is called once per request (no retries on our side)
         @JvmStatic
         fun createContract() = listOf(
-            CreateCase("PSP creates the payment",     givenPsp = "OK",                expectedHttp = 201, expectedBody = "CREATED",         expectedStored = "CREATED", expectedPspCalls = 1),
-            CreateCase("PSP refuses the payment",     givenPsp = "PSP-CREATE-REFUSE", expectedHttp = 422, expectedBody = "FAILED",          expectedStored = "FAILED", expectedPspCalls = 1),
-            CreateCase("PSP temporarily unavailable", givenPsp = "PSP-CREATE-503",    expectedHttp = 503, expectedBody = "RETRY_LATER",     expectedStored = "CREATED_PENDING", expectedPspCalls = 1),
-            CreateCase("PSP outcome unknown",         givenPsp = "PSP-CREATE-RESET",  expectedHttp = 503, expectedBody = "RETRY_LATER",     expectedStored = "CREATED_PENDING", expectedPspCalls = 1),
-            CreateCase("PSP creates it after 5 s",    givenPsp = "PSP-CREATE-SLOW",   expectedHttp = 202, expectedBody = "CREATED_PENDING", expectedStored = "CREATED_PENDING", expectedPspCalls = 1, expectedStoredLater = "CREATED"),
-            CreateCase("PSP refuses it after 5 s",    givenPsp = "PSP-CREATE-LATE-REFUSE", expectedHttp = 202, expectedBody = "CREATED_PENDING", expectedStored = "CREATED_PENDING", expectedPspCalls = 1, expectedStoredLater = "FAILED"),
-            CreateCase("PSP unavailable after 4 s (503)", givenPsp = "PSP-CREATE-LATE-503", expectedHttp = 202, expectedBody = "CREATED_PENDING", expectedStored = "CREATED_PENDING", expectedPspCalls = 1, expectedStoredLater = "FAILED"),
-            CreateCase("PSP error after 4 s (500)",   givenPsp = "PSP-CREATE-LATE-500", expectedHttp = 202, expectedBody = "CREATED_PENDING", expectedStored = "CREATED_PENDING", expectedPspCalls = 1, expectedStoredLater = "FAILED"),
-            CreateCase("connection reset after 4 s",  givenPsp = "PSP-CREATE-LATE-RESET", expectedHttp = 202, expectedBody = "CREATED_PENDING", expectedStored = "CREATED_PENDING", expectedPspCalls = 1, expectedStoredLater = "FAILED"),
-            CreateCase("PSP error (500)",             givenPsp = "PSP-CREATE-500",    expectedHttp = 503, expectedBody = "RETRY_LATER",     expectedStored = "CREATED_PENDING", expectedPspCalls = 1),
-            CreateCase("PSP bad gateway (502)",       givenPsp = "PSP-CREATE-502",    expectedHttp = 503, expectedBody = "RETRY_LATER",     expectedStored = "CREATED_PENDING", expectedPspCalls = 1),
-            CreateCase("PSP gateway timeout (504)",   givenPsp = "PSP-CREATE-504",    expectedHttp = 503, expectedBody = "RETRY_LATER",     expectedStored = "CREATED_PENDING", expectedPspCalls = 1),
-            CreateCase("PSP rate limits us (429)",    givenPsp = "PSP-CREATE-429",    expectedHttp = 503, expectedBody = "RETRY_LATER",     expectedStored = "CREATED_PENDING", expectedPspCalls = 1),
-            CreateCase("PSP answer unreadable",       givenPsp = "PSP-CREATE-NOT-JSON", expectedHttp = 503, expectedBody = "RETRY_LATER",   expectedStored = "CREATED_PENDING", expectedPspCalls = 1),
-            CreateCase("PSP hangs past our timeout",  givenPsp = "PSP-CREATE-HANG",   expectedHttp = 202, expectedBody = "CREATED_PENDING", expectedStored = "CREATED_PENDING", expectedPspCalls = 1, expectedStoredLater = "FAILED"),
-            CreateCase("our PSP thread pool is full", givenPsp = POOL_FULL,           expectedHttp = 503, expectedBody = "RETRY_LATER",     expectedStored = "CREATED_PENDING", expectedPspCalls = 0),
+            CreateCase(
+                "PSP creates the payment",
+                givenPsp = "OK",
+                expectedHttp = HttpStatus.CREATED,
+                expectedBody = "CREATED",
+                expectedStored = "CREATED",
+                expectedPspCalls = 1
+            ),
+            CreateCase(
+                "PSP refuses the payment",
+                givenPsp = "PSP-CREATE-REFUSE",
+                expectedHttp = HttpStatus.UNPROCESSABLE_ENTITY,
+                expectedBody = "FAILED",
+                expectedStored = "FAILED",
+                expectedPspCalls = 1
+            ),
+            CreateCase(
+                "PSP temporarily unavailable",
+                givenPsp = "PSP-CREATE-503",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 1
+            ),
+            CreateCase(
+                "PSP outcome unknown",
+                givenPsp = "PSP-CREATE-RESET",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 1
+            ),
+            CreateCase(
+                "PSP creates it after 5 s",
+                givenPsp = "PSP-CREATE-SLOW",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "CREATED_PENDING",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 1,
+                expectedStoredLater = "CREATED"
+            ),
+            CreateCase(
+                "PSP refuses it after 5 s",
+                givenPsp = "PSP-CREATE-LATE-REFUSE",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "CREATED_PENDING",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 1,
+                expectedStoredLater = "FAILED"
+            ),
+            CreateCase(
+                "PSP unavailable after 4 s (503)",
+                givenPsp = "PSP-CREATE-LATE-503",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "CREATED_PENDING",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 1,
+                expectedStoredLater = "FAILED"
+            ),
+            CreateCase(
+                "PSP error after 4 s (500)",
+                givenPsp = "PSP-CREATE-LATE-500",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "CREATED_PENDING",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 1,
+                expectedStoredLater = "FAILED"
+            ),
+            CreateCase(
+                "connection reset after 4 s",
+                givenPsp = "PSP-CREATE-LATE-RESET",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "CREATED_PENDING",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 1,
+                expectedStoredLater = "FAILED"
+            ),
+            CreateCase(
+                "PSP error (500)",
+                givenPsp = "PSP-CREATE-500",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 1
+            ),
+            CreateCase(
+                "PSP bad gateway (502)",
+                givenPsp = "PSP-CREATE-502",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 1
+            ),
+            CreateCase(
+                "PSP gateway timeout (504)",
+                givenPsp = "PSP-CREATE-504",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 1
+            ),
+            CreateCase(
+                "PSP rate limits us (429)",
+                givenPsp = "PSP-CREATE-429",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 1
+            ),
+            CreateCase(
+                "PSP answer unreadable",
+                givenPsp = "PSP-CREATE-NOT-JSON",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 1
+            ),
+            CreateCase(
+                "PSP hangs past our timeout",
+                givenPsp = "PSP-CREATE-HANG",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "CREATED_PENDING",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 1,
+                expectedStoredLater = "FAILED"
+            ),
+            CreateCase(
+                "our PSP thread pool is full",
+                givenPsp = POOL_FULL,
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 0
+            ),
         )
 
         // AUTHORIZE rules:
@@ -140,31 +261,216 @@ class PaymentApiIntegrationTest {
         //   our PSP thread pool full   -> answer 503, back to CREATED, the PSP is not called
         //   payment not in CREATED     -> the PSP is not called, the current state answers
         //   otherwise the PSP is called once per request (no retries on our side)
+        //   AUTHORIZED is stored with its payment_authorized event in the outbox (carrying the order id and the card's brand + last 4);
+        //   every other outcome writes no event
         @JvmStatic
         fun authorizeContract() = listOf(
-            AuthorizeCase("card accepted",               givenPayment = "CREATED",         givenPsp = "PSP-AUTH-OK",          expectedHttp = 200, expectedBody = "AUTHORIZED",   expectedStored = "AUTHORIZED", expectedPspCalls = 1),
-            AuthorizeCase("card declined",               givenPayment = "CREATED",         givenPsp = "PSP-AUTH-DECLINE-402", expectedHttp = 200, expectedBody = "DECLINED",     expectedStored = "DECLINED", expectedPspCalls = 1),
-            AuthorizeCase("PSP temporarily unavailable", givenPayment = "CREATED",         givenPsp = "PSP-AUTH-503",         expectedHttp = 503, expectedBody = "RETRY_LATER",  expectedStored = "CREATED", expectedPspCalls = 1),
-            AuthorizeCase("PSP outcome unknown",         givenPayment = "CREATED",         givenPsp = "PSP-AUTH-RESET",       expectedHttp = 503, expectedBody = "RETRY_LATER",  expectedStored = "CREATED", expectedPspCalls = 1),
-            AuthorizeCase("PSP refuses our request",     givenPayment = "CREATED",         givenPsp = "PSP-AUTH-400",         expectedHttp = 422, expectedBody = "FAILED",       expectedStored = "FAILED", expectedPspCalls = 1),
-            AuthorizeCase("PSP not decided yet",         givenPayment = "CREATED",         givenPsp = "PSP-AUTH-PENDING",     expectedHttp = 202, expectedBody = "PENDING_AUTH", expectedStored = "PENDING_AUTH", expectedPspCalls = 1),
-            AuthorizeCase("PSP error (500)",             givenPayment = "CREATED",         givenPsp = "PSP-AUTH-500",         expectedHttp = 503, expectedBody = "RETRY_LATER",  expectedStored = "CREATED", expectedPspCalls = 1),
-            AuthorizeCase("PSP bad gateway (502)",       givenPayment = "CREATED",         givenPsp = "PSP-AUTH-502",         expectedHttp = 503, expectedBody = "RETRY_LATER",  expectedStored = "CREATED", expectedPspCalls = 1),
-            AuthorizeCase("PSP gateway timeout (504)",   givenPayment = "CREATED",         givenPsp = "PSP-AUTH-504",         expectedHttp = 503, expectedBody = "RETRY_LATER",  expectedStored = "CREATED", expectedPspCalls = 1),
-            AuthorizeCase("PSP rate limits us (429)",    givenPayment = "CREATED",         givenPsp = "PSP-AUTH-429",         expectedHttp = 503, expectedBody = "RETRY_LATER",  expectedStored = "CREATED", expectedPspCalls = 1),
-            AuthorizeCase("PSP answer unreadable",       givenPayment = "CREATED",         givenPsp = "PSP-AUTH-NOT-JSON",    expectedHttp = 503, expectedBody = "RETRY_LATER",  expectedStored = "CREATED", expectedPspCalls = 1),
-            AuthorizeCase("PSP authorizes after 5 s",    givenPayment = "CREATED",         givenPsp = "PSP-AUTH-SLOW",        expectedHttp = 202, expectedBody = "PENDING_AUTH", expectedStored = "PENDING_AUTH", expectedPspCalls = 1, expectedStoredLater = "AUTHORIZED"),
-            AuthorizeCase("PSP declines after 5 s",      givenPayment = "CREATED",         givenPsp = "PSP-AUTH-LATE-DECLINE", expectedHttp = 202, expectedBody = "PENDING_AUTH", expectedStored = "PENDING_AUTH", expectedPspCalls = 1, expectedStoredLater = "DECLINED"),
-            AuthorizeCase("PSP refuses after 5 s (400)", givenPayment = "CREATED",         givenPsp = "PSP-AUTH-LATE-REFUSE", expectedHttp = 202, expectedBody = "PENDING_AUTH", expectedStored = "PENDING_AUTH", expectedPspCalls = 1, expectedStoredLater = "FAILED"),
-            AuthorizeCase("PSP unavailable after 4 s (503)", givenPayment = "CREATED",     givenPsp = "PSP-AUTH-LATE-503",    expectedHttp = 202, expectedBody = "PENDING_AUTH", expectedStored = "PENDING_AUTH", expectedPspCalls = 1, expectedStoredLater = "CREATED"),
-            AuthorizeCase("PSP error after 4 s (500)",   givenPayment = "CREATED",         givenPsp = "PSP-AUTH-LATE-500",    expectedHttp = 202, expectedBody = "PENDING_AUTH", expectedStored = "PENDING_AUTH", expectedPspCalls = 1, expectedStoredLater = "CREATED"),
-            AuthorizeCase("connection reset after 4 s",  givenPayment = "CREATED",         givenPsp = "PSP-AUTH-LATE-RESET",  expectedHttp = 202, expectedBody = "PENDING_AUTH", expectedStored = "PENDING_AUTH", expectedPspCalls = 1, expectedStoredLater = "CREATED"),
-            AuthorizeCase("PSP hangs past our timeout",  givenPayment = "CREATED",         givenPsp = "PSP-AUTH-HANG",        expectedHttp = 202, expectedBody = "PENDING_AUTH", expectedStored = "PENDING_AUTH", expectedPspCalls = 1, expectedStoredLater = "CREATED"),
-            AuthorizeCase("our PSP thread pool is full", givenPayment = "CREATED",         givenPsp = POOL_FULL,              expectedHttp = 503, expectedBody = "RETRY_LATER",  expectedStored = "CREATED", expectedPspCalls = 0),
-            AuthorizeCase("already being authorized",    givenPayment = "PENDING_AUTH",    givenPsp = null,                   expectedHttp = 202, expectedBody = "PENDING_AUTH", expectedStored = "PENDING_AUTH", expectedPspCalls = 0),
-            AuthorizeCase("already declined (final)",    givenPayment = "DECLINED",        givenPsp = null,                   expectedHttp = 200, expectedBody = "DECLINED",     expectedStored = "DECLINED", expectedPspCalls = 0),
-            AuthorizeCase("not created at the PSP yet",  givenPayment = "CREATED_PENDING", givenPsp = null,                   expectedHttp = 409, expectedBody = "IN_PROGRESS",  expectedStored = "CREATED_PENDING", expectedPspCalls = 0),
-            AuthorizeCase("unknown payment",             givenPayment = null,              givenPsp = null,                   expectedHttp = 404, expectedBody = "NOT_FOUND",    expectedStored = null, expectedPspCalls = 0),
+            AuthorizeCase(
+                "card accepted",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-OK",
+                expectedHttp = HttpStatus.OK,
+                expectedBody = "AUTHORIZED",
+                expectedStored = "AUTHORIZED",
+                expectedPspCalls = 1,
+                expectedEvent = "payment_authorized"
+            ),
+            AuthorizeCase(
+                "card declined",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-DECLINE-402",
+                expectedHttp = HttpStatus.OK,
+                expectedBody = "DECLINED",
+                expectedStored = "DECLINED",
+                expectedPspCalls = 1
+            ),
+            AuthorizeCase(
+                "PSP temporarily unavailable",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-503",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED",
+                expectedPspCalls = 1
+            ),
+            AuthorizeCase(
+                "PSP outcome unknown",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-RESET",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED",
+                expectedPspCalls = 1
+            ),
+            AuthorizeCase(
+                "PSP refuses our request",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-400",
+                expectedHttp = HttpStatus.UNPROCESSABLE_ENTITY,
+                expectedBody = "FAILED",
+                expectedStored = "FAILED",
+                expectedPspCalls = 1
+            ),
+            AuthorizeCase(
+                "PSP not decided yet",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-PENDING",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
+                expectedPspCalls = 1
+            ),
+            AuthorizeCase(
+                "PSP error (500)",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-500",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED",
+                expectedPspCalls = 1
+            ),
+            AuthorizeCase(
+                "PSP bad gateway (502)",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-502",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED",
+                expectedPspCalls = 1
+            ),
+            AuthorizeCase(
+                "PSP gateway timeout (504)",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-504",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED",
+                expectedPspCalls = 1
+            ),
+            AuthorizeCase(
+                "PSP rate limits us (429)",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-429",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED",
+                expectedPspCalls = 1
+            ),
+            AuthorizeCase(
+                "PSP answer unreadable",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-NOT-JSON",
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED",
+                expectedPspCalls = 1
+            ),
+            AuthorizeCase("PSP authorizes after 5 s", givenPayment = "CREATED", givenPsp = "PSP-AUTH-SLOW", expectedHttp = HttpStatus.ACCEPTED, expectedBody = "PENDING_AUTH", expectedStored = "PENDING_AUTH", expectedPspCalls = 1, expectedStoredLater = "AUTHORIZED", expectedEvent = "payment_authorized"),
+            AuthorizeCase(
+                "PSP declines after 5 s",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-LATE-DECLINE",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
+                expectedPspCalls = 1,
+                expectedStoredLater = "DECLINED"
+            ),
+            AuthorizeCase(
+                "PSP refuses after 5 s (400)",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-LATE-REFUSE",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
+                expectedPspCalls = 1,
+                expectedStoredLater = "FAILED"
+            ),
+            AuthorizeCase(
+                "PSP unavailable after 4 s (503)",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-LATE-503",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
+                expectedPspCalls = 1,
+                expectedStoredLater = "CREATED"
+            ),
+            AuthorizeCase(
+                "PSP error after 4 s (500)",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-LATE-500",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
+                expectedPspCalls = 1,
+                expectedStoredLater = "CREATED"
+            ),
+            AuthorizeCase(
+                "connection reset after 4 s",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-LATE-RESET",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
+                expectedPspCalls = 1,
+                expectedStoredLater = "CREATED"
+            ),
+            AuthorizeCase(
+                "PSP hangs past our timeout",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-HANG",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
+                expectedPspCalls = 1,
+                expectedStoredLater = "CREATED"
+            ),
+            AuthorizeCase(
+                "our PSP thread pool is full",
+                givenPayment = "CREATED",
+                givenPsp = POOL_FULL,
+                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
+                expectedBody = "RETRY_LATER",
+                expectedStored = "CREATED",
+                expectedPspCalls = 0
+            ),
+            AuthorizeCase(
+                "already being authorized",
+                givenPayment = "PENDING_AUTH",
+                givenPsp = null,
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
+                expectedPspCalls = 0
+            ),
+            AuthorizeCase(
+                "already declined (final)",
+                givenPayment = "DECLINED",
+                givenPsp = null,
+                expectedHttp = HttpStatus.OK,
+                expectedBody = "DECLINED",
+                expectedStored = "DECLINED",
+                expectedPspCalls = 0
+            ),
+            AuthorizeCase(
+                "not created at the PSP yet",
+                givenPayment = "CREATED_PENDING",
+                givenPsp = null,
+                expectedHttp = HttpStatus.CONFLICT,
+                expectedBody = "IN_PROGRESS",
+                expectedStored = "CREATED_PENDING",
+                expectedPspCalls = 0
+            ),
+            AuthorizeCase(
+                "unknown payment",
+                givenPayment = null,
+                givenPsp = null,
+                expectedHttp = HttpStatus.NOT_FOUND,
+                expectedBody = "NOT_FOUND",
+                expectedStored = null,
+                expectedPspCalls = 0
+            ),
         )
     }
 
@@ -173,9 +479,14 @@ class PaymentApiIntegrationTest {
     // expectedStored: the payment's status in the database afterwards
     // expectedPspCalls: how many requests reached the PSP (WireMock counts them)
     // expectedStoredLater: what the payment must become after the PSP's late answer or our timeout
+    // expectedEvent: the event stored in the outbox for this payment (null = none)
     data class CreateCase(
-        val situation: String, val givenPsp: String,
-        val expectedHttp: Int, val expectedBody: String, val expectedStored: String, val expectedPspCalls: Int,
+        val situation: String,
+        val givenPsp: String,
+        val expectedHttp: HttpStatus,
+        val expectedBody: String,
+        val expectedStored: String,
+        val expectedPspCalls: Int,
         val expectedStoredLater: String? = null
     ) {
         override fun toString() = situation
@@ -184,9 +495,15 @@ class PaymentApiIntegrationTest {
     // givenPayment: the payment's status before the request (null = no such payment)
     // givenPsp: null = the PSP must not be called
     data class AuthorizeCase(
-        val situation: String, val givenPayment: String?, val givenPsp: String?,
-        val expectedHttp: Int, val expectedBody: String, val expectedStored: String?, val expectedPspCalls: Int,
-        val expectedStoredLater: String? = null
+        val situation: String,
+        val givenPayment: String?,
+        val givenPsp: String?,
+        val expectedHttp: HttpStatus,
+        val expectedBody: String,
+        val expectedStored: String?,
+        val expectedPspCalls: Int,
+        val expectedStoredLater: String? = null,
+        val expectedEvent: String? = null
     ) {
         override fun toString() = situation
     }
@@ -229,8 +546,8 @@ class PaymentApiIntegrationTest {
         }
         val answeredInMs = System.currentTimeMillis() - startedAt
 
-        assertThat(answeredInMs).isLessThan(4000)   // we wait at most 3 s for the PSP
-        assertThat(result.response.status).isEqualTo(case.expectedHttp)
+        assertThat(answeredInMs).isLessThan(4000) // we wait at most 3 s for the PSP
+        assertThat(result.response.status).isEqualTo(case.expectedHttp.value())
         assertThat(answer(result)).isEqualTo(case.expectedBody)
         assertThat(storedStatus(orderId)).isEqualTo(case.expectedStored)
         assertThat(pspCreateCalls(orderId)).isEqualTo(case.expectedPspCalls)
@@ -249,7 +566,7 @@ class PaymentApiIntegrationTest {
 
         val replay = create(key, directSale(orderId))
 
-        assertThat(replay.response.status).isEqualTo(201)
+        assertThat(replay.response.status).isEqualTo(HttpStatus.CREATED.value())
         assertThat(replay.response.getHeader("Idempotent-Replayed")).isEqualTo("true")
         assertThat(json(replay)["paymentIntentId"]).isEqualTo(json(first)["paymentIntentId"])
         assertThat(pspCreateCalls(orderId)).isEqualTo(1)
@@ -262,7 +579,7 @@ class PaymentApiIntegrationTest {
 
         val result = create(key, directSale(orderId("SECOND")))
 
-        assertThat(result.response.status).isEqualTo(422)
+        assertThat(result.response.status).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY.value())
         assertThat(answer(result)).isEqualTo("KEY_REUSED")
     }
 
@@ -277,7 +594,7 @@ class PaymentApiIntegrationTest {
 
         val result = create(newKey(), body)
 
-        assertThat(result.response.status).isEqualTo(400)
+        assertThat(result.response.status).isEqualTo(HttpStatus.BAD_REQUEST.value())
         assertThat(answer(result)).isEqualTo("INVALID_REQUEST")
         assertThat(storedStatus(orderId)).isNull()
     }
@@ -305,8 +622,8 @@ class PaymentApiIntegrationTest {
         }
         val answeredInMs = System.currentTimeMillis() - startedAt
 
-        assertThat(answeredInMs).isLessThan(4000)   // we wait at most 3 s for the PSP
-        assertThat(result.response.status).isEqualTo(case.expectedHttp)
+        assertThat(answeredInMs).isLessThan(4000) // we wait at most 3 s for the PSP
+        assertThat(result.response.status).isEqualTo(case.expectedHttp.value())
         assertThat(answer(result)).isEqualTo(case.expectedBody)
         assertThat(storedStatus(orderId)).isEqualTo(case.expectedStored)
         assertThat(pspAuthorizeCalls(orderId)).isEqualTo(case.expectedPspCalls)
@@ -314,6 +631,29 @@ class PaymentApiIntegrationTest {
             await().atMost(Duration.ofSeconds(20)).untilAsserted {
                 assertThat(storedStatus(orderId)).isEqualTo(case.expectedStoredLater)
             }
+        }
+        if (case.expectedEvent == null) {
+            assertThat(outboxEventTypes(publicId)).isEmpty()
+        } else {
+            assertThat(outboxEventTypes(publicId)).containsExactly(case.expectedEvent)
+            assertThat(
+                objectMapper.readTree(outboxPayload(publicId)).get("data").get("orderId").asText()
+            ).isEqualTo(orderId)
+            // the card the PSP reported (WireMock: visa, 4242): kept as brand + last 4, on the intent and in the event
+            assertThat(
+                objectMapper.readTree(outboxPayload(publicId)).get("data").get("cardBrand").asText()
+            ).isEqualTo("VISA")
+            assertThat(
+                objectMapper.readTree(outboxPayload(publicId)).get("data").get("cardLast4").asText()
+            ).isEqualTo("4242")
+            assertThat(
+                jdbc().queryForObject(
+                    "SELECT card_brand || ' ' || card_last4 FROM payment_intents WHERE order_id = ?",
+                    String::class.java,
+                    orderId
+                )
+            )
+                .isEqualTo("VISA 4242")
         }
     }
 
@@ -326,7 +666,7 @@ class PaymentApiIntegrationTest {
         try {
             val result = authorize(publicId)
 
-            assertThat(result.response.status).isEqualTo(202)
+            assertThat(result.response.status).isEqualTo(HttpStatus.ACCEPTED.value())
             assertThat(answer(result)).isEqualTo("PENDING_AUTH")
             assertThat(storedStatus(orderId)).isEqualTo("PENDING_AUTH")
         } finally {
@@ -345,7 +685,7 @@ class PaymentApiIntegrationTest {
                 .content(directSale(orderId("NO-TOKEN")))
         ).andReturn()
 
-        assertThat(result.response.status).isEqualTo(401)
+        assertThat(result.response.status).isEqualTo(HttpStatus.UNAUTHORIZED.value())
     }
 
     @Test
@@ -358,42 +698,139 @@ class PaymentApiIntegrationTest {
                 .content(directSale(orderId("NO-PERMISSION")))
         ).andReturn()
 
-        assertThat(result.response.status).isEqualTo(403)
+        assertThat(result.response.status).isEqualTo(HttpStatus.FORBIDDEN.value())
+    }
+
+    // merchant: the token's merchant_id decides whose payments the caller may create, read and authorize
+
+    @Test
+    fun `creating a payment for another merchant gets 403 and stores nothing`() {
+        val orderId = orderId("PSP-CREATE-OK")
+        val paymentForMarketplace1 = directSale(orderId, merchantAccount = "MARKETPLACE-1")
+        val marketplace2Backend = tokenOf("MARKETPLACE-2")
+
+        val result = create(newKey(), paymentForMarketplace1, token = marketplace2Backend)
+
+        assertThat(result.response.status).isEqualTo(HttpStatus.FORBIDDEN.value())
+        assertThat(storedStatus(orderId)).isNull()
+        assertThat(pspCreateCalls(orderId)).isEqualTo(0)
+    }
+
+    @Test
+    fun `a token without merchant_id gets 403`() {
+        val orderId = orderId("PSP-CREATE-OK")
+
+        val result = mockMvc.perform(
+            post("/api/v1/payments")
+                .with(jwt().authorities(SimpleGrantedAuthority("payment:write")))
+                .header("Idempotency-Key", newKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(directSale(orderId))
+        ).andReturn()
+
+        assertThat(result.response.status).isEqualTo(HttpStatus.FORBIDDEN.value())
+        assertThat(storedStatus(orderId)).isNull()
+    }
+
+    @Test
+    fun `reading its own payment gets 200`() {
+        val publicId = createdPayment(orderId("PSP-CREATE-OK"))
+
+        val result = read(publicId)
+
+        assertThat(result.response.status).isEqualTo(HttpStatus.OK.value())
+        assertThat(json(result)["paymentIntentId"].asText()).isEqualTo(publicId)
+    }
+
+    @Test
+    fun `reading another merchant's payment gets 404`() {
+        val marketplace1Payment = createdPayment(orderId("PSP-CREATE-OK"))
+        val marketplace2Backend = tokenOf("MARKETPLACE-2")
+
+        val result = read(marketplace1Payment, token = marketplace2Backend)
+
+        assertThat(result.response.status).isEqualTo(HttpStatus.NOT_FOUND.value())
+    }
+
+    @Test
+    fun `reading with only payment write gets 403`() {
+        val publicId = createdPayment(orderId("PSP-CREATE-OK"))
+
+        val result = mockMvc.perform(
+            get("/api/v1/payments/$publicId")
+                .with(
+                    jwt().jwt {
+                        it.claim(
+                            "merchant_id",
+                            "MARKETPLACE-1"
+                        )
+                    }.authorities(SimpleGrantedAuthority("payment:write"))
+                ) // no payment:read
+        ).andReturn()
+
+        assertThat(result.response.status).isEqualTo(HttpStatus.FORBIDDEN.value())
+    }
+
+    @Test
+    fun `authorizing another merchant's payment gets 404 and leaves it CREATED without calling the PSP`() {
+        val orderId = orderId("PSP-AUTH-OK")
+        val marketplace1Payment = createdPayment(orderId)
+        val marketplace2Backend = tokenOf("MARKETPLACE-2")
+
+        val result = authorize(marketplace1Payment, token = marketplace2Backend)
+
+        assertThat(result.response.status).isEqualTo(HttpStatus.NOT_FOUND.value())
+        assertThat(storedStatus(orderId)).isEqualTo("CREATED")
+        assertThat(pspAuthorizeCalls(orderId)).isEqualTo(0)
     }
 
     // =================================================================================== helpers
 
-    private fun create(key: String, body: String): MvcResult {
+    /** The token of a merchant's backend: payment:read + payment:write, acting for [merchant] (claim merchant_id). */
+    private fun tokenOf(merchant: String): JwtRequestPostProcessor =
+        jwt().jwt { it.claim("merchant_id", merchant) }
+            .authorities(SimpleGrantedAuthority("payment:write"), SimpleGrantedAuthority("payment:read"))
+
+    // unless a test says otherwise, every request is made by MARKETPLACE-1's backend
+    private fun create(
+        key: String,
+        body: String,
+        token: JwtRequestPostProcessor = tokenOf("MARKETPLACE-1")
+    ): MvcResult {
         return mockMvc.perform(
             post("/api/v1/payments")
-                .with(jwt().authorities(SimpleGrantedAuthority("payment:write")))
+                .with(token)
                 .header("Idempotency-Key", key)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body)
         ).andReturn()
     }
 
-    private fun authorize(publicId: String): MvcResult {
+    private fun authorize(publicId: String, token: JwtRequestPostProcessor = tokenOf("MARKETPLACE-1")): MvcResult {
         return mockMvc.perform(
             post("/api/v1/payments/$publicId/authorize")
-                .with(jwt().authorities(SimpleGrantedAuthority("payment:write")))
+                .with(token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}")
         ).andReturn()
     }
 
-    // setup: a payment the PSP created (201); returns its public id
+    private fun read(publicId: String, token: JwtRequestPostProcessor = tokenOf("MARKETPLACE-1")): MvcResult {
+        return mockMvc.perform(get("/api/v1/payments/$publicId").with(token)).andReturn()
+    }
+
+    // setup: a payment the PSP created (201) for MARKETPLACE-1; returns its public id
     private fun createdPayment(orderId: String): String {
         val result = create(newKey(), directSale(orderId))
-        assertThat(result.response.status).isEqualTo(201)
+        assertThat(result.response.status).isEqualTo(HttpStatus.CREATED.value())
         return json(result)["paymentIntentId"].asText()
     }
 
-    private fun directSale(orderId: String): String = """
+    private fun directSale(orderId: String, merchantAccount: String = "MARKETPLACE-1"): String = """
         {
           "orderId": "$orderId",
           "buyerId": "BUYER-1",
-          "merchantAccount": "MARKETPLACE-1",
+          "merchantAccount": "$merchantAccount",
           "processingModel": "DIRECT_MERCHANT",
           "totalAmount": { "quantity": 5000, "currency": "EUR" }
         }
@@ -449,7 +886,11 @@ class PaymentApiIntegrationTest {
     private fun jdbc() = JdbcTemplate(dataSource)
 
     private fun storedStatus(orderId: String): String? {
-        val statuses = jdbc().queryForList("SELECT status FROM payment_intents WHERE order_id = ?", String::class.java, orderId)
+        val statuses = jdbc().queryForList(
+            "SELECT status FROM payment_intents WHERE order_id = ?",
+            String::class.java,
+            orderId
+        )
         if (statuses.isEmpty()) {
             return null
         }
@@ -457,9 +898,19 @@ class PaymentApiIntegrationTest {
     }
 
     // setup: put the payment in a state (a payment the PSP has not created yet has no PSP reference)
+    private fun outboxEventTypes(publicId: String): List<String> =
+        jdbc().queryForList("SELECT event_type FROM outbox_event WHERE aggregate_id = ?", String::class.java, publicId)
+
+    private fun outboxPayload(publicId: String): String =
+        jdbc().queryForObject("SELECT payload FROM outbox_event WHERE aggregate_id = ?", String::class.java, publicId)!!
+
     private fun setStoredStatus(orderId: String, status: String) {
         if (status == "CREATED_PENDING") {
-            jdbc().update("UPDATE payment_intents SET status = ?, psp_reference = NULL WHERE order_id = ?", status, orderId)
+            jdbc().update(
+                "UPDATE payment_intents SET status = ?, psp_reference = NULL WHERE order_id = ?",
+                status,
+                orderId
+            )
         } else {
             jdbc().update("UPDATE payment_intents SET status = ? WHERE order_id = ?", status, orderId)
         }

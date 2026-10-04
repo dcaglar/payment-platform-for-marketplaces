@@ -15,7 +15,7 @@ class AuthorizationNetworkSimulator(
         get() = config.scenarios[config.scenario]
             ?: throw IllegalStateException("No scenario config for ${config.scenario}")
 
-            @WithSpan("AuthorizationNetworkSimulator.simulate")
+    @WithSpan("AuthorizationNetworkSimulator.simulate")
     fun simulate() {
         val sc = active
         logger.debug("Selected scenario: ${config.scenario}")
@@ -34,7 +34,7 @@ class AuthorizationNetworkSimulator(
             roll < sc.latency.fast.probability -> Random.nextLong(
                 sc.latency.fast.minMs,
                 sc.latency.fast.maxMs
-            )       // fast path
+            ) // fast path
             roll < sc.latency.fast.probability + sc.latency.moderate.probability -> Random.nextLong(
                 sc.latency.moderate.minMs,
                 sc.latency.moderate.maxMs
@@ -45,7 +45,7 @@ class AuthorizationNetworkSimulator(
                 sc.latency.slow.maxMs
             )
 
-            else -> Random.nextLong(5000, 5000)//this enver happens
+            else -> Random.nextLong(5000, 5000) // this enver happens
         }
         logger.debug("🕒 [${config.scenario}] Latency ${latency}ms (roll=$roll)")
         Thread.sleep(latency)

@@ -1,6 +1,5 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
-
 import org.apache.ibatis.session.SqlSessionFactory
 import org.mybatis.spring.SqlSessionFactoryBean
 import org.mybatis.spring.annotation.MapperScan
@@ -20,7 +19,6 @@ import javax.sql.DataSource
 )
 public class EdgeMyBatisConfig {
 
-
     @Bean(name = ["edgeSqlSessionFactory"])
     @Primary
     fun edgeSqlSessionFactory(@Qualifier("edgeDataSource") dataSource: DataSource): SqlSessionFactory {
@@ -28,7 +26,9 @@ public class EdgeMyBatisConfig {
         sessionFactory.setDataSource(dataSource)
         sessionFactory.setTypeAliasesPackage("com.dogancaglar.common.db.entity")
         sessionFactory.setTypeHandlersPackage("com.dogancaglar.common.db.typehandler")
-        sessionFactory.setMapperLocations(*PathMatchingResourcePatternResolver().getResources("classpath*:mapper/**/*.xml"))
+        sessionFactory.setMapperLocations(
+            *PathMatchingResourcePatternResolver().getResources("classpath*:mapper/**/*.xml")
+        )
         return sessionFactory.`object`!!
     }
 }

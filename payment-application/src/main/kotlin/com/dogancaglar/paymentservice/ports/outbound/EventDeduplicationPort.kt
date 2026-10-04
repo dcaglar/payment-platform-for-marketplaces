@@ -1,6 +1,5 @@
 package com.dogancaglar.paymentservice.ports.outbound
 
-
 /**
  * "Has THIS consumer group already processed THIS event?"
  *

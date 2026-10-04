@@ -13,7 +13,7 @@ object JacksonUtil {
     fun createObjectMapper(): ObjectMapper {
         val objectMapper = ObjectMapper()
             .registerModule(JavaTimeModule())
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)  // ← Add this line
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false) // ← Add this line
             .registerKotlinModule()
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
         logger.debug("📦 Objectmapper config using ObjectMapper: $objectMapper")

@@ -6,16 +6,18 @@ import com.dogancaglar.paymentservice.ports.outbound.CentralOutboxForwarderPort
 import com.dogancaglar.paymentservice.ports.outbound.LocalOutboxStoreAndForwardPort
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.instrumentation.annotations.WithSpan
+import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
-import jakarta.annotation.PostConstruct
 
 @Component
 class LocalOutboxDispatchWorker(
-    @param:Qualifier("localOutboxStoreAndForwardPort") private val localOutboxStoreAndForwardPort: LocalOutboxStoreAndForwardPort,
+    @param:Qualifier(
+        "localOutboxStoreAndForwardPort"
+    ) private val localOutboxStoreAndForwardPort: LocalOutboxStoreAndForwardPort,
     private val centralOutboxRepository: CentralOutboxForwarderPort,
     @param:Value("\${app.instance-id}") private val appInstanceId: String,
     @param:Value("\${outbox-dispatcher.batch-size:250}") private val batchSize: Int,
@@ -31,8 +33,8 @@ class LocalOutboxDispatchWorker(
     @PostConstruct
     fun registerMetrics() {
         meter.gaugeBuilder("local_outbox_backlog_size")
-             .ofLongs()
-             .buildWithCallback { it.record(localOutboxStoreAndForwardPort.countNew().toLong()) }
+            .ofLongs()
+            .buildWithCallback { it.record(localOutboxStoreAndForwardPort.countNew().toLong()) }
     }
 
     fun isSchemaReady(): Boolean = centralOutboxRepository.isSchemaReady()
@@ -108,7 +110,12 @@ class LocalOutboxDispatchWorker(
                 try {
                     unclaimFailedNow(workerId, events)
                 } catch (t: Throwable) {
-                    logger.warn("Unclaim failed for {} rows (worker={}) – will rely on reclaimer", events.size, workerId, t)
+                    logger.warn(
+                        "Unclaim failed for {} rows (worker={}) – will rely on reclaimer",
+                        events.size,
+                        workerId,
+                        t
+                    )
                 }
                 logger.info("Forwarded failed={} on {}", events.size, threadName)
                 dispatchFailedTotal.add(events.size.toLong())

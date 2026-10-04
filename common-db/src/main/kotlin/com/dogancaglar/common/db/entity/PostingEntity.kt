@@ -12,4 +12,3 @@ data class PostingEntity constructor(
     val currency: String,
     val createdAt: Instant
 )
-

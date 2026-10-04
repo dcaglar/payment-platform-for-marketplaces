@@ -3,7 +3,11 @@ import { check, sleep } from 'k6';
 import { Trend } from 'k6/metrics';
 
 // --- 1. Load Configurations & Credentials ---
-const ACCESS_TOKEN = open('../keycloak/output/jwt/payment-service.token').replace(/[\r\n]+$/, '');
+// one token per merchant backend (written by infra/scripts/run-local.sh): each merchant pays with its own credential
+const ACCESS_TOKENS = {};
+for (const merchant of ['MARKETPLACE-1', 'MARKETPLACE-2', 'MARKETPLACE-3', 'MARKETPLACE-4', 'MARKETPLACE-5']) {
+    ACCESS_TOKENS[merchant] = open(`../keycloak/output/jwt/${merchant}.token`).replace(/[\r\n]+$/, '');
+}
 const BASE_URL = open('./endpoint.txt').replace(/[\r\n]+$/, '');
 const CREATE_PAYMENT_INTENT_ENDPOINT = `${BASE_URL}/api/v1/payments`;
 const AUTHORIZE_ENDPOINT = `${BASE_URL}/api/v1/payments`;
@@ -248,7 +252,7 @@ export default function () {
     const marketplace = pickRandomMarketplace();
 
     const headers = {
-        'Authorization': `Bearer ${ACCESS_TOKEN}`,
+        'Authorization': `Bearer ${ACCESS_TOKENS[marketplace.account]}`,
         'Content-Type': 'application/json',
     };
 

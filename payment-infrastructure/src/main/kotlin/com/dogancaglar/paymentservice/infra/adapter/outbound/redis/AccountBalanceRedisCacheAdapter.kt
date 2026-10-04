@@ -1,6 +1,7 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.redis
 
 import com.dogancaglar.paymentservice.ports.outbound.AccountBalanceCachePort
+import io.opentelemetry.api.OpenTelemetry
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.redis.connection.ReturnType
@@ -8,8 +9,6 @@ import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Component
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
-
-import io.opentelemetry.api.OpenTelemetry
 
 /**
  * Redis adapter for account balance delta cache.
@@ -66,7 +65,6 @@ class AccountBalanceRedisCacheAdapter(
         return {delta, watermark}
     """.trimIndent()
 
-
     override fun addDeltaAndWatermark(accountCode: String, delta: Long, upToEntryId: Long) {
         val key = accPrefix + accountCode
         redisTemplate.execute<Any?> { conn ->
@@ -122,4 +120,3 @@ class AccountBalanceRedisCacheAdapter(
             ?: emptySet()
     }
 }
-

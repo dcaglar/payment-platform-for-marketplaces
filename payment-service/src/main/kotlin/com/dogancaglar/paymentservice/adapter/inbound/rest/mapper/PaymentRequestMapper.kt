@@ -5,8 +5,8 @@ import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.AuthorizationRequ
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CaptureRequestDTO
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CaptureResponseDTO
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CreatePaymentIntentRequestDTO
-import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PaymentMethodDTO
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CreatePaymentIntentResponseDTO
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PaymentMethodDTO
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PaymentSplitRequestDTO
 import com.dogancaglar.paymentservice.application.command.AuthorizePaymentIntentCommand
 import com.dogancaglar.paymentservice.application.command.CapturePaymentCommand
@@ -14,14 +14,14 @@ import com.dogancaglar.paymentservice.application.command.CreatePaymentIntentCom
 import com.dogancaglar.paymentservice.application.util.toPublicPaymentIntentId
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentMethod
+import com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit
 import com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
 import com.dogancaglar.paymentservice.domain.model.vo.BuyerId
 import com.dogancaglar.paymentservice.domain.model.vo.OrderId
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
-import com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit
 import java.time.format.DateTimeFormatter
 
 object PaymentRequestMapper {
@@ -35,12 +35,12 @@ object PaymentRequestMapper {
             paymentSplits = dto.splits?.map { split ->
                 when (split) {
                     is PaymentSplitRequestDTO.BalanceAccount -> PaymentSplit.of(
-                        accountType = AccountType.SELLER_PAYABLE,
+                        accountType = LedgerAccountType.SELLER_PAYABLE,
                         account = split.account,
                         amount = Amount.of(split.amount.quantity, Currency(split.amount.currency.name))
                     )
                     is PaymentSplitRequestDTO.Commission -> PaymentSplit.of(
-                        accountType = AccountType.MERCHANT_COMMISSION_PAYABLE,
+                        accountType = LedgerAccountType.MERCHANT_COMMISSION_PAYABLE,
                         account = dto.merchantAccount,
                         amount = Amount.of(split.amount.quantity, Currency(split.amount.currency.name))
                     )
@@ -48,24 +48,23 @@ object PaymentRequestMapper {
             } ?: emptyList()
         )
 
-    fun toAuthorizePaymentIntentCommand(publicPaymentIntentId:String, dto: AuthorizationRequestDTO): AuthorizePaymentIntentCommand =
+    fun toAuthorizePaymentIntentCommand(publicPaymentIntentId: String, dto: AuthorizationRequestDTO, merchantAccount: String): AuthorizePaymentIntentCommand =
         AuthorizePaymentIntentCommand(
             paymentIntentId = PaymentIntentId(PublicIdFactory.toInternalId(publicPaymentIntentId)),
+            merchantAccount = merchantAccount,
             paymentMethod = dto.paymentMethod?.let { toPaymentMethod(it) }
         )
-    fun toCapturePaymentCommand(publicPaymentIntentId:String, dto: CaptureRequestDTO): CapturePaymentCommand =
+    fun toCapturePaymentCommand(publicPaymentIntentId: String, dto: CaptureRequestDTO): CapturePaymentCommand =
         CapturePaymentCommand(
             paymentIntentId = PaymentIntentId(PublicIdFactory.toInternalId(publicPaymentIntentId)),
-            merchantAccount = dto.merchantAccount ,
-            amount = Amount.of(dto.amount.quantity, Currency(dto.amount.currency.name)))
-
-
-
+            merchantAccount = dto.merchantAccount,
+            amount = Amount.of(dto.amount.quantity, Currency(dto.amount.currency.name))
+        )
 
     fun toPaymentResponseDto(paymentIntent: PaymentIntent): CreatePaymentIntentResponseDTO {
         return CreatePaymentIntentResponseDTO(
             paymentIntentId = paymentIntent.paymentIntentId.toPublicPaymentIntentId(),
-            clientSecret =  paymentIntent.clientSecret,
+            clientSecret = paymentIntent.clientSecret,
             status = paymentIntent.status.name,
             buyerId = paymentIntent.buyerId.value,
             orderId = paymentIntent.orderId.value,
@@ -93,7 +92,4 @@ object PaymentRequestMapper {
 
     fun toPaymentMethodOrNull(dto: PaymentMethodDTO?): PaymentMethod? =
         dto?.let { toPaymentMethod(it) }
-
-
-
 }

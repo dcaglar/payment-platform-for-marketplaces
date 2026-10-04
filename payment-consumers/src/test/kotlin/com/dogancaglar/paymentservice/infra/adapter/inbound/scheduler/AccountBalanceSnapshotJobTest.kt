@@ -1,13 +1,12 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.scheduler
 
+import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.domain.model.balance.AccountBalanceSnapshot
 import com.dogancaglar.paymentservice.ports.outbound.AccountBalanceCachePort
 import com.dogancaglar.paymentservice.ports.outbound.AccountBalanceSnapshotPort
 import io.mockk.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import com.dogancaglar.common.time.Utc
-import java.time.Duration
 
 class AccountBalanceSnapshotJobTest {
 
@@ -36,10 +35,10 @@ class AccountBalanceSnapshotJobTest {
             lastSnapshotAt = Utc.nowLocalDateTime().minusHours(1),
             updatedAt = Utc.nowLocalDateTime().minusHours(1)
         )
-        
+
         val delta = 5000L
         val upToEntryId = 150L
-        
+
         every { accountBalanceCachePort.getDirtyAccounts() } returns setOf(accountCode)
         every { accountBalanceCachePort.getAndResetDeltaWithWatermark(accountCode) } returns (delta to upToEntryId)
         every { accountBalanceSnapshotPort.getSnapshot(accountCode) } returns existingSnapshot
@@ -53,9 +52,9 @@ class AccountBalanceSnapshotJobTest {
             accountBalanceSnapshotPort.saveSnapshot(
                 match { snapshot ->
                     snapshot.accountCode == accountCode &&
-                    snapshot.balance == 105000L &&
-                    snapshot.lastAppliedEntryId == 150L &&
-                    snapshot.lastSnapshotAt.isAfter(existingSnapshot.lastSnapshotAt)
+                        snapshot.balance == 105000L &&
+                        snapshot.lastAppliedEntryId == 150L &&
+                        snapshot.lastSnapshotAt.isAfter(existingSnapshot.lastSnapshotAt)
                 }
             )
         }
@@ -67,7 +66,7 @@ class AccountBalanceSnapshotJobTest {
         val accountCode = "PLATFORM_CASH.GLOBAL"
         val delta = 10000L
         val upToEntryId = 200L
-        
+
         every { accountBalanceCachePort.getDirtyAccounts() } returns setOf(accountCode)
         every { accountBalanceCachePort.getAndResetDeltaWithWatermark(accountCode) } returns (delta to upToEntryId)
         every { accountBalanceSnapshotPort.getSnapshot(accountCode) } returns null
@@ -81,10 +80,10 @@ class AccountBalanceSnapshotJobTest {
             accountBalanceSnapshotPort.saveSnapshot(
                 match { snapshot ->
                     snapshot.accountCode == accountCode &&
-                    snapshot.balance == 10000L &&
-                    snapshot.lastAppliedEntryId == 200L &&
-                    snapshot.lastSnapshotAt != null &&
-                    snapshot.updatedAt != null
+                        snapshot.balance == 10000L &&
+                        snapshot.lastAppliedEntryId == 200L &&
+                        snapshot.lastSnapshotAt != null &&
+                        snapshot.updatedAt != null
                 }
             )
         }
@@ -94,7 +93,7 @@ class AccountBalanceSnapshotJobTest {
     fun `mergeDeltasToSnapshots should skip when delta is zero`() {
         // Given
         val accountCode = "MERCHANT_PAYABLE.MERCHANT-456"
-        
+
         every { accountBalanceCachePort.getDirtyAccounts() } returns setOf(accountCode)
         every { accountBalanceCachePort.getAndResetDeltaWithWatermark(accountCode) } returns (0L to 100L)
 
@@ -117,10 +116,10 @@ class AccountBalanceSnapshotJobTest {
             lastSnapshotAt = Utc.nowLocalDateTime(),
             updatedAt = Utc.nowLocalDateTime()
         )
-        
+
         val delta = -10000L
         val upToEntryId = 75L
-        
+
         every { accountBalanceCachePort.getDirtyAccounts() } returns setOf(accountCode)
         every { accountBalanceCachePort.getAndResetDeltaWithWatermark(accountCode) } returns (delta to upToEntryId)
         every { accountBalanceSnapshotPort.getSnapshot(accountCode) } returns existingSnapshot
@@ -134,7 +133,7 @@ class AccountBalanceSnapshotJobTest {
             accountBalanceSnapshotPort.saveSnapshot(
                 match { snapshot ->
                     snapshot.balance == 40000L &&
-                    snapshot.lastAppliedEntryId == 75L
+                        snapshot.lastAppliedEntryId == 75L
                 }
             )
         }
@@ -145,7 +144,7 @@ class AccountBalanceSnapshotJobTest {
         // Given
         val accountCode1 = "MERCHANT_PAYABLE.MERCHANT-456"
         val accountCode2 = "MERCHANT_PAYABLE.MERCHANT-789"
-        
+
         val snapshot1 = AccountBalanceSnapshot(
             accountCode = accountCode1,
             balance = 100000L,
@@ -160,7 +159,7 @@ class AccountBalanceSnapshotJobTest {
             lastSnapshotAt = Utc.nowLocalDateTime(),
             updatedAt = Utc.nowLocalDateTime()
         )
-        
+
         every { accountBalanceCachePort.getDirtyAccounts() } returns setOf(accountCode1, accountCode2)
         every { accountBalanceCachePort.getAndResetDeltaWithWatermark(accountCode1) } returns (5000L to 150L)
         every { accountBalanceCachePort.getAndResetDeltaWithWatermark(accountCode2) } returns (3000L to 80L)

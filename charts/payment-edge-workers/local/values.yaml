@@ -32,7 +32,7 @@ redis:
 kafka:
   bootstrapServers: kafka.payment.svc.cluster.local:9092
 config:
-  KEYCLOAK_ISSUER_URL: "http://keycloak:8080/realms/ecommerce-platform"
+  KEYCLOAK_ISSUER_URL: "http://keycloak.payment.svc.cluster.local:8080/realms/ecommerce-platform"
   CENTRAL_DB_URL: "jdbc:postgresql://central-db-postgresql:5432/central-db?options=-c%20timezone=UTC"
   EDGE_DB_NAME: "edge-db"
   CENTRAL_DB_NAME: "central-db"

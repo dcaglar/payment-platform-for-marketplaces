@@ -5,8 +5,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$SCRIPT_DIR/../.."
 cd "$REPO_ROOT"
 
-# 0. Fetch a fresh token for k6 (keycloak/output/jwt/payment-service.token); a saved one goes stale
-./keycloak/get-token.sh
+# 0. Fresh tokens for k6, one per merchant backend (keycloak/output/jwt/MARKETPLACE-N.token): each merchant pays
+#    with its own credential (the API refuses a payment for another merchant). A saved token goes stale.
+for merchant in MARKETPLACE-1 MARKETPLACE-2 MARKETPLACE-3 MARKETPLACE-4 MARKETPLACE-5; do
+  ./keycloak/get-access-token.sh merchant-api "$merchant" > /dev/null
+done
 
 # 1. Query the local LoadBalancer IP of the Ingress Controller and write to endpoint.txt
 echo "🔍 Resolving local Ingress Controller IP..."

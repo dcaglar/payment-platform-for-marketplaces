@@ -1,6 +1,5 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.serialization
 
-import com.dogancaglar.paymentservice.infra.adapter.outbound.serialization.JacksonUtil
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

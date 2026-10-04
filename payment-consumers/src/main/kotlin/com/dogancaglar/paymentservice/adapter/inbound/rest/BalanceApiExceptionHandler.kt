@@ -15,7 +15,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 class BalanceApiExceptionHandler {
 
     @ExceptionHandler(BalanceOwnerNotFoundException::class)
-    fun handleNotFound(ex: BalanceOwnerNotFoundException, request: HttpServletRequest): ResponseEntity<Map<String, Any?>> {
+    fun handleNotFound(
+        ex: BalanceOwnerNotFoundException,
+        request: HttpServletRequest
+    ): ResponseEntity<Map<String, Any?>> {
         val body = mapOf(
             "timestamp" to Utc.nowInstant().toString(),
             "status" to 404,
@@ -25,5 +28,19 @@ class BalanceApiExceptionHandler {
             "path" to request.requestURI
         )
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body)
+    }
+
+    // e.g. the back office asked for sellers without naming the merchant
+    @ExceptionHandler(IllegalArgumentException::class)
+    fun handleInvalid(ex: IllegalArgumentException, request: HttpServletRequest): ResponseEntity<Map<String, Any?>> {
+        val body = mapOf(
+            "timestamp" to Utc.nowInstant().toString(),
+            "status" to 400,
+            "error" to "Bad Request",
+            "code" to "VALIDATION_ERROR",
+            "message" to ex.message,
+            "path" to request.requestURI
+        )
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
     }
 }

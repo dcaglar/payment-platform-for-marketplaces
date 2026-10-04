@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component
 
 /**
  * EdgeApiGracefulShutdownHook
- * 
+ *
  * Ensures that the payment-service API pod does not shut down (and take its local database with it)
  * until the remote payment-edge-worker pod has successfully drained all pending outbox events.
  */
@@ -30,13 +30,18 @@ class EdgeApiGracefulShutdownHook(
             val hasPending = try {
                 localOutboxWriterPort.hasPendingEvents()
             } catch (t: Throwable) {
-                logger.error("Failed to query outbox status during shutdown. Proceeding with termination to avoid permanent hang.", t)
+                logger.error(
+                    "Failed to query outbox status during shutdown. Proceeding with termination to avoid permanent hang.",
+                    t
+                )
                 break
             }
 
             if (hasPending) {
                 if (!warningLogged) {
-                    logger.warn("Step 2: Pending outbox events detected! Blocking API Pod termination until payment-edge-worker drains them.")
+                    logger.warn(
+                        "Step 2: Pending outbox events detected! Blocking API Pod termination until payment-edge-worker drains them."
+                    )
                     warningLogged = true
                 }
                 emptyCycles = 0

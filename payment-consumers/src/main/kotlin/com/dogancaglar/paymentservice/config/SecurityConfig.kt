@@ -16,8 +16,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.web.SecurityFilterChain
 
 /**
- * payment-consumers serves one small read API next to its Kafka listeners: balances of sellers and
- * merchants (BalanceController). Callers present a Keycloak JWT; the same rules as payment-service apply
+ * payment-consumers serves a small API next to its Kafka listeners: balances, the back office's transactions,
+ * and account onboarding. Callers present a Keycloak JWT; the same rules as payment-service apply
  * (realm roles become authorities, see keycloakJwtAuthenticationConverter).
  */
 @Configuration
@@ -32,10 +32,12 @@ class SecurityConfig {
                 requests
                     // health, liveness, readiness, metrics
                     .requestMatchers("/actuator/**").permitAll()
-                    // own balance: seller user (SELLER), seller-api client (SELLER_API) or merchant client (MERCHANT)
-                    .requestMatchers(HttpMethod.GET, "/api/v1/balances/me").hasAnyRole("SELLER", "SELLER_API", "MERCHANT")
-                    // one seller's balance: a merchant for its own sellers, the back office for any seller
-                    .requestMatchers(HttpMethod.GET, "/api/v1/balances/*").hasAnyRole("MERCHANT", "FINANCE", "ADMIN")
+                    // the permission per URL; who may call each endpoint (merchant claim or staff) is in its @PreAuthorize.
+                    // See new-backoffice.md, "Security".
+                    .requestMatchers(HttpMethod.GET, "/api/v1/balances/**").hasAuthority("balance:read")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/transactions/**").hasAuthority("transaction:read")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/txs/**").hasAuthority("ledger:read")
+                    .requestMatchers(HttpMethod.POST, "/api/v1/accounts").hasAuthority("account:write")
                     // everything else stays closed
                     .anyRequest().denyAll()
             }

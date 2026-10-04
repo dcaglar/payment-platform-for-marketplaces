@@ -6,9 +6,10 @@ import java.time.LocalDateTime
 /**
  * Represents a durable outbox event entry.
  * Created atomically with domain changes to ensure reliable async publication.
- */class OutboxEvent private constructor(
+ */
+class OutboxEvent private constructor(
     val oeid: Long,
-    val  partitionKey: String,
+    val partitionKey: String,
     val eventType: String,
     val aggregateId: String,
     val eventId: String,
@@ -67,18 +68,18 @@ import java.time.LocalDateTime
             partitionKey: String,
             eventType: String,
             aggregateId: String,
-            eventId:String,
+            eventId: String,
             parentEventId: String?,
             payload: String
         ): OutboxEvent {
             val now = Utc.nowLocalDateTime()
-           return  OutboxEvent(
+            return OutboxEvent(
                 oeid = oeid,
                 partitionKey = partitionKey,
                 eventType = eventType,
                 aggregateId = aggregateId,
-               eventId=eventId,
-               parentEventId=parentEventId,
+                eventId = eventId,
+                parentEventId = parentEventId,
                 payload = payload,
                 status = Status.NEW,
                 createdAt = now,

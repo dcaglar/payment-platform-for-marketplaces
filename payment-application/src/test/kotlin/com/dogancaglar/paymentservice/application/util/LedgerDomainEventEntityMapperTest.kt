@@ -6,25 +6,30 @@ import com.dogancaglar.paymentservice.application.events.PostingEventData
 import com.dogancaglar.paymentservice.application.util.LedgerDomainEventEntityMapper.toDomain
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
-import com.dogancaglar.paymentservice.domain.model.ledger.Account
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalType
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccount
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 import com.dogancaglar.paymentservice.domain.model.ledger.Posting
+import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
+import com.dogancaglar.paymentservice.domain.model.vo.TxId
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import kotlin.test.assertEquals
-import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
-import com.dogancaglar.paymentservice.domain.model.vo.TxId
 
 class LedgerDomainEventEntityMapperTest {
 
     private val fixedInstant = Instant.parse("2025-11-07T16:20:00Z")
 
     private fun sampleJournalEntry(): JournalEntry {
-        val merchantAccount = Account.Companion.mock(AccountType.CAPTURE_SUSPENSE, "SELLER-333", "EUR")
-        val pspReceivable = Account.Companion.mock(AccountType.PSP_RECEIVABLE, "GLOBAL", "EUR")
+        val merchantAccount = LedgerAccount.createNew(
+            LedgerAccountType.CAPTURE_SUSPENSE,
+            "SELLER-333",
+            null,
+            Currency("EUR")
+        )
+        val pspReceivable = LedgerAccount.createNew(LedgerAccountType.PSP_RECEIVABLE, "GLOBAL", null, Currency("EUR"))
         val debitPosting = Posting.Debit.create(merchantAccount, Amount.Companion.of(1000, Currency("EUR")))
         val creditPosting = Posting.Credit.create(pspReceivable, Amount.Companion.of(1000, Currency("EUR")))
 
@@ -43,14 +48,14 @@ class LedgerDomainEventEntityMapperTest {
     private fun sampleJournalEntryEventData(): JournalEntryEventData {
         val debitEvent = PostingEventData.create(
             accountCode = "CAPTURE_SUSPENSE.SELLER-333.EUR",
-            accountType = AccountType.CAPTURE_SUSPENSE,
+            accountType = LedgerAccountType.CAPTURE_SUSPENSE,
             amount = 1000,
             currency = "EUR",
             direction = PostingDirection.DEBIT
         )
         val creditEvent = PostingEventData.create(
             accountCode = "PSP_RECEIVABLE.GLOBAL.EUR",
-            accountType = AccountType.PSP_RECEIVABLE,
+            accountType = LedgerAccountType.PSP_RECEIVABLE,
             amount = 1000,
             currency = "EUR",
             direction = PostingDirection.CREDIT
@@ -92,7 +97,7 @@ class LedgerDomainEventEntityMapperTest {
     fun `PostingEventData toDomain round-trips account entity without duplicating currency`() {
         val postingEvent = PostingEventData.create(
             accountCode = "CAPTURE_SUSPENSE.SELLER-333.EUR",
-            accountType = AccountType.CAPTURE_SUSPENSE,
+            accountType = LedgerAccountType.CAPTURE_SUSPENSE,
             amount = 1000,
             currency = "EUR",
             direction = PostingDirection.CREDIT
@@ -102,7 +107,7 @@ class LedgerDomainEventEntityMapperTest {
 
         Assertions.assertEquals("CAPTURE_SUSPENSE.SELLER-333.EUR", postingDomain.account.accountCode)
 
-        Assertions.assertEquals(AccountType.CAPTURE_SUSPENSE, postingDomain.account.type)
+        Assertions.assertEquals(LedgerAccountType.CAPTURE_SUSPENSE, postingDomain.account.type)
         Assertions.assertEquals("EUR", postingDomain.account.currency.currencyCode)
         Assertions.assertTrue(postingDomain is Posting.Credit)
     }
@@ -121,14 +126,14 @@ class LedgerDomainEventEntityMapperTest {
 
         val debitPosting = postings.first { it is Posting.Debit }
         Assertions.assertEquals("CAPTURE_SUSPENSE.SELLER-333.EUR", debitPosting.account.accountCode)
-        Assertions.assertEquals(AccountType.CAPTURE_SUSPENSE, debitPosting.account.type)
+        Assertions.assertEquals(LedgerAccountType.CAPTURE_SUSPENSE, debitPosting.account.type)
 
         Assertions.assertEquals("EUR", debitPosting.account.currency.currencyCode)
         Assertions.assertEquals(1000, debitPosting.amount.quantity)
 
         val creditPosting = postings.first { it is Posting.Credit }
         Assertions.assertEquals("PSP_RECEIVABLE.GLOBAL.EUR", creditPosting.account.accountCode)
-        Assertions.assertEquals(AccountType.PSP_RECEIVABLE, creditPosting.account.type)
+        Assertions.assertEquals(LedgerAccountType.PSP_RECEIVABLE, creditPosting.account.type)
 
         Assertions.assertEquals("EUR", creditPosting.account.currency.currencyCode)
         Assertions.assertEquals(1000, creditPosting.amount.quantity)

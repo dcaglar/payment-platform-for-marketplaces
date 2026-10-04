@@ -6,4 +6,3 @@ import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 interface GetPaymentIntentUseCase {
     fun getPaymentIntent(cmd: GetPaymentIntentCommand): PaymentIntent
 }
-

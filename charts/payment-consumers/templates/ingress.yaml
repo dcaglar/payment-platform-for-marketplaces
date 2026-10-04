@@ -1,7 +1,7 @@
 {{- if and .Values.ingress .Values.ingress.enabled -}}
 {{- $fullName := include "payment-consumers.fullname" . -}}
-# Balance read API (BalanceController). Plain routing: balances are central, not cell-bound,
-# so none of the edge cell's Snowflake/Lua cell routing applies here.
+# Central APIs: balance reads (BalanceController) and account onboarding (AccountController).
+# Plain routing: both are central, not cell-bound, so none of the edge cell's Snowflake/Lua cell routing applies.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -19,6 +19,27 @@ spec:
     - http:
         paths:
           - path: {{ .Values.ingress.appPath | default "/api/v1/balances" }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: {{ .Values.service.port | default 8080 }}
+          - path: {{ .Values.ingress.accountsPath | default "/api/v1/accounts" }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: {{ .Values.service.port | default 8080 }}
+          - path: {{ .Values.ingress.transactionsPath | default "/api/v1/transactions" }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: {{ .Values.service.port | default 8080 }}
+          - path: {{ .Values.ingress.txsPath | default "/api/v1/txs" }}
             pathType: Prefix
             backend:
               service:

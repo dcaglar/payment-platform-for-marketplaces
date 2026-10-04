@@ -1,10 +1,9 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
 import com.dogancaglar.common.db.converter.OutboxEventEntityMapper
-import com.dogancaglar.common.time.Utc
-import com.dogancaglar.paymentservice.ports.outbound.CentralOutboxRelayPort
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.CentralOutboxRelayMapper
+import com.dogancaglar.paymentservice.ports.outbound.CentralOutboxRelayPort
 import org.springframework.stereotype.Repository
 import java.time.Instant
 
@@ -12,8 +11,6 @@ import java.time.Instant
 class CentralOutboxRelayAdapter(
     private val mapper: CentralOutboxRelayMapper
 ) : CentralOutboxRelayPort {
-
-
 
     override fun findEligible(tSafe: Instant, batchSize: Int, workerId: String): List<OutboxEvent> {
         val entities = mapper.findEligible(tSafe, batchSize, workerId)
@@ -31,8 +28,8 @@ class CentralOutboxRelayAdapter(
     }
 
     // 2. ADDED implementation for unclaimSpecific
-    override fun unclaimSpecific(oeid: Long, createdAt: Instant,workerId: String) {
-        mapper.unclaimSpecific(oeid, createdAt,workerId)
+    override fun unclaimSpecific(oeid: Long, createdAt: Instant, workerId: String) {
+        mapper.unclaimSpecific(oeid, createdAt, workerId)
     }
 
     override fun computeTSafe(): Instant? {

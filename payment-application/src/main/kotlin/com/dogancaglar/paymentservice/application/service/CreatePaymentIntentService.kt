@@ -79,7 +79,8 @@ class CreatePaymentIntentService(
     private fun handleBackgroundFailure(paymentIntent: PaymentIntent, error: Throwable) {
         logger.error(
             "Background payment creation failed for {}, marking FAILED",
-            paymentIntent.paymentIntentId.value, error
+            paymentIntent.paymentIntentId.value,
+            error
         )
         paymentIntentRepository.updatePaymentIntent(paymentIntent.markFailed())
     }

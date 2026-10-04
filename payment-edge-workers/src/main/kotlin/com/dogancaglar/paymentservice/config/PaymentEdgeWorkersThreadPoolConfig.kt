@@ -25,10 +25,8 @@ class PaymentEdgeWorkersThreadPoolConfig {
         return scheduler
     }
 
-
     @Bean("resilientExecutor")
     fun resilientExecutor(): ThreadPoolTaskExecutor {
-
         val resilientExecutor = ThreadPoolTaskExecutor()
         resilientExecutor.corePoolSize = 32
         resilientExecutor.maxPoolSize = 32
@@ -40,7 +38,7 @@ public ExecutorService wrapExecutor(ExecutorService executor) {
   return Context.taskWrapping(executor);
 }
  */
-        Context.taskWrapping {  }
+        Context.taskWrapping { }
         resilientExecutor.setTaskDecorator { runnable ->
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
@@ -61,8 +59,6 @@ public ExecutorService wrapExecutor(ExecutorService executor) {
 
         return scheduler
     }
-
-
 
     @Bean("taskScheduler")
     fun defaultSpringScheduler(): ThreadPoolTaskScheduler {

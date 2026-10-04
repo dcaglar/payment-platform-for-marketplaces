@@ -1,11 +1,11 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
-import com.dogancaglar.paymentservice.domain.model.ledger.Tx
+import com.dogancaglar.common.db.converter.PaymentTxEntityMapper
 import com.dogancaglar.common.db.entity.PaymentTxEntity
+import com.dogancaglar.paymentservice.domain.model.ledger.Tx
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.PaymentTxMapper
 import com.dogancaglar.paymentservice.ports.outbound.PaymentTxPort
 import org.springframework.stereotype.Repository
-import com.dogancaglar.common.db.converter.PaymentTxEntityMapper
 
 /**
  * PaymentTxAdapter
@@ -42,4 +42,17 @@ class PaymentTxAdapter(
 
     override fun findByPaymentId(paymentId: Long): List<Tx> =
         mapper.findByPaymentId(paymentId).map { PaymentTxEntityMapper.toDomain(it) }
+
+    override fun findByPaymentIdForMerchant(paymentId: Long, merchantAccount: String): List<Tx> {
+        val txs = mutableListOf<Tx>()
+        for (row in mapper.findByPaymentIdForMerchant(paymentId, merchantAccount)) {
+            txs.add(PaymentTxEntityMapper.toDomain(row))
+        }
+        return txs
+    }
+
+    override fun findByTxIdForMerchant(txId: Long, merchantAccount: String): Tx? {
+        val row = mapper.findByTxIdForMerchant(txId, merchantAccount) ?: return null
+        return PaymentTxEntityMapper.toDomain(row)
+    }
 }

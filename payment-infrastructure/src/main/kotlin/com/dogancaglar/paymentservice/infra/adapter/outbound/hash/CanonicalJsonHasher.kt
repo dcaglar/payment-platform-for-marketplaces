@@ -7,7 +7,7 @@ import java.security.MessageDigest
 import java.util.Base64
 
 @Component
-class CanonicalJsonHasher(private val objectMapper: ObjectMapper): HasherPort {
+class CanonicalJsonHasher(private val objectMapper: ObjectMapper) : HasherPort {
 
     override fun hashBody(body: Any): String {
         // 1. Serialize to canonical JSON (sorted keys)

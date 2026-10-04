@@ -1,13 +1,12 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
+import com.dogancaglar.paymentservice.domain.model.account.AccountStatus
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
-import com.dogancaglar.paymentservice.domain.model.ledger.Account
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountCategory
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountStatus
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccount
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 import com.dogancaglar.paymentservice.domain.model.ledger.Tx
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.paymentservice.domain.model.payment.Payment
@@ -99,7 +98,12 @@ class CentralDbTransactionalFacadeAdapterIntegrationTest {
 
     @Test
     fun `first authorization step writes the Payment, AuthTx, AUTH journal and outbox events`() {
-        val recorded = recordAuthorization(paymentId = 1001L, txId = 2001L, globalJournalEntryId = 3001L, firstOeid = 4001L)
+        val recorded = recordAuthorization(
+            paymentId = 1001L,
+            txId = 2001L,
+            globalJournalEntryId = 3001L,
+            firstOeid = 4001L
+        )
 
         assertTrue(recorded)
         assertEquals(1, count("payments"))
@@ -114,7 +118,12 @@ class CentralDbTransactionalFacadeAdapterIntegrationTest {
         recordAuthorization(paymentId = 1001L, txId = 2001L, globalJournalEntryId = 3001L, firstOeid = 4001L)
 
         // the replay generates new ids for everything; only the intent is the same
-        val recorded = recordAuthorization(paymentId = 1002L, txId = 2002L, globalJournalEntryId = 3002L, firstOeid = 4003L)
+        val recorded = recordAuthorization(
+            paymentId = 1002L,
+            txId = 2002L,
+            globalJournalEntryId = 3002L,
+            firstOeid = 4003L
+        )
 
         assertFalse(recorded)
         assertEquals(1, count("payments"))
@@ -123,7 +132,10 @@ class CentralDbTransactionalFacadeAdapterIntegrationTest {
         assertEquals(1, count("journal_entries"))
         assertEquals(2, count("postings"))
         assertEquals(2, count("outbox_event"))
-        assertEquals(listOf(4001L, 4002L), jdbcTemplate.queryForList("SELECT oeid FROM outbox_event ORDER BY oeid", Long::class.java))
+        assertEquals(
+            listOf(4001L, 4002L),
+            jdbcTemplate.queryForList("SELECT oeid FROM outbox_event ORDER BY oeid", Long::class.java)
+        )
     }
 
     // Builds the authorization step the way ProcessPspResultProcessingService.processAuthorized does
@@ -150,8 +162,8 @@ class CentralDbTransactionalFacadeAdapterIntegrationTest {
             txId = TxId(txId),
             journalIdentifier = paymentIntentId.toString(),
             authorizedAmount = amount,
-            authReceivable = account(AccountType.AUTH_RECEIVABLE, AccountCategory.ASSET),
-            authLiability = account(AccountType.AUTH_LIABILITY, AccountCategory.LIABILITY)
+            authReceivable = account(LedgerAccountType.AUTH_RECEIVABLE),
+            authLiability = account(LedgerAccountType.AUTH_LIABILITY)
         )
         val outboxEvents = listOf(
             outboxEvent(firstOeid, "capture_requested"),
@@ -160,16 +172,14 @@ class CentralDbTransactionalFacadeAdapterIntegrationTest {
         return facade.recordAuthorizationInLedger(payment, authTx, journalEntries, outboxEvents)
     }
 
-    private fun account(type: AccountType, category: AccountCategory): Account {
-        return Account.fromProfile(
+    private fun account(type: LedgerAccountType): LedgerAccount {
+        return LedgerAccount.fromProfile(
             AccountProfile(
                 accountCode = "${type.name}.GLOBAL.EUR",
                 type = type,
                 masterAccountCode = "GLOBAL",
                 subEntityId = null,
                 currency = eur,
-                category = category,
-                country = null,
                 status = AccountStatus.ACTIVE
             )
         )

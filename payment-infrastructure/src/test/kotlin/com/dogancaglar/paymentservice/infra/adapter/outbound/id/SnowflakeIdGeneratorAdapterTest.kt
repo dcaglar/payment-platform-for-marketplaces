@@ -1,7 +1,5 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.id
 
-import com.dogancaglar.paymentservice.infra.adapter.outbound.id.IdGenerationProperties
-import com.dogancaglar.paymentservice.infra.adapter.outbound.id.SnowflakeCore
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -24,7 +22,7 @@ class SnowflakeIdGeneratorAdapterTest {
         val core = object : SnowflakeCore(epochMillis = 0, regionId = 1) {
             override fun nextId(nodeId: Int): Long = (nodeId.toLong() shl 10)
         }
-        
+
         // Pod name with ordinal -5
         adapter = SnowflakeIdGeneratorAdapter(props, "payment-service-5").apply {
             val coreField = this::class.java.getDeclaredField("core")
@@ -42,7 +40,7 @@ class SnowflakeIdGeneratorAdapterTest {
         val core = object : SnowflakeCore(epochMillis = 0, regionId = 1) {
             override fun nextId(nodeId: Int): Long = (nodeId.toLong() shl 10)
         }
-        
+
         // Standard pod name from Deployment (not StatefulSet)
         val podName = "payment-service-fdf87c"
         adapter = SnowflakeIdGeneratorAdapter(props, podName).apply {
@@ -62,7 +60,7 @@ class SnowflakeIdGeneratorAdapterTest {
         val core = object : SnowflakeCore(epochMillis = 0, regionId = 1) {
             override fun nextId(nodeId: Int): Long = (nodeId.toLong() shl 10)
         }
-        
+
         // Ordinal 33 should result in nodeId 1
         adapter = SnowflakeIdGeneratorAdapter(props, "payment-service-33").apply {
             val coreField = this::class.java.getDeclaredField("core")

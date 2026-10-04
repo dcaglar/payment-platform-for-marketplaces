@@ -64,7 +64,7 @@ object TestDatabases {
     /**
      * Truncates every application table (partitions included, via their parents) so each
      * test starts clean. Liquibase bookkeeping tables and changelog-seeded reference data
-     * (account_directory) are preserved.
+     * (accounts) are preserved.
      */
     fun truncateAll(db: PostgreSQLContainer<*>) {
         val tableNames = ArrayList<String>()
@@ -79,7 +79,7 @@ object TestDatabases {
                       AND c.relkind IN ('r', 'p')          -- plain tables + partitioned parents
                       AND c.relispartition = false          -- parents only; TRUNCATE cascades to partitions
                       AND c.relname NOT LIKE 'databasechangelog%'
-                      AND c.relname <> 'account_directory'
+                      AND c.relname <> 'accounts'
                 """
                 statement.executeQuery(sql).use { resultSet ->
                     while (resultSet.next()) {
@@ -174,7 +174,9 @@ object TestDatabases {
 
             conn.createStatement().use { statement ->
                 for (parent in parentTableNames) {
-                    statement.execute("CREATE TABLE IF NOT EXISTS " + parent + "_default PARTITION OF " + parent + " DEFAULT")
+                    statement.execute(
+                        "CREATE TABLE IF NOT EXISTS " + parent + "_default PARTITION OF " + parent + " DEFAULT"
+                    )
                 }
             }
         }

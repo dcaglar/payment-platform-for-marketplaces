@@ -1,0 +1,152 @@
+[
+  {
+    "merchantAccount": "MARKETPLACE-1",
+    "legalName": "Marketplace 1 B.V.",
+    "address": {
+      "line1": "Damrak 1",
+      "city": "Amsterdam",
+      "postalCode": "1012 LG",
+      "country": "NL"
+    },
+    "industry": "5399",
+    "currency": "EUR",
+    "autoCaptured": true,
+    "autoSettled": false,
+    "platformFee": {
+      "fixed": 50,
+      "bps": 500
+    },
+    "sellers": [
+      "SELLER-1-1",
+      "SELLER-1-2",
+      "SELLER-1-3",
+      "SELLER-1-4",
+      "SELLER-1-5",
+      "SELLER-1-6",
+      "SELLER-1-7",
+      "SELLER-1-8",
+      "SELLER-1-9",
+      "SELLER-1-10"
+    ]
+  },
+  {
+    "merchantAccount": "MARKETPLACE-2",
+    "legalName": "Marketplace 2 B.V.",
+    "address": {
+      "line1": "Damrak 2",
+      "city": "Amsterdam",
+      "postalCode": "1012 LG",
+      "country": "NL"
+    },
+    "industry": "5399",
+    "currency": "EUR",
+    "autoCaptured": true,
+    "autoSettled": false,
+    "platformFee": {
+      "fixed": 50,
+      "bps": 500
+    },
+    "sellers": [
+      "SELLER-2-1",
+      "SELLER-2-2",
+      "SELLER-2-3",
+      "SELLER-2-4",
+      "SELLER-2-5",
+      "SELLER-2-6",
+      "SELLER-2-7",
+      "SELLER-2-8",
+      "SELLER-2-9",
+      "SELLER-2-10"
+    ]
+  },
+  {
+    "merchantAccount": "MARKETPLACE-3",
+    "legalName": "Marketplace 3 B.V.",
+    "address": {
+      "line1": "Damrak 3",
+      "city": "Amsterdam",
+      "postalCode": "1012 LG",
+      "country": "NL"
+    },
+    "industry": "5399",
+    "currency": "EUR",
+    "autoCaptured": true,
+    "autoSettled": false,
+    "platformFee": {
+      "fixed": 50,
+      "bps": 500
+    },
+    "sellers": [
+      "SELLER-3-1",
+      "SELLER-3-2",
+      "SELLER-3-3",
+      "SELLER-3-4",
+      "SELLER-3-5",
+      "SELLER-3-6",
+      "SELLER-3-7",
+      "SELLER-3-8",
+      "SELLER-3-9",
+      "SELLER-3-10"
+    ]
+  },
+  {
+    "merchantAccount": "MARKETPLACE-4",
+    "legalName": "Marketplace 4 B.V.",
+    "address": {
+      "line1": "Damrak 4",
+      "city": "Amsterdam",
+      "postalCode": "1012 LG",
+      "country": "NL"
+    },
+    "industry": "5399",
+    "currency": "EUR",
+    "autoCaptured": true,
+    "autoSettled": false,
+    "platformFee": {
+      "fixed": 50,
+      "bps": 500
+    },
+    "sellers": [
+      "SELLER-4-1",
+      "SELLER-4-2",
+      "SELLER-4-3",
+      "SELLER-4-4",
+      "SELLER-4-5",
+      "SELLER-4-6",
+      "SELLER-4-7",
+      "SELLER-4-8",
+      "SELLER-4-9",
+      "SELLER-4-10"
+    ]
+  },
+  {
+    "merchantAccount": "MARKETPLACE-5",
+    "legalName": "Marketplace 5 B.V.",
+    "address": {
+      "line1": "Damrak 5",
+      "city": "Amsterdam",
+      "postalCode": "1012 LG",
+      "country": "NL"
+    },
+    "industry": "5399",
+    "currency": "EUR",
+    "autoCaptured": true,
+    "autoSettled": true,
+    "platformFee": {
+      "fixed": 50,
+      "bps": 500
+    },
+    "sellers": [
+      "SELLER-5-1",
+      "SELLER-5-2",
+      "SELLER-5-3",
+      "SELLER-5-4",
+      "SELLER-5-5",
+      "SELLER-5-6",
+      "SELLER-5-7",
+      "SELLER-5-8",
+      "SELLER-5-9",
+      "SELLER-5-10"
+    ]
+  }
+]

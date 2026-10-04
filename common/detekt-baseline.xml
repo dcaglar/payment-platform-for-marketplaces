@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:PublicIdCodec.kt$PublicIdCodec$0xFF</ID>
+    <ID>MagicNumber:PublicIdCodec.kt$PublicIdCodec$7</ID>
+    <ID>MagicNumber:PublicIdCodec.kt$PublicIdCodec$8</ID>
+  </CurrentIssues>
+</SmellBaseline>

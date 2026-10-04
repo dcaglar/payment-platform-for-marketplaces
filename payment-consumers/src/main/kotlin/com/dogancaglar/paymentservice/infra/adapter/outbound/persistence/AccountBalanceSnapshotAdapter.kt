@@ -1,25 +1,24 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
-import com.dogancaglar.common.time.Utc
 import com.dogancaglar.common.db.entity.AccountBalanceEntity
-import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.snapshotmapper.AccountBalanceWriteMapper
-import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.AccountBalanceReadMapper
+import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.domain.model.balance.AccountBalanceSnapshot
+import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.AccountBalanceReadMapper
+import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.snapshotmapper.AccountBalanceWriteMapper
 import com.dogancaglar.paymentservice.ports.outbound.AccountBalanceSnapshotPort
 import org.springframework.stereotype.Repository
-
 
 @Repository
 class AccountBalanceSnapshotAdapter(
     private val readMapper: AccountBalanceReadMapper,
     private val writeMapper: AccountBalanceWriteMapper
 ) : AccountBalanceSnapshotPort {
-    
+
     override fun getSnapshot(accountCode: String): AccountBalanceSnapshot? {
         val entity = readMapper.findByAccountCode(accountCode) ?: return null
         return toSnapshot(entity)
     }
-    
+
     override fun saveSnapshot(snapshot: AccountBalanceSnapshot) {
         val entity = AccountBalanceEntity(
             accountCode = snapshot.accountCode,
@@ -30,7 +29,7 @@ class AccountBalanceSnapshotAdapter(
         )
         writeMapper.insertOrUpdateSnapshot(entity)
     }
-    
+
     override fun findAllSnapshots(): List<AccountBalanceSnapshot> {
         return readMapper.findAll()
             .map { toSnapshot(it) }
@@ -52,4 +51,3 @@ class AccountBalanceSnapshotAdapter(
         )
     }
 }
-

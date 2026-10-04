@@ -1,6 +1,8 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
 import com.zaxxer.hikari.HikariDataSource
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.instrumentation.hikaricp.v3_0.HikariTelemetry
 import org.apache.ibatis.session.SqlSessionFactory
 import org.mybatis.spring.SqlSessionFactoryBean
 import org.mybatis.spring.annotation.MapperScan
@@ -8,12 +10,9 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import javax.sql.DataSource
-import io.opentelemetry.api.OpenTelemetry
-import io.opentelemetry.instrumentation.hikaricp.v3_0.HikariTelemetry
 
 @Configuration
 @MapperScan(
@@ -31,7 +30,8 @@ class CentralOutboxDataSourceConfig {
         @Value("\${app.datasource.central-outbox.jdbc-url}") jdbcUrl: String,
         @Value("\${app.datasource.central-outbox.username}") username: String,
         @Value("\${app.datasource.central-outbox.password}") password: String,
-        @Value("\${app.datasource.central-outbox.pool-name:\${spring.application.name}-central-outbox-pool}") poolName: String,
+        @Value("\${app.datasource.central-outbox.pool-name:\${spring.application.name}-central-outbox-pool}") poolName:
+        String,
         @Value("\${app.datasource.central-outbox.maximum-pool-size:5}") maxPoolSize: Int,
         @Value("\${app.datasource.central-outbox.minimum-idle:2}") minIdle: Int,
         @Value("\${app.datasource.central-outbox.connection-timeout:15000}") cTimeout: Long,
@@ -61,8 +61,6 @@ class CentralOutboxDataSourceConfig {
         return DataSourceTransactionManager(ds).apply { defaultTimeout = 60 }
     }
 
-
-
     @Bean("centralOutboxSqlSessionFactory")
     fun centralOutboxSqlSessionFactory(@Qualifier("centralOutboxDataSource") ds: DataSource): SqlSessionFactory {
         val factoryBean = SqlSessionFactoryBean()
@@ -89,7 +87,10 @@ class CentralOutboxDataSourceConfig {
         @Value("\${app.datasource.maintenance.jdbc-url}") jdbcUrl: String,
         @Value("\${app.datasource.maintenance.username}") username: String,
         @Value("\${app.datasource.maintenance.password}") password: String,
-        @Value("\${app.datasource.maintenance.pool-name:\${spring.application.name}-central-maintenance-pool}") poolName: String,
+        @Value(
+            "\${app.datasource.maintenance.pool-name:\${spring.application.name}-central-maintenance-pool}"
+        ) poolName:
+        String,
         @Value("\${app.datasource.maintenance.maximum-pool-size:2}") maxPoolSize: Int,
         @Value("\${app.datasource.maintenance.minimum-idle:0}") minIdle: Int,
         @Value("\${app.datasource.maintenance.connection-timeout:15000}") cTimeout: Long,

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.TransactionMapper">
+
+    <resultMap id="transactionRow" type="com.dogancaglar.common.db.entity.TransactionEntity">
+        <constructor>
+            <idArg column="payment_id" javaType="_long"/>
+            <arg column="payment_intent_id" javaType="_long"/>
+            <arg column="public_payment_intent_id" javaType="string"/>
+            <arg column="merchant_account" javaType="string"/>
+            <arg column="buyer_id" javaType="string"/>
+            <arg column="order_id" javaType="string"/>
+            <arg column="psp_reference" javaType="string"/>
+            <arg column="processing_model" javaType="string"/>
+            <arg column="total_amount" javaType="_long"/>
+            <arg column="currency" javaType="string"/>
+            <arg column="authorized_at" javaType="java.time.Instant" typeHandler="com.dogancaglar.common.db.typehandler.InstantTypeHandler"/>
+            <arg column="captured_at" javaType="java.time.Instant" typeHandler="com.dogancaglar.common.db.typehandler.InstantTypeHandler"/>
+            <arg column="settled_at" javaType="java.time.Instant" typeHandler="com.dogancaglar.common.db.typehandler.InstantTypeHandler"/>
+            <arg column="card_brand" javaType="string"/>
+            <arg column="card_last4" javaType="string"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="splitRow" type="com.dogancaglar.common.db.entity.TransactionSplitEntity">
+        <constructor>
+            <arg column="payment_id" javaType="_long"/>
+            <arg column="line_no" javaType="_int"/>
+            <arg column="account_type" javaType="string"/>
+            <arg column="account" javaType="string"/>
+            <arg column="amount" javaType="_long"/>
+            <arg column="currency" javaType="string"/>
+        </constructor>
+    </resultMap>
+
+    <sql id="columns">
+        t.payment_id, t.payment_intent_id, t.public_payment_intent_id, t.merchant_account, t.buyer_id, t.order_id,
+        t.psp_reference, t.processing_model, t.total_amount, t.currency, t.authorized_at, t.captured_at, t.settled_at,
+        t.card_brand, t.card_last4
+    </sql>
+
+    <!-- the status is not stored: SETTLED = settled_at set, CAPTURED = captured not settled, AUTHORIZED = neither -->
+    <sql id="filter">
+        <where>
+            <if test="merchantAccount != null">AND t.merchant_account = #{merchantAccount}</if>
+            <if test="orderId != null">AND t.order_id = #{orderId}</if>
+            <if test="paymentId != null">AND t.payment_id = #{paymentId}</if>
+            <if test="sellerId != null">
+                AND EXISTS (SELECT 1 FROM transaction_splits s
+                            WHERE s.payment_id = t.payment_id AND s.account_type = 'SELLER_PAYABLE' AND s.account = #{sellerId})
+            </if>
+            <if test="status == 'SETTLED'">AND t.settled_at IS NOT NULL</if>
+            <if test="status == 'CAPTURED'">AND t.captured_at IS NOT NULL AND t.settled_at IS NULL</if>
+            <if test="status == 'AUTHORIZED'">AND t.captured_at IS NULL AND t.settled_at IS NULL</if>
+            <if test="authorizedFrom != null">AND t.authorized_at &gt;= #{authorizedFrom}</if>
+            <if test="authorizedTo != null">AND t.authorized_at &lt; #{authorizedTo}</if>
+            <if test="processingModel != null">AND t.processing_model = #{processingModel}</if>
+        </where>
+    </sql>
+
+    <select id="findById" resultMap="transactionRow">
+        SELECT <include refid="columns"/> FROM transactions t WHERE t.payment_id = #{paymentId}
+        <if test="merchantAccount != null">AND t.merchant_account = #{merchantAccount}</if>
+    </select>
+
+    <select id="findSplits" resultMap="splitRow">
+        SELECT payment_id, line_no, account_type, account, amount, currency
+        FROM transaction_splits WHERE payment_id = #{paymentId} ORDER BY line_no
+    </select>
+
+    <!-- newest first; payment_id breaks ties so pages stay stable -->
+    <select id="findPage" resultMap="transactionRow">
+        SELECT <include refid="columns"/> FROM transactions t
+        <include refid="filter"/>
+        ORDER BY t.authorized_at DESC, t.payment_id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT count(*) FROM transactions t <include refid="filter"/>
+    </select>
+
+    <insert id="insertIfAbsent" parameterType="com.dogancaglar.common.db.entity.TransactionEntity">
+        INSERT INTO transactions (
+            payment_id, payment_intent_id, public_payment_intent_id, merchant_account, buyer_id, order_id,
+            psp_reference, processing_model, total_amount, currency, authorized_at, captured_at, settled_at,
+            card_brand, card_last4
+        ) VALUES (
+            #{paymentId}, #{paymentIntentId}, #{publicPaymentIntentId}, #{merchantAccount}, #{buyerId}, #{orderId},
+            #{pspReference}, #{processingModel}, #{totalAmount}, #{currency}, #{authorizedAt}, #{capturedAt}, #{settledAt},
+            #{cardBrand}, #{cardLast4}
+        )
+        ON CONFLICT (payment_id) DO NOTHING
+    </insert>
+
+    <insert id="insertSplitIfAbsent" parameterType="com.dogancaglar.common.db.entity.TransactionSplitEntity">
+        INSERT INTO transaction_splits (payment_id, line_no, account_type, account, amount, currency)
+        VALUES (#{paymentId}, #{lineNo}, #{accountType}, #{account}, #{amount}, #{currency})
+        ON CONFLICT (payment_id, line_no) DO NOTHING
+    </insert>
+
+    <update id="markCaptured">
+        UPDATE transactions SET captured_at = #{capturedAt}
+        WHERE payment_id = #{paymentId} AND captured_at IS NULL
+    </update>
+
+    <update id="markSettled">
+        UPDATE transactions SET settled_at = #{settledAt}
+        WHERE payment_id = #{paymentId} AND settled_at IS NULL
+    </update>
+
+    <select id="exists" resultType="boolean">
+        SELECT EXISTS (SELECT 1 FROM transactions WHERE payment_id = #{paymentId})
+    </select>
+</mapper>

@@ -7,7 +7,7 @@ import java.time.Instant
  * Serializable DTO representing a ledger entry for event publication.
  * Contains the essential information needed by consumers (e.g., AccountBalanceConsumer)
  * to process balance updates without querying the database.
- * 
+ *
  * This class is only created through the factory method to ensure invariants are maintained.
  */
 data class JournalEntryEventData private constructor(
@@ -17,7 +17,7 @@ data class JournalEntryEventData private constructor(
     val journalName: String?,
     val paymentId: Long,
     val txId: Long?,
-    val reason : String?,
+    val reason: String?,
     val createdAt: Instant,
     val postings: List<PostingEventData>
 ) {
@@ -47,5 +47,3 @@ data class JournalEntryEventData private constructor(
         }
     }
 }
-
-

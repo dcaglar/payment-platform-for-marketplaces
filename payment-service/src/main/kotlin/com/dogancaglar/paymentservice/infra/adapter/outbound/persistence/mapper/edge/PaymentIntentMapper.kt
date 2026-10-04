@@ -11,9 +11,23 @@ interface PaymentIntentMapper {
 
     fun tryMarkPendingAuth(id: Long, now: Instant): Int
     fun updatePspReference(paymentIntentId: Long, pspReference: String, now: Instant): Int
-    fun updatePaymentIntentWithPspResponse(paymentIntentId: Long, pspReference: String?, status: String, updatedAt: Instant): Int
+    fun updatePaymentIntentWithPspResponse(
+        paymentIntentId: Long,
+        pspReference: String?,
+        status: String,
+        cardBrand: String?,
+        cardLast4: String?,
+        updatedAt: Instant
+    ): Int
+
     // Add other CRUD methods as needed, e.g.:
     fun insert(paymentIntent: PaymentIntentEntity): Int
     fun findById(id: Long): PaymentIntentEntity?
+    fun findByIdForMerchant(
+        @org.apache.ibatis.annotations.Param(
+            "id"
+        ) id: Long,
+        @org.apache.ibatis.annotations.Param("merchantAccount") merchantAccount: String
+    ): PaymentIntentEntity?
     fun deleteById(id: Long): Int
 }

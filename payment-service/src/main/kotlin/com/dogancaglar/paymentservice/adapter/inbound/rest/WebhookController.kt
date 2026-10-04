@@ -29,7 +29,7 @@ class WebhookController(
         }
 
         if (sigHeader == null) {
-             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Missing Stripe-Signature header")
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Missing Stripe-Signature header")
         }
 
         return try {

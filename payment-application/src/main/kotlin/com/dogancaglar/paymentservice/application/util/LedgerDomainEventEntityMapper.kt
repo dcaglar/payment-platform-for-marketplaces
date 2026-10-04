@@ -6,9 +6,8 @@ import com.dogancaglar.paymentservice.application.events.PostingDirection
 import com.dogancaglar.paymentservice.application.events.PostingEventData
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
-import com.dogancaglar.paymentservice.domain.model.ledger.Account
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccount
 import com.dogancaglar.paymentservice.domain.model.ledger.Posting
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
 import com.dogancaglar.paymentservice.domain.model.vo.TxId
@@ -32,7 +31,6 @@ object LedgerDomainEventEntityMapper {
         )
     }
 
-
     fun toDomain(ledgerEntryEvent: JournalEntryEventData): JournalEntry {
         val postingsDomain = ledgerEntryEvent.postings.map { it.toDomain() }
 
@@ -44,7 +42,7 @@ object LedgerDomainEventEntityMapper {
             paymentId = PaymentId(ledgerEntryEvent.paymentId),
             txId = ledgerEntryEvent.txId?.let(::TxId),
             postings = postingsDomain,
-            reason =  ledgerEntryEvent.reason
+            reason = ledgerEntryEvent.reason
         )
     }
 
@@ -67,7 +65,7 @@ object LedgerDomainEventEntityMapper {
     }
 
     fun PostingEventData.toDomain(): Posting {
-        val account = Account.Companion.create(accountType, accountCode)
+        val account = LedgerAccount.fromCode(accountType, accountCode)
         val amountVo = Amount.Companion.of(amount, Currency(currency))
         return when (direction) {
             PostingDirection.DEBIT -> Posting.Debit.create(account, amountVo)

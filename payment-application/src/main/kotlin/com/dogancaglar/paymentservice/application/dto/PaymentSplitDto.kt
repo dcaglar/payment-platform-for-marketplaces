@@ -44,7 +44,7 @@ data class PaymentSplitDto(
         }
 
         fun fromDomain(split: PaymentSplit): PaymentSplitDto {
-            val typeStr = when(split.accountType.name) {
+            val typeStr = when (split.accountType.name) {
                 "SELLER_PAYABLE" -> "BalanceAccount"
                 "MERCHANT_COMMISSION_PAYABLE" -> "Commission"
                 "CAPTURE_SUSPENSE" -> "Operator"
@@ -52,16 +52,16 @@ data class PaymentSplitDto(
             }
             return PaymentSplitDto(
                 accountType = typeStr,
-                account    = split.account,
-                amountValue       = split.amount.quantity,
-                currency          = split.amount.currency.currencyCode
+                account = split.account,
+                amountValue = split.amount.quantity,
+                currency = split.amount.currency.currencyCode
             )
         }
     }
 
     fun toDomain(): PaymentSplit {
-        // We must map it back to AccountType
-        val accountTypeName = when(accountType) {
+        // We must map it back to LedgerAccountType
+        val accountTypeName = when (accountType) {
             "BalanceAccount", "BALANCE_ACCOUNT" -> "SELLER_PAYABLE"
             "Commission" -> "MERCHANT_COMMISSION_PAYABLE"
             "Operator", "MARKETPLACE_OPERATOR" -> "CAPTURE_SUSPENSE"
@@ -69,15 +69,15 @@ data class PaymentSplitDto(
         }
         // An unknown type must fail. It must never silently become a seller split.
         val mappedAccountType = try {
-            com.dogancaglar.paymentservice.domain.model.ledger.AccountType.valueOf(accountTypeName)
+            com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType.valueOf(accountTypeName)
         } catch (e: IllegalArgumentException) {
             throw IllegalArgumentException("Unknown split accountType: '$accountType'", e)
         }
 
         return PaymentSplit.of(
             accountType = mappedAccountType,
-            account    = account,
-            amount            = Amount.of(amountValue, Currency(currency))
+            account = account,
+            amount = Amount.of(amountValue, Currency(currency))
         )
     }
 }

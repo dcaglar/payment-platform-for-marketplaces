@@ -13,7 +13,11 @@
         },
         "jsonBody": {
           "id": "{{request.pathSegments.[2]}}",
-          "status": "AUTHORIZED"
+          "status": "AUTHORIZED",
+          "card": {
+            "brand": "visa",
+            "last4": "4242"
+          }
         },
         "transformers": [
           "response-template"
@@ -163,7 +167,11 @@
         },
         "jsonBody": {
           "id": "{{request.pathSegments.[2]}}",
-          "status": "AUTHORIZED"
+          "status": "AUTHORIZED",
+          "card": {
+            "brand": "visa",
+            "last4": "4242"
+          }
         },
         "transformers": [
           "response-template"
@@ -202,7 +210,11 @@
         },
         "jsonBody": {
           "id": "{{request.pathSegments.[2]}}",
-          "status": "AUTHORIZED"
+          "status": "AUTHORIZED",
+          "card": {
+            "brand": "visa",
+            "last4": "4242"
+          }
         },
         "transformers": [
           "response-template"

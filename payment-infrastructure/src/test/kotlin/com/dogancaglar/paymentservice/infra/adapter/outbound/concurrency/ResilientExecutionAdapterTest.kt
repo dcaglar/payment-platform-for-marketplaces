@@ -1,11 +1,8 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.concurrency
 
-import io.mockk.spyk
-import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertDoesNotThrow
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -22,7 +19,7 @@ class ResilientExecutionAdapterTest {
         // given
         val expectedResult = "success"
         val future = CompletableFuture.completedFuture(expectedResult)
-        
+
         var backgroundSuccessCalled = false
         var backgroundFailureCalled = false
 
@@ -48,7 +45,7 @@ class ResilientExecutionAdapterTest {
         val future = CompletableFuture<String>()
         val fallbackValue = "fallback"
         val successLatch = CountDownLatch(1)
-        
+
         var capturedResult: String? = null
 
         // when
@@ -56,7 +53,7 @@ class ResilientExecutionAdapterTest {
             primaryTask = { future },
             timeoutMs = 100, // Short timeout
             onTimeoutFallback = { fallbackValue },
-            onBackgroundSuccess = { res -> 
+            onBackgroundSuccess = { res ->
                 capturedResult = res
                 successLatch.countDown()
             },
@@ -71,7 +68,7 @@ class ResilientExecutionAdapterTest {
 
         // Wait for background thread to process
         val callbackExecuted = successLatch.await(2, TimeUnit.SECONDS)
-        
+
         assertEquals(true, callbackExecuted, "Background success callback should have executed")
         assertEquals("delayed-success", capturedResult)
     }
@@ -83,7 +80,7 @@ class ResilientExecutionAdapterTest {
         val fallbackValue = "fallback"
         val failureLatch = CountDownLatch(1)
         val expectedError = RuntimeException("Boom")
-        
+
         var capturedError: Throwable? = null
 
         // when
@@ -92,7 +89,7 @@ class ResilientExecutionAdapterTest {
             timeoutMs = 100, // Short timeout
             onTimeoutFallback = { fallbackValue },
             onBackgroundSuccess = { },
-            onBackgroundFailure = { err: Throwable -> 
+            onBackgroundFailure = { err: Throwable ->
                 capturedError = err
                 failureLatch.countDown()
             }
@@ -106,7 +103,7 @@ class ResilientExecutionAdapterTest {
 
         // Wait for background thread to process
         val callbackExecuted = failureLatch.await(2, TimeUnit.SECONDS)
-        
+
         assertEquals(true, callbackExecuted, "Background failure callback should have executed")
         assertEquals(expectedError, capturedError)
     }

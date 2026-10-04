@@ -15,7 +15,8 @@ import org.springframework.stereotype.Component
 class CaptureRetryQueueAdapter(
     private val captureRetryRedisCache: CaptureRetryRedisCache,
     openTelemetry: OpenTelemetry,
-    val serializationPort: SerializationPort) : RetryQueuePort<CaptureRequested> {
+    val serializationPort: SerializationPort
+) : RetryQueuePort<CaptureRequested> {
 
     init {
         val meter = openTelemetry.meterBuilder("payment-infrastructure.redis.retry").build()
@@ -31,7 +32,6 @@ class CaptureRetryQueueAdapter(
         event: CaptureRequested,
         backOffMillis: Long,
     ) {
-        val totalStart = System.currentTimeMillis()
         try {
             val retryAt = System.currentTimeMillis() + backOffMillis
 
@@ -56,13 +56,11 @@ class CaptureRetryQueueAdapter(
         captureRetryRedisCache.resetRetryCounter(identifier)
     }
 
-
     /** New: pop to inflight and return [RetryItem]s. */
     override fun pollDueRetriesToInflight(maxBatchSize: Long): List<RetryItem> {
         // Use the new deserialized method - deserialization happens in cache layer (like Kafka)
         return captureRetryRedisCache.popDueToInflightDeserialized(maxBatchSize)
     }
-
 
     fun removeFromInflight(raw: ByteArray) =
         captureRetryRedisCache.removeFromInflight(raw)

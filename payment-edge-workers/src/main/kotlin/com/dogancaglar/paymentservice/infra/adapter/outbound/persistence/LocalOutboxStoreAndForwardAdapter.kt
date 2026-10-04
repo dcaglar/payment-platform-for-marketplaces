@@ -1,7 +1,7 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
-import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.common.db.converter.OutboxEventEntityMapper
+import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.LocalOutboxMapperForEdgeWorker
 import com.dogancaglar.paymentservice.ports.outbound.LocalOutboxStoreAndForwardPort
 import org.springframework.stereotype.Repository

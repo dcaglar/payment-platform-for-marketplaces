@@ -1,8 +1,6 @@
 package com.dogancaglar.paymentservice.ports.outbound
 
 import com.dogancaglar.paymentservice.domain.model.balance.AccountBalanceSnapshot
-import java.time.LocalDateTime
-
 
 /**
  * Port for persisting account balance snapshots to database.
@@ -13,12 +11,12 @@ interface AccountBalanceSnapshotPort {
      * @param accountCode The account code (e.g., "MERCHANT_PAYABLE.MERCHANT-456")
      */
     fun getSnapshot(accountCode: String): AccountBalanceSnapshot?
-    
+
     /**
      * Saves or updates a snapshot.
      */
     fun saveSnapshot(snapshot: AccountBalanceSnapshot)
-    
+
     /**
      * Finds all snapshots.
      */
@@ -28,6 +26,4 @@ interface AccountBalanceSnapshotPort {
     find accountbalancesnapshots by accountcodes
      */
     fun findByAccountCodes(accountCodes: Set<String>): List<AccountBalanceSnapshot>
-
 }
-

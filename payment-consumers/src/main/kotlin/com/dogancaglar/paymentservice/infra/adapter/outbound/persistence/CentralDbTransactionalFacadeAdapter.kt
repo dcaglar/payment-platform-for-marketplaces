@@ -1,26 +1,24 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
-import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
-import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.LedgerMapper
 import com.dogancaglar.common.db.converter.LedgerEntitiyMapper
 import com.dogancaglar.common.db.converter.PaymentEntityMapper
 import com.dogancaglar.common.db.converter.PaymentTxEntityMapper
-
+import com.dogancaglar.paymentservice.application.dto.PaymentSplitDto
+import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
 import com.dogancaglar.paymentservice.domain.model.ledger.Tx
-import com.dogancaglar.paymentservice.domain.model.payment.Payment
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
+import com.dogancaglar.paymentservice.domain.model.payment.Payment
+import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.CentralOutboxWriterMapper
+import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.LedgerMapper
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.PaymentMapper
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.PaymentTxMapper
+import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.TransferMapper
 import com.dogancaglar.paymentservice.ports.outbound.CentralDbTransactionalFacadePort
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
-
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.springframework.beans.factory.annotation.Qualifier
-import com.dogancaglar.paymentservice.application.dto.PaymentSplitDto
-import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.CentralOutboxWriterMapper
-import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.TransferMapper
 
 @Repository
 open class CentralDbTransactionalFacadeAdapter(
@@ -45,7 +43,10 @@ open class CentralDbTransactionalFacadeAdapter(
         // A replay carries a newly generated payment_id, so the intent decides: one Payment per intent
         val inserted = paymentMapper.insertIfAbsent(paymentEntity)
         if (inserted == 0) {
-            logger.info("Payment for intent {} already recorded, skipping the authorization step", payment.paymentIntentId.value)
+            logger.info(
+                "Payment for intent {} already recorded, skipping the authorization step",
+                payment.paymentIntentId.value
+            )
             return false
         }
         val txEntity = PaymentTxEntityMapper.toEntity(tx)
@@ -105,7 +106,9 @@ open class CentralDbTransactionalFacadeAdapter(
         }
 
         if (outboxEvents.isNotEmpty()) {
-            val outboxEntities = outboxEvents.map { com.dogancaglar.common.db.converter.OutboxEventEntityMapper.toEntity(it) }
+            val outboxEntities = outboxEvents.map { com.dogancaglar.common.db.converter.OutboxEventEntityMapper.toEntity(
+                it
+            ) }
             centralOutboxWriterMapper.insertAllOutboxEvents(outboxEntities)
             logger.info("💾 Outbox batch persisted with {} events", outboxEvents.size)
         }

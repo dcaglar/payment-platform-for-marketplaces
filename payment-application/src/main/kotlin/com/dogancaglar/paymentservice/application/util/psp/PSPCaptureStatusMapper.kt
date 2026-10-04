@@ -2,7 +2,6 @@ package com.dogancaglar.paymentservice.application.util.psp
 
 import com.dogancaglar.paymentservice.domain.model.payment.PspModificationStatus
 
-
 /**
  * Maps PSP capture (seller-level) responses to internal PaymentOrderStatus.
  * Used by PaymentOrderPspCallExecutor and PaymentOrderPspResultApplier.
@@ -18,9 +17,8 @@ object PSPCaptureStatusMapper {
 
         // Transient (retryable) errors
         "TRANSIENT_NETWORK_ERROR",
-            "PENDING_CAPTURE",
+        "PENDING_CAPTURE",
         "TIMEOUT_EXCEEDED_1S_TRANSIENT" -> PspModificationStatus.PENDING_CAPTURE // will be retried
-
 
         else -> PspModificationStatus.CAPTURE_FAILED
     }
@@ -32,5 +30,4 @@ object PSPCaptureStatusMapper {
     private val retryableStatuses = setOf(
         PspModificationStatus.PENDING_CAPTURE // transient retry bucket
     )
-
 }

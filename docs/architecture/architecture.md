@@ -368,7 +368,8 @@ The platform internally uses:
 ### Persistence model (ER) — derived from the Liquibase changelogs
 > Source of truth: charts/central-db/db + charts/payment-edge-cell/db changelogs.
 > payment_intents/idempotency_keys/outbox_event(LOCAL) live in each EDGE db; everything else in central-db.
-> Solid lines are real foreign keys (`payment_tx.parent_tx_id`, `journal_entries.tx_id`, `postings.journal_id`); dashed lines are logical links without an FK. The intent→payment link is also cross-database.
+> Solid lines are real foreign keys (`payment_tx.parent_tx_id`, `journal_entries.tx_id`, `postings.journal_id`, `accounts.parent_code`); dashed lines are logical links without an FK. The intent→payment link is also cross-database.
+> `accounts` holds every kind of account in one table (`kind` = PLATFORM / MERCHANT / SELLER / LEDGER), with a CHECK per kind. Lookups go through the view `ledger_account_directory`, which shows ledger accounts with their merchant and seller resolved.
 
 ```mermaid
 erDiagram
@@ -420,16 +421,22 @@ erDiagram
     postings {
         bigint id PK
         varchar journal_id FK
-        varchar account_code "logical link to account_directory (no FK)"
+        varchar account_code "logical link to accounts, kind LEDGER (no FK)"
         varchar direction "DEBIT/CREDIT"
         bigint amount "invariant: sum DR = sum CR per journal"
     }
-    account_directory {
-        varchar account_code PK "TYPE.MERCHANT[.SELLER].CURRENCY e.g. SELLER_PAYABLE.MARKETPLACE-5.SELLER-5-1.EUR"
-        varchar account_type "PLATFORM_CASH/SELLER_PAYABLE/CAPTURE_SUSPENSE/..."
-        varchar master_account_code "GLOBAL or the merchant, e.g. MARKETPLACE-5"
-        varchar sub_entity_id "seller id, or NULL"
-        char currency
+    accounts {
+        varchar account_code PK "GLOBAL / MARKETPLACE-5 / SELLER-5-1 / ledger code TYPE.MERCHANT[.SELLER].CURRENCY"
+        varchar kind "PLATFORM / MERCHANT / SELLER / LEDGER"
+        varchar status "ACTIVE / SUSPENDED / CLOSED"
+        varchar parent_code FK "SELLER: its merchant; LEDGER: its owner (GLOBAL, merchant or seller)"
+        varchar ledger_type "LEDGER only: LedgerAccountType, e.g. SELLER_PAYABLE"
+        char currency "MERCHANT and LEDGER"
+        boolean is_auto_captured "MERCHANT only"
+        boolean is_auto_settled "MERCHANT only"
+        bigint platform_fee_fixed "MERCHANT only"
+        int platform_fee_bps "MERCHANT only"
+        jsonb profile "MERCHANT only: legal name, address, industry"
     }
     account_balances {
         varchar account_code PK
@@ -461,8 +468,9 @@ erDiagram
     payments ||..o{ journal_entries : ""
     payment_tx ||--o{ journal_entries : "tx is the proof"
     journal_entries ||--|{ postings : "balanced DR/CR"
-    account_directory ||..o{ postings : "logical (no FK)"
-    account_directory ||--o| account_balances : "projection"
+    accounts |o--o{ accounts : "parent: merchant-seller, owner-ledger account"
+    accounts ||..o{ postings : "logical (no FK)"
+    accounts ||--o| account_balances : "projection"
     payments ||..o{ transfers : "allocation fan-out"
 
 ```
@@ -478,7 +486,7 @@ erDiagram
 | **Payment Tx** | One per external PSP interaction (auth / capture / refund / settle) | Audit of each network call incl. acquirer references — the **proof** every journal entry cites via `tx_id` |
 | **JournalEntry** | By consumers, in the same commit as state + tx | Immutable double-entry record; invariant **Σ DEBIT = Σ CREDIT** per journal |
 | **Posting** | With its journal entry | One DR/CR leg against one account |
-| **Account** | Seeded from `account_directory.csv` (changelog loadData; test seed) | Money moves between accounts, never free variables. Global: `PLATFORM_CASH`, `PSP_RECEIVABLE`, `AUTH_RECEIVABLE`, `AUTH_LIABILITY`, `PSP_FEE_EXPENSE`, `PLATFORM_REVENUE`. Per merchant: `CAPTURE_SUSPENSE`, `MERCHANT_COMMISSION_PAYABLE`, `MERCHANT_DIRECT_PAYABLE`, `PLATFORM_FEE_RESERVE`. Per seller: `SELLER_PAYABLE` |
+| **Account** (`accounts`) | `POST /api/v1/accounts` (ADMIN, async): one request creates the merchant, its sellers and all their ledger accounts in one transaction (idempotent: an existing merchant writes nothing). Test seed: `accounts-seed.sql`, generated from `charts/central-db/seed/merchants.json` by the same domain code | One table, four kinds. **Merchant** (what a payment's `merchantAccount` refers to; settings `isAutoCaptured`, `isAutoSettled`, platform fee) and **seller** (under one merchant) carry no ledger meaning. **Ledger accounts** are generated per owner from `LedgerAccountType`'s owner level — money moves between them, never free variables. Platform (once per currency): `PLATFORM_CASH`, `PSP_RECEIVABLE`, `PSP_FEE_EXPENSE`, `PLATFORM_REVENUE`. Per merchant: `AUTH_RECEIVABLE`, `AUTH_LIABILITY`, `CAPTURE_SUSPENSE`, `MERCHANT_COMMISSION_PAYABLE`, `MERCHANT_DIRECT_PAYABLE`, `PLATFORM_FEE_RESERVE`. Per seller: `SELLER_PAYABLE` |
 | **Balance** | Projection from applied entries (Redis deltas + snapshot job) | Reporting/payouts; **eventually consistent by design** — the sync path never waits on it |
 
 # 🟦 System Design & Modular Architecture
@@ -525,8 +533,8 @@ The platform follows a **Hexagonal (Ports & Adapters)** pattern to separate busi
 
 ### **9. `payment-consumers` (Asynchronous Workers & Ledger Processors)**
 - **Role**: Central asynchronous consumer engine.
-- **Kafka Listeners**: Hosts all `@KafkaListener` components: `PspResultConsumer`, `CaptureCommandExecutor`, `CapturePspPerformedConsumer`, `GrossCaptureAllocationConsumer`, `AccountBalanceConsumer`.
-- **REST**: Also serves the balance API (base URL `…/api/v1`, routed by the ingress): `GET /balances/me` (the caller's own balance — a seller via `seller_id`, or a merchant via `merchant_id`, which lists its `MERCHANT_DIRECT_PAYABLE` and `MERCHANT_COMMISSION_PAYABLE` with a total) and `GET /balances/{sellerId}` (a merchant for its own sellers only; `FINANCE`/`ADMIN` for any seller).
+- **Kafka Listeners**: Hosts all `@KafkaListener` components: `PspResultConsumer`, `CaptureCommandExecutor`, `CapturePspPerformedConsumer`, `GrossCaptureAllocationConsumer`, `AccountBalanceConsumer`, `AccountCreationCommandExecutor` (topic `account.creation.requested`).
+- **REST**: Also serves the balance API (base URL `…/api/v1`, routed by the ingress): `GET /balances/sellers/me` (a seller's own balance, from the token's `seller_id`), `GET /balances/merchants/me` (a merchant's own, from `merchant_id`: its `MERCHANT_DIRECT_PAYABLE` and `MERCHANT_COMMISSION_PAYABLE` with a total) `GET /balances/merchants/me/sellers` and `/balances/merchants/me/sellers/{sellerId}` (a merchant's own sellers), and for staff `GET /balances/merchants/{merchantAccount}/sellers` and `/balances/sellers/{sellerId}`. The back office's transactions: `GET /transactions/merchants/me[/{paymentId}]` (a merchant, its own) and `GET /transactions/merchants/{merchantAccount}[/{paymentId}]` (staff, the merchant they name). And account onboarding: `POST /accounts` (`ADMIN`) validates the request, writes `outbox<account_creation_requested>` and answers `202`; `AccountCreationCommandExecutor` then creates the accounts.
 - **Workloads**: Coordinates heavy asynchronous tasks like calling external PSP Gateways and executing double-entry ledger bookkeeping.
 
 

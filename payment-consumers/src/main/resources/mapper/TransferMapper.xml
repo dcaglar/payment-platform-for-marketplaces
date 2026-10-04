@@ -5,7 +5,7 @@
     val transferId: InternalTransferId,
     val paymentId: PaymentId,
     val paymentIntentId: PaymentIntentId,
-    val merchantAccountId: String,
+    val merchantAccount: String,
     val amount: Amount,
     val targetAccount: String,
     val sourceAccount: String,
@@ -20,7 +20,7 @@
         <id property="transferId"      column="transfer_id"/>
         <id  property="paymentId"           column="payment_id"/>
         <result property="paymentIntentId"   column="payment_intent_id"/>
-        <result property="merchantAccountId" column="merchant_account_id"/>
+        <result property="merchantAccount" column="merchant_account"/>
         <result property="amountValue" column="amount_value"/>
         <result property="currency" column="currency"/>
         <result property="sourceAccount" column="source_account"/>
@@ -33,11 +33,11 @@
 
     <insert id="insert" parameterType="com.dogancaglar.common.db.entity.TransferEntity">
         INSERT INTO transfers (
-            transfer_id, payment_id,payment_intent_id,merchant_account_id,amount_value, currency,
+            transfer_id, payment_id,payment_intent_id,merchant_account,amount_value, currency,
              source_account, target_account, transfer_type,
             status, created_at, updated_at
         ) VALUES (
-            #{transferId},#{paymentId},#{paymentIntentId},#{merchantAccountId}, #{amountValue}, #{currency},
+            #{transferId},#{paymentId},#{paymentIntentId},#{merchantAccount}, #{amountValue}, #{currency},
             #{sourceAccount},#{targetAccount}, #{transferType},
             #{status}, #{createdAt}, #{updatedAt}
         )
@@ -45,11 +45,11 @@
 
     <insert id="upsert" parameterType="com.dogancaglar.common.db.entity.TransferEntity">
         INSERT INTO transfers (
-        transfer_id, payment_id,payment_intent_id,merchant_account_id,amount_value, currency,
+        transfer_id, payment_id,payment_intent_id,merchant_account,amount_value, currency,
         source_account, target_account, transfer_type,
         status, created_at, updated_at
         ) VALUES (
-        #{transferId},#{paymentId},#{paymentIntentId},#{merchantAccountId}, #{amountValue}, #{currency},
+        #{transferId},#{paymentId},#{paymentIntentId},#{merchantAccount}, #{amountValue}, #{currency},
         #{sourceAccount},#{targetAccount}, #{transferType},
         #{status}, #{createdAt}, #{updatedAt}
         )

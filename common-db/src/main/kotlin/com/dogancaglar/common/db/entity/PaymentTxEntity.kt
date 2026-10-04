@@ -39,9 +39,9 @@ data class PaymentTxEntity(
     val acquirerReference: String,
     val amountValue: Long,
     val amountCurrency: String,
-    val status: String,                  // TxStatus.name
-    val settleStatus: String?,           // SettleStatus.name — null for non-CAPTURE rows
-    val acquirerBatchRef: String?,       // populated only for SETTLE rows
-    val settledAmountValue: Long?,       // populated only for SETTLE rows
+    val status: String, // TxStatus.name
+    val settleStatus: String?, // SettleStatus.name — null for non-CAPTURE rows
+    val acquirerBatchRef: String?, // populated only for SETTLE rows
+    val settledAmountValue: Long?, // populated only for SETTLE rows
     val createdAt: Instant? = null
 )

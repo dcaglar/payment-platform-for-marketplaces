@@ -79,6 +79,6 @@ open class IdempotencyResult<RES>(
 )
 
 enum class IdempotencyExecutionStatus {
-    CREATED,     // 201
-    REPLAYED,    // 200
+    CREATED, // 201
+    REPLAYED, // 200
 }

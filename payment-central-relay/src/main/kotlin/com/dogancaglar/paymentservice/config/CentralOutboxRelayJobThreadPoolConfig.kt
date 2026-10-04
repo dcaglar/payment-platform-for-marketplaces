@@ -10,7 +10,6 @@ import java.util.concurrent.ThreadPoolExecutor
 @Configuration
 class CentralOutboxRelayJobThreadPoolConfig {
 
-
 /*
 val scheduler = ThreadPoolTaskScheduler()
         scheduler.poolSize = poolSize
@@ -23,21 +22,20 @@ val scheduler = ThreadPoolTaskScheduler()
  */
     @Bean("resilientExecutor")
     fun resilientExecutor(): ThreadPoolTaskExecutor {
+        val resilientExecutor = ThreadPoolTaskExecutor()
+        resilientExecutor.corePoolSize = 32
+        resilientExecutor.maxPoolSize = 32
+        resilientExecutor.queueCapacity = 500
+        resilientExecutor.setThreadNamePrefix("resilient-callback-")
+        resilientExecutor.setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
 
-    val resilientExecutor = ThreadPoolTaskExecutor()
-    resilientExecutor.corePoolSize = 32
-    resilientExecutor.maxPoolSize = 32
-    resilientExecutor.queueCapacity = 500
-    resilientExecutor.setThreadNamePrefix("resilient-callback-")
-    resilientExecutor.setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
+        resilientExecutor.setTaskDecorator { runnable ->
+            val currentContext = Context.current()
+            Runnable { currentContext.makeCurrent().use { runnable.run() } }
+        }
 
-    resilientExecutor.setTaskDecorator { runnable ->
-        val currentContext = Context.current()
-        Runnable { currentContext.makeCurrent().use { runnable.run() } }
+        return resilientExecutor
     }
-
-    return resilientExecutor
-}
 
     @Bean("taskScheduler")
     fun defaultSpringScheduler(): ThreadPoolTaskScheduler {
@@ -49,7 +47,7 @@ val scheduler = ThreadPoolTaskScheduler()
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
-        return  myTaskScheduler
+        return myTaskScheduler
     }
 
     @Bean("retryDispatcherSpringScheduler")
@@ -62,6 +60,6 @@ val scheduler = ThreadPoolTaskScheduler()
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
-        return  retryPoolTaskScheduler
+        return retryPoolTaskScheduler
     }
 }

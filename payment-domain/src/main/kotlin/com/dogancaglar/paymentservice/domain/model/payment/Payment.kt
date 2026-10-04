@@ -7,7 +7,6 @@ import com.dogancaglar.paymentservice.domain.model.ledger.Tx
 import com.dogancaglar.paymentservice.domain.model.vo.BuyerId
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
-import com.dogancaglar.paymentservice.domain.model.vo.TxId
 import java.time.LocalDateTime
 
 /**
@@ -140,7 +139,7 @@ class Payment private constructor(
      * outbox acknowledgment, never optimistically.
      *
      * @param now  UTC timestamp of the transition (injectable for testing).
-     * @return     A new Payment instance with status=SENT_FOR_SETTLE.
+     * @return A new Payment instance with status=SENT_FOR_SETTLE.
      */
     fun markSentForSettle(now: LocalDateTime = Utc.nowLocalDateTime()): Payment {
         require(status == PaymentStatus.AUTHORIZED) {
@@ -161,7 +160,7 @@ class Payment private constructor(
      * @param captureAmount  The amount confirmed by the PSP webhook. Must be positive
      *                       and share the same currency as [totalAmount].
      * @param now            UTC timestamp of the transition.
-     * @return               A new Payment instance with updated amounts and status.
+     * @return A new Payment instance with updated amounts and status.
      */
     fun applyCapture(
         captureAmount: Amount,
@@ -183,9 +182,9 @@ class Payment private constructor(
         }
 
         val newStatus = when {
-            newCaptured < totalAmount  -> PaymentStatus.PARTIALLY_CAPTURED
+            newCaptured < totalAmount -> PaymentStatus.PARTIALLY_CAPTURED
             newCaptured == totalAmount -> PaymentStatus.CAPTURED
-            else                       -> status // unreachable after guard above
+            else -> status // unreachable after guard above
         }
 
         return copy(capturedAmount = newCaptured, status = newStatus, updatedAt = now)
@@ -198,10 +197,10 @@ class Payment private constructor(
      * Only allowed from [PaymentStatus.CAPTURED].
      *
      * @param now  UTC timestamp of the transition.
-     * @return     A new Payment instance with status=SETTLED.
+     * @return A new Payment instance with status=SETTLED.
      */
     fun applySettlement(now: LocalDateTime = Utc.nowLocalDateTime()): Payment {
-        //this should not be the only this check,mnore than that  beleiuve
+        // this should not be the only this check,mnore than that  beleiuve
         require(status == PaymentStatus.CAPTURED) {
             "Can only apply settlement to a CAPTURED payment (current=\$status)"
         }
@@ -263,12 +262,12 @@ class Payment private constructor(
      * Only allowed from [PaymentStatus.AUTHORIZED] (no capture has been sent).
      *
      * @param now  UTC timestamp of the transition.
-     * @return     A new Payment instance with status=VOIDED.
+     * @return A new Payment instance with status=VOIDED.
      */
     fun voidAuthorization(now: LocalDateTime = Utc.nowLocalDateTime()): Payment {
         require(status == PaymentStatus.AUTHORIZED) {
             "Can only void from AUTHORIZED (current=$status). " +
-            "A payment in SENT_FOR_SETTLE or later cannot be voided."
+                "A payment in SENT_FOR_SETTLE or later cannot be voided."
         }
         return copy(status = PaymentStatus.VOIDED, updatedAt = now)
     }
@@ -290,7 +289,7 @@ class Payment private constructor(
      * @param refundAmount  The amount confirmed by the PSP webhook. Must be positive,
      *                      same currency, and not cause refundedAmount to exceed capturedAmount.
      * @param now           UTC timestamp of the transition.
-     * @return              A new Payment instance with updated amounts and status.
+     * @return A new Payment instance with updated amounts and status.
      */
     fun applyRefund(
         refundAmount: Amount,
@@ -305,11 +304,13 @@ class Payment private constructor(
         require(capturedAmount > Amount.zero(totalAmount.currency)) {
             "Cannot refund a payment with zero capturedAmount"
         }
-        require(status in setOf(
-            PaymentStatus.CAPTURED,
-            PaymentStatus.PARTIALLY_CAPTURED,
-            PaymentStatus.PARTIALLY_REFUNDED
-        )) {
+        require(
+            status in setOf(
+                PaymentStatus.CAPTURED,
+                PaymentStatus.PARTIALLY_CAPTURED,
+                PaymentStatus.PARTIALLY_REFUNDED
+            )
+        ) {
             "Can only apply refund from CAPTURED, PARTIALLY_CAPTURED, or PARTIALLY_REFUNDED (current=$status)"
         }
 
@@ -319,9 +320,9 @@ class Payment private constructor(
         }
 
         val newStatus = when {
-            newRefunded < capturedAmount  -> PaymentStatus.PARTIALLY_REFUNDED
+            newRefunded < capturedAmount -> PaymentStatus.PARTIALLY_REFUNDED
             newRefunded == capturedAmount -> PaymentStatus.REFUNDED
-            else                          -> status // unreachable after guard above
+            else -> status // unreachable after guard above
         }
 
         return copy(refundedAmount = newRefunded, status = newStatus, updatedAt = now)
@@ -337,18 +338,18 @@ class Payment private constructor(
         status: PaymentStatus = this.status,
         updatedAt: LocalDateTime = Utc.nowLocalDateTime()
     ): Payment = Payment(
-        paymentId         = paymentId,
-        paymentIntentId   = paymentIntentId,
-        buyerId           = buyerId,
+        paymentId = paymentId,
+        paymentIntentId = paymentIntentId,
+        buyerId = buyerId,
         merchantAccount = merchantAccount,
-        processingModel   = processingModel,
-        totalAmount       = totalAmount,
-        capturedAmount    = capturedAmount,
-        refundedAmount    = refundedAmount,
-        status            = status,
-        splits            = splits,
-        createdAt         = createdAt,
-        updatedAt         = updatedAt
+        processingModel = processingModel,
+        totalAmount = totalAmount,
+        capturedAmount = capturedAmount,
+        refundedAmount = refundedAmount,
+        status = status,
+        splits = splits,
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 
     // =========================================================================
@@ -357,10 +358,10 @@ class Payment private constructor(
 
     override fun toString(): String =
         "Payment(paymentId=${paymentId.value}, paymentIntentId=${paymentIntentId.value}, " +
-        "buyerId=${buyerId.value}, merchantAccount=$merchantAccount, " +
-        "processingModel=$processingModel, totalAmount=$totalAmount, " +
-        "capturedAmount=$capturedAmount, refundedAmount=$refundedAmount, " +
-        "status=$status, splits=${splits.size}, createdAt=$createdAt, updatedAt=$updatedAt)"
+            "buyerId=${buyerId.value}, merchantAccount=$merchantAccount, " +
+            "processingModel=$processingModel, totalAmount=$totalAmount, " +
+            "capturedAmount=$capturedAmount, refundedAmount=$refundedAmount, " +
+            "status=$status, splits=${splits.size}, createdAt=$createdAt, updatedAt=$updatedAt)"
 
     // =========================================================================
     // Factory Methods
@@ -394,7 +395,7 @@ class Payment private constructor(
          * @param totalAmount         Total authorized amount.
          * @param splits              Routing instructions from the PaymentAuthorized event.
          * @param now                 UTC timestamp (injectable for deterministic testing).
-         * @return                    A new Payment in AUTHORIZED state.
+         * @return A new Payment in AUTHORIZED state.
          */
         fun initializeFromAuthEvent(
             paymentId: PaymentId,
@@ -410,18 +411,18 @@ class Payment private constructor(
                 "merchantAccount must not be blank when initializing a Payment"
             }
             return Payment(
-                paymentId         = paymentId,
-                paymentIntentId   = paymentIntentId,
-                buyerId           = buyerId,
+                paymentId = paymentId,
+                paymentIntentId = paymentIntentId,
+                buyerId = buyerId,
                 merchantAccount = merchantAccount,
-                processingModel   = processingModel,
-                totalAmount       = totalAmount,
-                capturedAmount    = Amount.zero(totalAmount.currency),
-                refundedAmount    = Amount.zero(totalAmount.currency),
-                status            = PaymentStatus.AUTHORIZED,
-                splits            = splits,
-                createdAt         = now,
-                updatedAt         = now
+                processingModel = processingModel,
+                totalAmount = totalAmount,
+                capturedAmount = Amount.zero(totalAmount.currency),
+                refundedAmount = Amount.zero(totalAmount.currency),
+                status = PaymentStatus.AUTHORIZED,
+                splits = splits,
+                createdAt = now,
+                updatedAt = now
             )
         }
 
@@ -446,18 +447,18 @@ class Payment private constructor(
             createdAt: LocalDateTime,
             updatedAt: LocalDateTime
         ): Payment = Payment(
-            paymentId         = paymentId,
-            paymentIntentId   = paymentIntentId,
-            buyerId           = buyerId,
+            paymentId = paymentId,
+            paymentIntentId = paymentIntentId,
+            buyerId = buyerId,
             merchantAccount = merchantAccount,
-            processingModel   = processingModel,
-            totalAmount       = totalAmount,
-            capturedAmount    = capturedAmount,
-            refundedAmount    = refundedAmount,
-            status            = status,
-            splits            = splits,
-            createdAt         = createdAt,
-            updatedAt         = updatedAt
+            processingModel = processingModel,
+            totalAmount = totalAmount,
+            capturedAmount = capturedAmount,
+            refundedAmount = refundedAmount,
+            status = status,
+            splits = splits,
+            createdAt = createdAt,
+            updatedAt = updatedAt
         )
     }
 }
