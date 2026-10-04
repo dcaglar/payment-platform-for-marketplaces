@@ -47,49 +47,41 @@ class PspResultConsumer(
 
             val event = record.value().data
 
-            try {
-                // default if it ist auth+capture
-                when (event) {
-                    is PaymentAuthorized -> {
-                        logger.debug(
-                            "🎬 Processing PaymentAuthorized event for paymentIntentId: ${event.paymentIntentId}"
-                        )
-                        processPspResultUseCase.processAuthorized(event)
-                    }
-
-                    is CaptureConfirmed -> {
-                        logger.debug(
-                            "🎬 Processing CaptureConfirmed event for paymentIntentId: ${event.publicPaymentIntentId}"
-                        )
-                        processPspResultUseCase.processCaptureConfirmed(event)
-                    }
-
-                    is InternalTransferCommand -> {
-                        logger.debug("🎬 Processing InternalTransferCommand event for target: ${event.targetAccount}")
-                        processPspResultUseCase.processInternalTransferCommand(event)
-                    }
-
-                    is SettlementReceived -> {
-                        logger.debug(
-                            "🎬 Processing SettlementReceived event from simulated SDR line for paymentIntentId: ${event.publicPaymentIntentId}"
-                        )
-                        processPspResultUseCase.processSettlementLineReconciled(event)
-                    }
-
-                    else -> {
-                        logger.warn("⚠️ Unhandled event type in PspResultConsumer: ${event.javaClass.name}")
-                    }
+            // default if it ist auth+capture
+            when (event) {
+                is PaymentAuthorized -> {
+                    logger.debug(
+                        "🎬 Processing PaymentAuthorized event for paymentIntentId: ${event.paymentIntentId}"
+                    )
+                    processPspResultUseCase.processAuthorized(event)
                 }
 
-                logger.info("PSP result consumer executed successfully for event type=${event.javaClass.simpleName}")
-                dedupe.markProcessed(ConsumerGroups.PSP_RESULT_CONSUMER, eventId, 3600)
-            } catch (e: Exception) {
-                logger.error(
-                    "❌ Failed to process event ${event.javaClass.simpleName} with eventId: ${record.value().eventId}",
-                    e
-                )
-                throw e // Let Kafka handle retry/DLQ
+                is CaptureConfirmed -> {
+                    logger.debug(
+                        "🎬 Processing CaptureConfirmed event for paymentIntentId: ${event.publicPaymentIntentId}"
+                    )
+                    processPspResultUseCase.processCaptureConfirmed(event)
+                }
+
+                is InternalTransferCommand -> {
+                    logger.debug("🎬 Processing InternalTransferCommand event for target: ${event.targetAccount}")
+                    processPspResultUseCase.processInternalTransferCommand(event)
+                }
+
+                is SettlementReceived -> {
+                    logger.debug(
+                        "🎬 Processing SettlementReceived event from simulated SDR line for paymentIntentId: ${event.publicPaymentIntentId}"
+                    )
+                    processPspResultUseCase.processSettlementLineReconciled(event)
+                }
+
+                else -> {
+                    logger.warn("⚠️ Unhandled event type in PspResultConsumer: ${event.javaClass.name}")
+                }
             }
+
+            logger.info("PSP result consumer executed successfully for event type=${event.javaClass.simpleName}")
+            dedupe.markProcessed(ConsumerGroups.PSP_RESULT_CONSUMER, eventId, 3600)
         }
     }
 }

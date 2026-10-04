@@ -18,11 +18,11 @@ class SnowflakeIdGeneratorAdapter(
     private fun parseNodeId(podName: String): Int {
         val parts = podName.split("-")
         val lastPart = parts.last()
-        return try {
-            lastPart.toInt() % 32
-        } catch (e: Exception) {
+        val ordinal = lastPart.toIntOrNull()
+        if (ordinal == null) {
             // Fallback for non-StatefulSet pods (hashCode)
-            (podName.hashCode() and Int.MAX_VALUE) % 32
+            return (podName.hashCode() and Int.MAX_VALUE) % 32
         }
+        return ordinal % 32
     }
 }

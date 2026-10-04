@@ -420,7 +420,7 @@ class LedgerMapperIntegrationTest {
         try {
             future.get(700, TimeUnit.MILLISECONDS)
             return false
-        } catch (e: TimeoutException) {
+        } catch (@Suppress("SwallowedException") e: TimeoutException) { // the timeout IS the answer
             return true
         }
     }

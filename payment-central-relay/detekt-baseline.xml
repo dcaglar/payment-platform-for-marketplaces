@@ -17,10 +17,6 @@
     <ID>MagicNumber:KafkaProducerConfig.kt$KafkaProducerConfig$67_108_864</ID>
     <ID>NestedBlockDepth:CentralOutboxRelayMapperIntegrationTest.kt$CentralOutboxRelayMapperIntegrationTest$private fun scalar(sql: String): Any?</ID>
     <ID>SpreadOperator:PaymentCentralRelayApplication.kt$(*args)</ID>
-    <ID>TooGenericExceptionCaught:CentralOutboxDispatchWorker.kt$CentralOutboxDispatchWorker$dbEx: Exception</ID>
-    <ID>TooGenericExceptionCaught:CentralOutboxDispatchWorker.kt$CentralOutboxDispatchWorker$exception: Exception</ID>
-    <ID>TooGenericExceptionCaught:CentralOutboxKafkaHelper.kt$CentralOutboxKafkaHelper$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:CentralOutboxMaintenanceJob.kt$CentralOutboxMaintenanceJob$t: Throwable</ID>
     <ID>WildcardImport:CentralOutboxRelayMapperIntegrationTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
     <ID>WildcardImport:KafkaProducerConfigTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
     <ID>WildcardImport:RawEventPublisherTest.kt$import org.junit.jupiter.api.Assertions.*</ID>

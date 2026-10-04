@@ -40,14 +40,9 @@ class AccountCreationCommandExecutor(
             }
 
             val request = envelope.data
-            try {
-                createAccountUseCase.create(request.toCommand())
-                dedupe.markProcessed(ConsumerGroups.ACCOUNT_CREATION_COMMAND_EXECUTOR, eventId, 3600)
-                logger.info("Account creation executed for merchant {}", request.merchantAccountCode)
-            } catch (e: Exception) {
-                logger.error("❌ Failed to create accounts for merchant {}", request.merchantAccountCode, e)
-                throw e // the shared error handler retries or sends it to the DLQ
-            }
+            createAccountUseCase.create(request.toCommand())
+            dedupe.markProcessed(ConsumerGroups.ACCOUNT_CREATION_COMMAND_EXECUTOR, eventId, 3600)
+            logger.info("Account creation executed for merchant {}", request.merchantAccountCode)
         }
     }
 }

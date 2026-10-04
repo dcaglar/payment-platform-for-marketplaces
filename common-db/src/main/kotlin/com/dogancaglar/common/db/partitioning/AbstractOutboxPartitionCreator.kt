@@ -2,6 +2,7 @@ package com.dogancaglar.common.db.partitioning
 
 import com.dogancaglar.common.time.Utc
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -33,15 +34,13 @@ abstract class AbstractOutboxPartitionCreator(
             FOR VALUES FROM ('$fromStr') TO ('$toStr');
         """.trimIndent()
 
-        try {
-            jdbcTemplate.execute(sql)
-            /** 2) Immediately disable autovacuum on the child */
-            jdbcTemplate.execute("""ALTER TABLE $partitionName SET (autovacuum_enabled = false);""")
-            logger.info("Ensured partition exists: $partitionName for [$fromStr, $toStr)")
-            logger.debug("Disabled autovacuum on child partition: $partitionName")
-        } catch (e: Exception) {
-            logger.error("Error creating partition $partitionName: ${e.message}", e)
-        }
+        // a failure propagates: the scheduled job counts it (maintenance error metric) and Spring logs it;
+        // swallowing it here would hide a missing partition until outbox inserts start failing
+        jdbcTemplate.execute(sql)
+        /** 2) Immediately disable autovacuum on the child */
+        jdbcTemplate.execute("""ALTER TABLE $partitionName SET (autovacuum_enabled = false);""")
+        logger.info("Ensured partition exists: $partitionName for [$fromStr, $toStr)")
+        logger.debug("Disabled autovacuum on child partition: $partitionName")
     }
 
     fun pruneOldPartitions() {
@@ -80,12 +79,9 @@ abstract class AbstractOutboxPartitionCreator(
         END ${'$'}${'$'};
         """.trimIndent()
 
-        try {
-            jdbcTemplate.execute(sql)
-            logger.debug("Pruned old partitions up to $currWindowStart")
-        } catch (e: Exception) {
-            logger.error("Partition prune failed: ${e.message}", e)
-        }
+        // a failure propagates to the scheduled job (counted + logged there)
+        jdbcTemplate.execute(sql)
+        logger.debug("Pruned old partitions up to $currWindowStart")
     }
 
     fun vacuumOldPartitionsWithNewRows() {
@@ -118,7 +114,8 @@ abstract class AbstractOutboxPartitionCreator(
                 logger.debug("VACUUM: $partitionName ($newCount NEW/PROCESSING rows remaining)")
                 try {
                     jdbcTemplate.execute("VACUUM $partitionName")
-                } catch (ex: Exception) {
+                } catch (ex: DataAccessException) {
+                    // best effort per partition: one failing VACUUM must not stop the others
                     logger.warn("VACUUM failed for $partitionName: ${ex.message}", ex)
                 }
             }

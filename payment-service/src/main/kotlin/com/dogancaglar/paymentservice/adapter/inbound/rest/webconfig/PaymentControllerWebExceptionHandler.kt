@@ -5,9 +5,9 @@ import com.dogancaglar.paymentservice.domain.exception.IdempotencyKeyInProgressE
 import com.dogancaglar.paymentservice.domain.exception.IdempotencyKeyReusedException
 import com.dogancaglar.paymentservice.domain.exception.PaymentIntentNotFoundException
 import com.dogancaglar.paymentservice.domain.exception.PaymentNotReadyException
-import com.dogancaglar.paymentservice.domain.exception.PspInvalidPaymentException
 import com.dogancaglar.paymentservice.domain.exception.PspTransientException
 import com.dogancaglar.paymentservice.domain.exception.PspUnknownException
+import com.dogancaglar.paymentservice.domain.exception.RequestValidationException
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
@@ -88,7 +88,7 @@ class PaymentControllerWebExceptionHandler : ResponseEntityExceptionHandler() {
     @ExceptionHandler(
         ConstraintViolationException::class,
         IllegalArgumentException::class,
-        PspInvalidPaymentException::class
+        RequestValidationException::class // every invalid-request subtype
     )
     fun handleInvalidRequest(ex: Exception, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
         log.warn("INVALID_REQUEST at {}: {}", request.requestURI, ex.message)

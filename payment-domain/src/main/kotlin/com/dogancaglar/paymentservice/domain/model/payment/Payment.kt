@@ -1,7 +1,10 @@
 package com.dogancaglar.paymentservice.domain.model.payment
 
 import com.dogancaglar.common.time.Utc
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
+import com.dogancaglar.paymentservice.domain.model.common.require
+import com.dogancaglar.paymentservice.domain.model.common.requireNotNull
 import com.dogancaglar.paymentservice.domain.model.ledger.SettleStatus
 import com.dogancaglar.paymentservice.domain.model.ledger.Tx
 import com.dogancaglar.paymentservice.domain.model.vo.BuyerId
@@ -80,43 +83,67 @@ class Payment private constructor(
     // =========================================================================
 
     init {
+        val id = "paymentId=${paymentId.value}"
         require(merchantAccount.isNotBlank()) {
-            "merchantAccount must not be blank"
+            PaymentDomainException.InvariantViolationException("$id: merchantAccount must not be blank")
         }
         require(totalAmount.isPositive()) {
-            "totalAmount must be positive, but was ${totalAmount.quantity}"
-        }
-        require(capturedAmount >= Amount.zero(totalAmount.currency)) {
-            "capturedAmount cannot be negative, but was ${capturedAmount.quantity}"
-        }
-        require(refundedAmount >= Amount.zero(totalAmount.currency)) {
-            "refundedAmount cannot be negative, but was ${refundedAmount.quantity}"
-        }
-        require(capturedAmount <= totalAmount) {
-            "capturedAmount (${capturedAmount.quantity}) cannot exceed totalAmount (${totalAmount.quantity})"
-        }
-        require(refundedAmount <= capturedAmount) {
-            "refundedAmount (${refundedAmount.quantity}) cannot exceed capturedAmount (${capturedAmount.quantity})"
+            PaymentDomainException.InvariantViolationException(
+                "$id: totalAmount must be positive, but was ${totalAmount.quantity}"
+            )
         }
         require(capturedAmount.currency == totalAmount.currency) {
-            "capturedAmount currency (${capturedAmount.currency}) must match totalAmount currency (${totalAmount.currency})"
+            PaymentDomainException.CurrencyMismatchException(
+                "$id: capturedAmount currency ${capturedAmount.currency} must match totalAmount currency " +
+                    "${totalAmount.currency}"
+            )
         }
         require(refundedAmount.currency == totalAmount.currency) {
-            "refundedAmount currency (${refundedAmount.currency}) must match totalAmount currency (${totalAmount.currency})"
+            PaymentDomainException.CurrencyMismatchException(
+                "$id: refundedAmount currency ${refundedAmount.currency} must match totalAmount currency " +
+                    "${totalAmount.currency}"
+            )
+        }
+        // a new payment starts at 0 captured / 0 refunded: never negative
+        require(capturedAmount >= Amount.zero(totalAmount.currency)) {
+            PaymentDomainException.InvalidCaptureAmountException(
+                "$id: capturedAmount cannot be negative, but was ${capturedAmount.quantity}"
+            )
+        }
+        require(refundedAmount >= Amount.zero(totalAmount.currency)) {
+            PaymentDomainException.InvalidRefundAmountException(
+                "$id: refundedAmount cannot be negative, but was ${refundedAmount.quantity}"
+            )
+        }
+        require(capturedAmount <= totalAmount) {
+            PaymentDomainException.CaptureLimitExceededException(
+                "$id: capturedAmount ${capturedAmount.quantity} exceeds totalAmount ${totalAmount.quantity}"
+            )
+        }
+        require(refundedAmount <= capturedAmount) {
+            PaymentDomainException.RefundLimitExceededException(
+                "$id: refundedAmount ${refundedAmount.quantity} exceeds capturedAmount ${capturedAmount.quantity}"
+            )
         }
 
         // For MARKETPLACE payments, splits must be present and sum to totalAmount.
         if (processingModel == ProcessingModel.MARKETPLACE) {
             require(splits.isNotEmpty()) {
-                "MARKETPLACE payment must have at least one PaymentSplit"
+                PaymentDomainException.SplitValidationException(
+                    "$id: MARKETPLACE payment must have at least one PaymentSplit"
+                )
             }
             val splitCurrencies = splits.map { it.amount.currency }.distinct()
             require(splitCurrencies.size == 1 && splitCurrencies.first() == totalAmount.currency) {
-                "All PaymentSplit amounts must share the same currency as totalAmount"
+                PaymentDomainException.SplitValidationException(
+                    "$id: all PaymentSplit amounts must share the currency of totalAmount ${totalAmount.currency}"
+                )
             }
             val splitSum = splits.sumOf { it.amount.quantity }
             require(splitSum == totalAmount.quantity) {
-                "Sum of PaymentSplit amounts ($splitSum) must equal totalAmount (${totalAmount.quantity})"
+                PaymentDomainException.SplitValidationException(
+                    "$id: sum of PaymentSplit amounts $splitSum must equal totalAmount ${totalAmount.quantity}"
+                )
             }
         }
     }
@@ -143,7 +170,9 @@ class Payment private constructor(
      */
     fun markSentForSettle(now: LocalDateTime = Utc.nowLocalDateTime()): Payment {
         require(status == PaymentStatus.AUTHORIZED) {
-            "Can only mark SENT_FOR_SETTLE from AUTHORIZED (current=$status)"
+            PaymentDomainException.InvalidStateTransitionException(
+                "paymentId=${paymentId.value}: can only mark SENT_FOR_SETTLE from AUTHORIZED (current=$status)"
+            )
         }
         return copy(status = PaymentStatus.SENT_FOR_SETTLE, updatedAt = now)
     }
@@ -166,19 +195,29 @@ class Payment private constructor(
         captureAmount: Amount,
         now: LocalDateTime = Utc.nowLocalDateTime()
     ): Payment {
+        val id = "paymentId=${paymentId.value}"
         require(captureAmount.isPositive()) {
-            "captureAmount must be positive, but was ${captureAmount.quantity}"
+            PaymentDomainException.InvalidCaptureAmountException(
+                "$id: captureAmount must be positive, but was ${captureAmount.quantity}"
+            )
         }
         require(captureAmount.currency == totalAmount.currency) {
-            "captureAmount currency (${captureAmount.currency}) must match totalAmount currency (${totalAmount.currency})"
+            PaymentDomainException.CurrencyMismatchException(
+                "$id: captureAmount currency ${captureAmount.currency} must match totalAmount currency " +
+                    "${totalAmount.currency}"
+            )
         }
         require(status in setOf(PaymentStatus.SENT_FOR_SETTLE, PaymentStatus.PARTIALLY_CAPTURED)) {
-            "Can only apply capture from SENT_FOR_SETTLE or PARTIALLY_CAPTURED (current=$status)"
+            PaymentDomainException.InvalidStateTransitionException(
+                "$id: can only apply capture from SENT_FOR_SETTLE or PARTIALLY_CAPTURED (current=$status)"
+            )
         }
 
         val newCaptured = capturedAmount + captureAmount
         require(newCaptured <= totalAmount) {
-            "New capturedAmount ($newCaptured) would exceed totalAmount ($totalAmount)"
+            PaymentDomainException.CaptureLimitExceededException(
+                "$id: new capturedAmount ${newCaptured.quantity} would exceed totalAmount ${totalAmount.quantity}"
+            )
         }
 
         val newStatus = when {
@@ -202,7 +241,9 @@ class Payment private constructor(
     fun applySettlement(now: LocalDateTime = Utc.nowLocalDateTime()): Payment {
         // this should not be the only this check,mnore than that  beleiuve
         require(status == PaymentStatus.CAPTURED) {
-            "Can only apply settlement to a CAPTURED payment (current=\$status)"
+            PaymentDomainException.InvalidStateTransitionException(
+                "paymentId=${paymentId.value}: can only apply settlement to a CAPTURED payment (current=$status)"
+            )
         }
         return copy(status = PaymentStatus.SETTLED, updatedAt = now)
     }
@@ -213,12 +254,19 @@ class Payment private constructor(
     ): ReconciliationResult {
         // Invariant Check 1: Ensure macro lifecycle state allows settlement clearing
         require(status == PaymentStatus.CAPTURED || status == PaymentStatus.PARTIALLY_CAPTURED) {
-            "Cannot reconcile settlement against a payment in $status status. Target must be CAPTURED or PARTIALLY_CAPTURED."
+            PaymentDomainException.InvalidStateTransitionException(
+                "paymentId=${paymentId.value}: can only reconcile a settlement against a CAPTURED or " +
+                    "PARTIALLY_CAPTURED " +
+                    "payment (current=$status)"
+            )
         }
 
         // Domain Rule: Find the outstanding unmatched target line!
-        val targetTx = allCaptures.find { it.settleStatus == SettleStatus.UNMATCHED }
-            ?: throw IllegalStateException("Outstanding UNMATCHED CaptureTx row not found for target paymentId=${this.paymentId.value}")
+        val targetTx = requireNotNull(allCaptures.find { it.settleStatus == SettleStatus.UNMATCHED }) {
+            PaymentDomainException.InvariantViolationException(
+                "paymentId=${paymentId.value}: no UNMATCHED CaptureTx to reconcile"
+            )
+        }
 
         // Invariant Check 2: Evaluate gross volume consistency (Expected vs Actual Cleared)
         val derivedSettleStatus = if (actualGrossAmount == targetTx.amount) {
@@ -266,8 +314,10 @@ class Payment private constructor(
      */
     fun voidAuthorization(now: LocalDateTime = Utc.nowLocalDateTime()): Payment {
         require(status == PaymentStatus.AUTHORIZED) {
-            "Can only void from AUTHORIZED (current=$status). " +
-                "A payment in SENT_FOR_SETTLE or later cannot be voided."
+            PaymentDomainException.InvalidStateTransitionException(
+                "paymentId=${paymentId.value}: can only void from AUTHORIZED (current=$status); " +
+                    "a payment in SENT_FOR_SETTLE or later cannot be voided"
+            )
         }
         return copy(status = PaymentStatus.VOIDED, updatedAt = now)
     }
@@ -295,14 +345,20 @@ class Payment private constructor(
         refundAmount: Amount,
         now: LocalDateTime = Utc.nowLocalDateTime()
     ): Payment {
+        val id = "paymentId=${paymentId.value}"
         require(refundAmount.isPositive()) {
-            "refundAmount must be positive, but was ${refundAmount.quantity}"
+            PaymentDomainException.InvalidRefundAmountException(
+                "$id: refundAmount must be positive, but was ${refundAmount.quantity}"
+            )
         }
         require(refundAmount.currency == totalAmount.currency) {
-            "refundAmount currency (${refundAmount.currency}) must match totalAmount currency (${totalAmount.currency})"
+            PaymentDomainException.CurrencyMismatchException(
+                "$id: refundAmount currency ${refundAmount.currency} must match totalAmount currency " +
+                    "${totalAmount.currency}"
+            )
         }
         require(capturedAmount > Amount.zero(totalAmount.currency)) {
-            "Cannot refund a payment with zero capturedAmount"
+            PaymentDomainException.RefundLimitExceededException("$id: cannot refund a payment with nothing captured")
         }
         require(
             status in setOf(
@@ -311,12 +367,16 @@ class Payment private constructor(
                 PaymentStatus.PARTIALLY_REFUNDED
             )
         ) {
-            "Can only apply refund from CAPTURED, PARTIALLY_CAPTURED, or PARTIALLY_REFUNDED (current=$status)"
+            PaymentDomainException.InvalidStateTransitionException(
+                "$id: can only apply refund from CAPTURED, PARTIALLY_CAPTURED or PARTIALLY_REFUNDED (current=$status)"
+            )
         }
 
         val newRefunded = refundedAmount + refundAmount
         require(newRefunded <= capturedAmount) {
-            "New refundedAmount ($newRefunded) would exceed capturedAmount ($capturedAmount)"
+            PaymentDomainException.RefundLimitExceededException(
+                "$id: new refundedAmount ${newRefunded.quantity} would exceed capturedAmount ${capturedAmount.quantity}"
+            )
         }
 
         val newStatus = when {
@@ -408,7 +468,9 @@ class Payment private constructor(
             now: LocalDateTime = Utc.nowLocalDateTime()
         ): Payment {
             require(merchantAccount.isNotBlank()) {
-                "merchantAccount must not be blank when initializing a Payment"
+                PaymentDomainException.InvariantViolationException(
+                    "paymentId=${paymentId.value}: merchantAccount must not be blank when initializing a Payment"
+                )
             }
             return Payment(
                 paymentId = paymentId,

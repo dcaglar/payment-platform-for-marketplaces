@@ -32,9 +32,6 @@
     <ID>MagicNumber:PaymentServiceThreadPoolConfig.kt$PaymentServiceThreadPoolConfig$500</ID>
     <ID>MagicNumber:PaymentServiceThreadPoolConfig.kt$PaymentServiceThreadPoolConfig$80</ID>
     <ID>MagicNumber:SimulatedPspAuthorizationGatewayAdapter.kt$SimulatedPspAuthorizationGatewayAdapter$100</ID>
-    <ID>MagicNumber:StripePspAuthorizationGatewayAdapter.kt$StripePspAuthorizationGatewayAdapter$429</ID>
-    <ID>MagicNumber:StripePspAuthorizationGatewayAdapter.kt$StripePspAuthorizationGatewayAdapter$500</ID>
-    <ID>MagicNumber:StripePspAuthorizationGatewayAdapter.kt$StripePspAuthorizationGatewayAdapter$599</ID>
     <ID>MagicNumber:UuidV7Validator.kt$UuidV7Validator$7</ID>
     <ID>MaxLineLength:AuthorizationNetworkSimulator.kt$AuthorizationNetworkSimulator$roll &lt; sc.latency.slow.probability + sc.latency.moderate.probability + sc.latency.fast.probability</ID>
     <ID>MaxLineLength:AuthorizationRequestDTO.kt$AuthorizationRequestDTO$val paymentMethod: PaymentMethodDTO? = null // Optional - for Stripe Payment Element, payment method is already attached</ID>
@@ -58,22 +55,13 @@
     <ID>MaxLineLength:StripePspAuthorizationGatewayAdapter.kt$StripePspAuthorizationGatewayAdapter$override</ID>
     <ID>MaxLineLength:StripePspAuthorizationGatewayAdapter.kt$StripePspAuthorizationGatewayAdapter$private</ID>
     <ID>NestedBlockDepth:PaymentApiOrchestrator.kt$PaymentApiOrchestrator$fun processWebhook(event: Event)</ID>
-    <ID>NoConsecutiveBlankLines:SimulatedPspAuthorizationGatewayAdapter.kt$SimulatedPspAuthorizationGatewayAdapter$ </ID>
-    <ID>NoConsecutiveBlankLines:StripePspAuthorizationGatewayAdapter.kt$StripePspAuthorizationGatewayAdapter$ </ID>
-    <ID>ReturnCount:HttpPspAuthorizationGatewayAdapter.kt$HttpPspAuthorizationGatewayAdapter$private fun failure(action: String, status: Int): RuntimeException</ID>
+    <ID>ReturnCount:HttpPspAuthorizationGatewayAdapter.kt$HttpPspAuthorizationGatewayAdapter$private fun failure(op: PspOperation, id: Long, status: Int): RuntimeException</ID>
     <ID>ReturnCount:PaymentController.kt$PaymentController$@PostMapping("/payments/{paymentIntentId}/authorize") @PreAuthorize("hasAuthority('payment:write')") fun authorizePayment( @PathVariable("paymentIntentId") publicPaymentIntentId: String, @Valid @RequestBody request: AuthorizationRequestDTO, @AuthenticationPrincipal jwt: Jwt ): ResponseEntity&lt;CreatePaymentIntentResponseDTO&gt;</ID>
     <ID>ReturnCount:PspCardSummary.kt$PspCardSummary$private fun brandOf(name: String): CardBrand</ID>
     <ID>ReturnCount:WebhookController.kt$WebhookController$@PostMapping("/webhook") fun handleWebhook( @RequestBody payload: String, @RequestHeader("Stripe-Signature") sigHeader: String? ): ResponseEntity&lt;String&gt;</ID>
     <ID>SpreadOperator:EdgeMyBatisConfig.kt$EdgeMyBatisConfig$( *PathMatchingResourcePatternResolver().getResources("classpath*:mapper/**/*.xml") )</ID>
     <ID>SpreadOperator:PaymentServiceApplication.kt$(*args)</ID>
-    <ID>SwallowedException:PaymentApiIntegrationTest.kt$PaymentApiIntegrationTest$e: RejectedExecutionException</ID>
-    <ID>SwallowedException:StripePspAuthorizationGatewayAdapter.kt$StripePspAuthorizationGatewayAdapter$e: CardException</ID>
-    <ID>SwallowedException:UuidV7Validator.kt$UuidV7Validator$e: IllegalArgumentException</ID>
-    <ID>ThrowsCount:HttpPspAuthorizationGatewayAdapter.kt$HttpPspAuthorizationGatewayAdapter$private fun send(action: String, request: () -&gt; RestClient.RequestHeadersSpec&lt;*&gt;): PspAnswer</ID>
-    <ID>TooGenericExceptionCaught:EdgeApiGracefulShutdownHook.kt$EdgeApiGracefulShutdownHook$t: Throwable</ID>
-    <ID>TooGenericExceptionCaught:HttpPspAuthorizationGatewayAdapter.kt$HttpPspAuthorizationGatewayAdapter$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:StripePspAuthorizationGatewayAdapter.kt$StripePspAuthorizationGatewayAdapter$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:WebhookController.kt$WebhookController$e: Exception</ID>
+    <ID>ThrowsCount:HttpPspAuthorizationGatewayAdapter.kt$HttpPspAuthorizationGatewayAdapter$private fun send(op: PspOperation, id: Long, request: () -&gt; RestClient.RequestHeadersSpec&lt;*&gt;): PspAnswer</ID>
     <ID>TooManyFunctions:PaymentControllerWebExceptionHandler.kt$PaymentControllerWebExceptionHandler : ResponseEntityExceptionHandler</ID>
     <ID>TooManyFunctions:StripePspAuthorizationGatewayAdapter.kt$StripePspAuthorizationGatewayAdapter : PspAuthorizationGatewayPort</ID>
     <ID>UseCheckOrError:AuthorizationNetworkSimulator.kt$AuthorizationNetworkSimulator$throw IllegalStateException("No scenario config for ${config.scenario}")</ID>

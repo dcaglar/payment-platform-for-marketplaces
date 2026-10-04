@@ -8,6 +8,7 @@ import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.TransactionDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.TransactionSplitDto
 import com.dogancaglar.paymentservice.application.transaction.Transaction
 import com.dogancaglar.paymentservice.application.transaction.TransactionFilter
+import com.dogancaglar.paymentservice.domain.exception.NonRetryableException
 import com.dogancaglar.paymentservice.domain.model.payment.CardSummary
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentStatus
 import com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel
@@ -219,4 +220,4 @@ class TransactionController(
 }
 
 /** No transaction for the requested payment id (404). */
-class TransactionNotFoundException(message: String) : RuntimeException(message)
+class TransactionNotFoundException(message: String) : NonRetryableException(message)

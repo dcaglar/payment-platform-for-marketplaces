@@ -9,7 +9,7 @@ class UuidV7Validator : ConstraintValidator<ValidUuidV7, String> {
         if (value.isNullOrBlank()) return false
         return try {
             UUID.fromString(value).version() == 7
-        } catch (e: IllegalArgumentException) {
+        } catch (@Suppress("SwallowedException") e: IllegalArgumentException) { // not a UUID: invalid, a result
             false
         }
     }

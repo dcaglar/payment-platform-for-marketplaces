@@ -21,8 +21,6 @@
     <ID>MaxLineLength:OutboxEventTypes.kt$OutboxEventTypes.CAPTURE_REQUESTED$)</ID>
     <ID>MaxLineLength:OutboxEventTypes.kt$OutboxEventTypes.CAPTURE_SUBMITTED$)</ID>
     <ID>MaxLineLength:OutboxEventTypes.kt$OutboxEventTypes.PAYMENT_AUTHORIZED$)</ID>
-    <ID>MaxLineLength:ProcessCaptureService.kt$ProcessCaptureService$"❌ Exception encountered during PSP capture network execution layer for paymentIntentId: \${captureRequested.publicPaymentIntentId}"</ID>
-    <ID>MaxLineLength:ProcessCaptureService.kt$ProcessCaptureService$?:</ID>
     <ID>MaxLineLength:ProcessCaptureService.kt$ProcessCaptureService$private</ID>
     <ID>MaxLineLength:ProcessCaptureService.kt$ProcessCaptureService$val</ID>
     <ID>MaxLineLength:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$"Committing balanced reconciliation tracking state indices atomically for paymentId=${payment.paymentId.value}"</ID>
@@ -39,13 +37,7 @@
     <ID>MaxLineLength:TransactionRepository.kt$TransactionRepository$/** Sets the capture time unless already set. Fails if the transaction is not saved yet (it is saved at authorization). */</ID>
     <ID>ReturnCount:AuthorizePaymentIntentService.kt$AuthorizePaymentIntentService$override fun authorize(cmd: AuthorizePaymentIntentCommand): PaymentIntent</ID>
     <ID>ReturnCount:Transaction.kt$Transaction$fun status(): PaymentStatus</ID>
-    <ID>SwallowedException:CreatePaymentIntentService.kt$CreatePaymentIntentService$e: PspPermanentException</ID>
     <ID>ThrowsCount:IdempotencyService.kt$IdempotencyService$open fun &lt;REQ : Any, RES : Any&gt; run( key: java.util.UUID, requestBody: REQ, responseClass: Class&lt;RES&gt;, idExtractor: (RES) -&gt; Long, // Final Addition: Extract internal ID from response block: () -&gt; RES ): IdempotencyResult&lt;RES&gt;</ID>
-    <ID>TooGenericExceptionCaught:AuthorizePaymentIntentService.kt$AuthorizePaymentIntentService$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:IdempotencyService.kt$IdempotencyService$deleteError: Exception</ID>
-    <ID>TooGenericExceptionCaught:IdempotencyService.kt$IdempotencyService$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:ProcessCaptureService.kt$ProcessCaptureService$e: Exception</ID>
-    <ID>UseCheckOrError:ProcessCaptureService.kt$ProcessCaptureService$throw IllegalStateException("Payment context aggregate absent for intentId=\${captureRequested.paymentIntentId}")</ID>
     <ID>UseCheckOrError:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$throw IllegalStateException("InternalTransfer not found for transferId=${event.transferId}")</ID>
     <ID>UseCheckOrError:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$throw IllegalStateException("Merchant account absent for merchantAccount=${event.merchantAccount}")</ID>
     <ID>UseCheckOrError:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$throw IllegalStateException("Payment not found for paymentIntentId=${event.paymentIntentId}")</ID>

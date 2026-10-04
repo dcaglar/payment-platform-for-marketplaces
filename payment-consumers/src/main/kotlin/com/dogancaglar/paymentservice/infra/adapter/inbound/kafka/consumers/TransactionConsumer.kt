@@ -37,13 +37,8 @@ class TransactionConsumer(
                 logger.warn("⚠️ Event is processed already, skipping eventId=$eventId")
                 return@with
             }
-            try {
-                transactionUseCase.updateTransactions(envelope.data)
-                dedupe.markProcessed(ConsumerGroups.TRANSACTION_CONSUMER, eventId, 3600)
-            } catch (e: Exception) {
-                logger.error("❌ Failed to update transactions from ledger batch {}", eventId, e)
-                throw e // the shared error handler retries or sends it to the DLQ
-            }
+            transactionUseCase.updateTransactions(envelope.data)
+            dedupe.markProcessed(ConsumerGroups.TRANSACTION_CONSUMER, eventId, 3600)
         }
     }
 }

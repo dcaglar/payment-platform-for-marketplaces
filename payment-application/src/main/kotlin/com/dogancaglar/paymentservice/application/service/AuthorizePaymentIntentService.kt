@@ -5,6 +5,7 @@ import com.dogancaglar.paymentservice.application.command.AuthorizePaymentIntent
 import com.dogancaglar.paymentservice.application.events.PaymentAuthorized
 import com.dogancaglar.paymentservice.domain.exception.PaymentIntentNotFoundException
 import com.dogancaglar.paymentservice.domain.exception.PaymentNotReadyException
+import com.dogancaglar.paymentservice.domain.exception.PaymentPlatformException
 import com.dogancaglar.paymentservice.domain.exception.PspInvalidPaymentException
 import com.dogancaglar.paymentservice.domain.exception.PspPermanentException
 import com.dogancaglar.paymentservice.domain.exception.PspTransientException
@@ -20,9 +21,11 @@ import org.slf4j.LoggerFactory
  * - PSP answered AUTHORIZED / DECLINED / CANCELLED -> stored as answered (DECLINED is final)
  * - PSP answered "not decided yet" -> stays PENDING_AUTH (202)
  * - PSP refused our request for good (or the payment method cannot be sent) -> FAILED, final (422)
- * - PSP had a temporary problem, or we got no usable answer -> back to CREATED, the exception goes to the
- *   caller (503). Authorizing again is safe: every PSP call carries the same idempotency key for this
+ * - PSP had a temporary problem, nothing was done (not sent, 429, 503) -> back to CREATED, the exception goes
+ *   to the caller (503). Authorizing again is safe: every PSP call carries the same idempotency key for this
  *   payment, so the PSP authorizes it at most once.
+ * - no usable answer (timeout, reset, 5xx, unreadable): the PSP may have authorized -> stays PENDING_AUTH (202),
+ *   never reopened for another authorize while the outcome is unknown
  * - PSP answered but saving it failed -> stays PENDING_AUTH, returned as pending (202)
  * - any other error -> stays PENDING_AUTH, the exception goes to the caller
  */
@@ -35,6 +38,7 @@ class AuthorizePaymentIntentService(
 ) : AuthorizePaymentIntentUseCase {
 
     private val logger = LoggerFactory.getLogger(javaClass)
+
     override fun authorize(cmd: AuthorizePaymentIntentCommand): PaymentIntent {
         // only the caller's own intent: another merchant's is "not found" (404)
         val paymentIntent = paymentIntentRepository.findByIdForMerchant(cmd.paymentIntentId, cmd.merchantAccount)
@@ -88,19 +92,45 @@ class AuthorizePaymentIntentService(
                 onBackgroundSuccess = { backgroundResult -> saveResult(backgroundResult) },
                 onBackgroundFailure = { error -> handleBackgroundFailure(authPendingPaymentIntent, error) }
             )
-        } catch (e: Exception) {
-            if (refusedForGood(e)) {
-                return markFailed(authPendingPaymentIntent, e)
+        } catch (e: PaymentPlatformException) {
+            // grouped by outcome; the same rule as in the background (handleBackgroundFailure)
+            when (e) {
+                // refused for good, or this payment method can't be sent: the same answer every time
+                is PspPermanentException, is PspInvalidPaymentException ->
+                    return markFailed(authPendingPaymentIntent, e)
+                // not done: authorizing again is safe (same idempotency key)
+                is PspTransientException -> {
+                    revertToCreated(authPendingPaymentIntent)
+                    throw e
+                }
+                // maybe done: stays PENDING_AUTH (202) while the outcome is unknown
+                is PspUnknownException -> {
+                    logger.warn(
+                        "Authorization of {} outcome unknown, left PENDING_AUTH",
+                        authPendingPaymentIntent.paymentIntentId.value,
+                        e
+                    )
+                    return authPendingPaymentIntent
+                }
+                // not a PSP answer (our own error): propagates, the intent stays PENDING_AUTH
+                else -> throw e
             }
-            if (safeToAuthorizeAgain(e)) {
-                revertToCreated(authPendingPaymentIntent)
-            }
-            throw e
         }
 
         // 4) The PSP answered; store it. If storing fails, the PSP may have authorized: "still confirming" (202)
+        return saveOrLeavePending(result, authPendingPaymentIntent)
+    }
+
+    /**
+     * Stores the PSP's answer; if storing fails for any reason, the intent stays PENDING_AUTH
+     * ("still confirming", 202).
+     * Any failure on purpose: the repository port gives no typed error, and whatever it is, the decision is the same.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun saveOrLeavePending(result: PaymentIntent, authPendingPaymentIntent: PaymentIntent): PaymentIntent {
         try {
             saveResult(result)
+            return result
         } catch (e: Exception) {
             logger.error(
                 "PSP answered {} for {} but saving it failed, left PENDING_AUTH",
@@ -110,7 +140,6 @@ class AuthorizePaymentIntentService(
             )
             return authPendingPaymentIntent
         }
-        return result
     }
 
     /** Stores the PSP's answer. PENDING_AUTH (not decided yet) is already stored by tryMarkPendingAuth. */
@@ -121,19 +150,6 @@ class AuthorizePaymentIntentService(
             PaymentIntentStatus.CANCELLED -> paymentIntentRepository.updatePaymentIntent(result)
             else -> {}
         }
-    }
-
-    /** The PSP refused our request (or we cannot send the payment method): sending it again gets the same answer. */
-    private fun refusedForGood(error: Throwable): Boolean {
-        return error is PspPermanentException || error is PspInvalidPaymentException
-    }
-
-    /**
-     * Not done yet, or we don't know: authorizing again is safe, because the PSP call carries the same
-     * idempotency key for this payment (the PSP authorizes it at most once).
-     */
-    private fun safeToAuthorizeAgain(error: Throwable): Boolean {
-        return error is PspTransientException || error is PspUnknownException
     }
 
     /** Final: nothing was charged. Logged as error: a refusal of our request needs attention. */
@@ -148,25 +164,34 @@ class AuthorizePaymentIntentService(
         return failed
     }
 
-    /** Back to CREATED: authorize can run again (safely, see safeToAuthorizeAgain). */
+    /**
+     * Back to CREATED: authorize can run again. Only for PspTransientException (nothing was done at the PSP); every
+     * PSP call carries the same idempotency key for this payment, so the PSP authorizes it at most once.
+     */
     private fun revertToCreated(authPendingPaymentIntent: PaymentIntent) {
         paymentIntentRepository.updatePaymentIntent(authPendingPaymentIntent.revertToCreated())
     }
 
     /** Runs after we already answered 202, so nobody else will log or handle this error. */
     private fun handleBackgroundFailure(authPendingPaymentIntent: PaymentIntent, error: Throwable) {
-        if (refusedForGood(error)) {
-            markFailed(authPendingPaymentIntent, error)
-        } else if (safeToAuthorizeAgain(error)) {
-            logger.warn(
-                "Background authorization for {} not done or outcome unknown, back to CREATED: {}",
+        when (error) {
+            is PspPermanentException, is PspInvalidPaymentException -> markFailed(authPendingPaymentIntent, error)
+            is PspTransientException -> {
+                logger.warn(
+                    "Background authorization for {} not done, back to CREATED",
+                    authPendingPaymentIntent.paymentIntentId.value,
+                    error
+                )
+                revertToCreated(authPendingPaymentIntent)
+            }
+            // maybe done: stays PENDING_AUTH while the outcome is unknown
+            is PspUnknownException -> logger.warn(
+                "Background authorization for {} outcome unknown, left PENDING_AUTH",
                 authPendingPaymentIntent.paymentIntentId.value,
-                error.message
+                error
             )
-            revertToCreated(authPendingPaymentIntent)
-        } else {
             // not a PSP answer (e.g. our database failed while saving it): leave PENDING_AUTH
-            logger.error(
+            else -> logger.error(
                 "Background authorization for {} failed, left PENDING_AUTH",
                 authPendingPaymentIntent.paymentIntentId.value,
                 error

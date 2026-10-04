@@ -36,19 +36,14 @@ class CapturePspPerformedConsumer(
             val eventData = envelope.data
             logger.debug("Consuming capture PSP performed event for payment: \${eventData.publicPaymentIntentId}")
 
-            try {
-                recordCaptureSubmissionService.recordSubmission(
-                    event = eventData,
-                    parentEventId = envelope.eventId
-                )
-                dedupe.markProcessed(ConsumerGroups.CAPTURE_SUBMITTED_CONSUMER, eventId, 3600)
-                logger.info(
-                    "Capture PSP performed consumer executed successfully for paymentIntentId=${eventData.publicPaymentIntentId}"
-                )
-            } catch (e: Exception) {
-                logger.error("❌ Failed to process capture PSP performed event", e)
-                throw e
-            }
+            recordCaptureSubmissionService.recordSubmission(
+                event = eventData,
+                parentEventId = envelope.eventId
+            )
+            dedupe.markProcessed(ConsumerGroups.CAPTURE_SUBMITTED_CONSUMER, eventId, 3600)
+            logger.info(
+                "Capture PSP performed consumer executed successfully for paymentIntentId=${eventData.publicPaymentIntentId}"
+            )
         }
     }
 }

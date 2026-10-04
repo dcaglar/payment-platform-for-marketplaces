@@ -9,8 +9,6 @@
     <ID>MaxLineLength:AccountEntityMapper.kt$AccountEntityMapper$AccountEntity(platform.accountCode, "PLATFORM", platform.status.name, null, null, null, null, null, null, null, null)</ID>
     <ID>MaxLineLength:AccountEntityMapper.kt$AccountEntityMapper$AccountEntity(seller.accountCode, "SELLER", seller.status.name, seller.masterAccountCode, null, null, null, null, null, null, null)</ID>
     <ID>MaxLineLength:PaymentEntityMapper.kt$PaymentEntityMapper$fun</ID>
-    <ID>TooGenericExceptionCaught:AbstractOutboxPartitionCreator.kt$AbstractOutboxPartitionCreator$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:AbstractOutboxPartitionCreator.kt$AbstractOutboxPartitionCreator$ex: Exception</ID>
     <ID>UseCheckOrError:PaymentTxEntityMapper.kt$PaymentTxEntityMapper$throw IllegalStateException( "Unknown Tx type ${entity.txType} for txId={entity.txId}." )</ID>
   </CurrentIssues>
 </SmellBaseline>

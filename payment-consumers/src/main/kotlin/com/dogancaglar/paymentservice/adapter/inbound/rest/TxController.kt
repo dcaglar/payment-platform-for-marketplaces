@@ -6,6 +6,7 @@ import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.JournalEntryDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PaymentDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PostingDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.TxDto
+import com.dogancaglar.paymentservice.domain.exception.NonRetryableException
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
 import com.dogancaglar.paymentservice.domain.model.ledger.Posting
 import com.dogancaglar.paymentservice.domain.model.ledger.Tx
@@ -151,4 +152,4 @@ class TxController(
 }
 
 /** No such payment or tx for this merchant (404). */
-class TxNotFoundException(message: String) : RuntimeException(message)
+class TxNotFoundException(message: String) : NonRetryableException(message)

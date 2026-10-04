@@ -10,6 +10,7 @@ import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.dao.DataAccessException
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
@@ -65,8 +66,8 @@ class LocalOutboxDispatchWorker(
             val maxOriginatedAt = events.maxOf { Utc.toInstant(it.createdAt) }
             centralOutboxRepository.updateWatermark(appInstanceId, maxOriginatedAt)
             true
-        } catch (t: Throwable) {
-            logger.warn("⚠️ Batch forward failed; will unclaim {} rows.", events.size, t)
+        } catch (e: DataAccessException) {
+            logger.warn("⚠️ Batch forward failed; will unclaim {} rows.", events.size, e)
             false
         }
     }
@@ -93,11 +94,13 @@ class LocalOutboxDispatchWorker(
         val threadName = Thread.currentThread().name
         val workerId = "$appInstanceId:$threadName"
 
+        // counted as failed unless the run gets to the end (no catch: the error itself propagates)
+        var completed = false
         try {
             val events = claimBatch(batchSize, workerId)
             if (events.isEmpty()) {
                 centralOutboxRepository.updateWatermark(appInstanceId, Utc.nowInstant())
-                dispatcherDuration.record((System.nanoTime() - startNs) / 1_000_000_000.0)
+                completed = true
                 return
             }
 
@@ -109,21 +112,22 @@ class LocalOutboxDispatchWorker(
             } else {
                 try {
                     unclaimFailedNow(workerId, events)
-                } catch (t: Throwable) {
+                } catch (e: DataAccessException) {
                     logger.warn(
                         "Unclaim failed for {} rows (worker={}) – will rely on reclaimer",
                         events.size,
                         workerId,
-                        t
+                        e
                     )
                 }
                 logger.info("Forwarded failed={} on {}", events.size, threadName)
                 dispatchFailedTotal.add(events.size.toLong())
             }
-        } catch (t: Throwable) {
-            dispatchFailedTotal.add(1)
-            throw t
+            completed = true
         } finally {
+            if (!completed) {
+                dispatchFailedTotal.add(1)
+            }
             dispatcherDuration.record((System.nanoTime() - startNs) / 1_000_000_000.0)
         }
     }

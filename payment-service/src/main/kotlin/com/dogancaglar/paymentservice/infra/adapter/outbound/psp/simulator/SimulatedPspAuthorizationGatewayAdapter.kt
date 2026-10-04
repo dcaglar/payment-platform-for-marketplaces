@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.psp.simulator
 
+import com.dogancaglar.paymentservice.domain.exception.PspOperation
 import com.dogancaglar.paymentservice.domain.exception.PspPermanentException
 import com.dogancaglar.paymentservice.domain.exception.PspTransientException
 import com.dogancaglar.paymentservice.domain.model.payment.CardBrand
@@ -28,14 +29,15 @@ class SimulatedPspAuthorizationGatewayAdapter(
 
 ) : PspAuthorizationGatewayPort {
 
-
     private val active: AuthorizationSimulationProperties.ScenarioConfig
         get() = config.scenarios[config.scenario]
             ?: throw IllegalStateException("No scenario config for ${config.scenario}")
 
     @WithSpan("SimulatedCreatePaymentIntent")
     override fun createPaymentIntent(paymentIntent: PaymentIntent): CompletableFuture<PaymentIntent> {
-        return submit(createPaymentIntentExecutor) {
+        val op = PspOperation.CREATE_INTENT
+        val id = paymentIntent.paymentIntentId.value
+        return submit(createPaymentIntentExecutor, op, id) {
             simulator.simulate()
             val sc = active.response
             val roll = Random.nextInt(100)
@@ -48,16 +50,10 @@ class SimulatedPspAuthorizationGatewayAdapter(
                     )
                 }
                 roll < sc.successful + sc.retryable -> {
-                    throw PspTransientException(
-                        "Simulated transient PSP failure",
-                        RuntimeException("transient simulator")
-                    )
+                    throw PspTransientException(op, id, "simulated transient failure")
                 }
                 else -> {
-                    throw PspPermanentException(
-                        "Simulated permanent PSP failure",
-                        RuntimeException("permanent simulator")
-                    )
+                    throw PspPermanentException(op, id, "simulated permanent failure")
                 }
             }
         }
@@ -68,7 +64,9 @@ class SimulatedPspAuthorizationGatewayAdapter(
         paymentIntent: PaymentIntent,
         token: PaymentMethod?
     ): CompletableFuture<PaymentIntent> {
-        return submit(authorizePaymentIntentExecutor) {
+        val op = PspOperation.AUTHORIZE
+        val id = paymentIntent.paymentIntentId.value
+        return submit(authorizePaymentIntentExecutor, op, id) {
             simulator.simulate()
             val sc = active.response
             val roll = Random.nextInt(100)
@@ -79,10 +77,7 @@ class SimulatedPspAuthorizationGatewayAdapter(
                     paymentIntent.markAuthorized(CardSummary.of(CardBrand.VISA, "4242"))
                 }
                 roll < sc.successful + sc.retryable -> {
-                    throw PspTransientException(
-                        "Simulated transient PSP failure",
-                        RuntimeException("transient simulator")
-                    )
+                    throw PspTransientException(op, id, "simulated transient failure")
                 }
                 else -> {
                     // a decline is a result, not an error
@@ -92,8 +87,10 @@ class SimulatedPspAuthorizationGatewayAdapter(
         }
     }
 
-    override fun retrieveClientSecret(pspReference: String): CompletableFuture<String>? {
-        return submit(authorizePaymentIntentExecutor) {
+    override fun retrieveClientSecret(paymentIntent: PaymentIntent): CompletableFuture<String>? {
+        val op = PspOperation.RETRIEVE_CLIENT_SECRET
+        val id = paymentIntent.paymentIntentId.value
+        return submit(authorizePaymentIntentExecutor, op, id) {
             simulator.simulate()
             val sc = active.response
             val roll = Random.nextInt(100)
@@ -103,16 +100,10 @@ class SimulatedPspAuthorizationGatewayAdapter(
                     "sim_cs_${UUID.randomUUID()}"
                 }
                 roll < sc.successful + sc.retryable -> {
-                    throw PspTransientException(
-                        "Simulated transient PSP failure",
-                        RuntimeException("transient simulator")
-                    )
+                    throw PspTransientException(op, id, "simulated transient failure")
                 }
                 else -> {
-                    throw PspPermanentException(
-                        "Simulated permanent PSP failure",
-                        RuntimeException("permanent simulator")
-                    )
+                    throw PspPermanentException(op, id, "simulated permanent failure")
                 }
             }
         }
@@ -122,11 +113,16 @@ class SimulatedPspAuthorizationGatewayAdapter(
      * Hands the PSP call to its thread pool. A full pool means the call was never sent:
      * not done, try again later.
      */
-    private fun <T> submit(executor: ThreadPoolTaskExecutor, task: () -> T): CompletableFuture<T> {
+    private fun <T> submit(
+        executor: ThreadPoolTaskExecutor,
+        op: PspOperation,
+        id: Long,
+        task: () -> T
+    ): CompletableFuture<T> {
         try {
             return CompletableFuture.supplyAsync({ task() }, executor)
         } catch (e: RejectedExecutionException) {
-            throw PspTransientException("PSP call not sent: thread pool is full", e)
+            throw PspTransientException(op, id, "not sent: thread pool is full", e)
         }
     }
 }

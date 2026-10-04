@@ -30,7 +30,7 @@ import java.util.concurrent.ExecutionException
 
 /**
  * A PSP slower than our read timeout must always come back as "outcome unknown" (PspUnknownException),
- * so the payment goes back to CREATED and can be authorized again. Our read timeout fires two ways that race
+ * so the payment stays PENDING_AUTH (the PSP may have authorized it). Our read timeout fires two ways that race
  * (the JDK's timeout and Spring's cancel); each must be translated, so the call is repeated many times.
  */
 @Tag("integration")

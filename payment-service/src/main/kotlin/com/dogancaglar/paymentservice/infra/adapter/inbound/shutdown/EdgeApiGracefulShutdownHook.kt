@@ -3,6 +3,7 @@ package com.dogancaglar.paymentservice.infra.adapter.inbound.shutdown
 import com.dogancaglar.paymentservice.ports.outbound.LocalOutboxWriterPort
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataAccessException
 import org.springframework.stereotype.Component
 
 /**
@@ -29,10 +30,10 @@ class EdgeApiGracefulShutdownHook(
         while (emptyCycles < 3) {
             val hasPending = try {
                 localOutboxWriterPort.hasPendingEvents()
-            } catch (t: Throwable) {
+            } catch (e: DataAccessException) {
                 logger.error(
                     "Failed to query outbox status during shutdown. Proceeding with termination to avoid permanent hang.",
-                    t
+                    e
                 )
                 break
             }

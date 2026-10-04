@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Component
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -33,7 +34,8 @@ class ResilientExecutionAdapter(
         return try {
             // ② Block the Tomcat thread for at most timeoutMs milliseconds
             future.get(timeoutMs, TimeUnit.MILLISECONDS)
-        } catch (e: TimeoutException) {
+        } catch (@Suppress("SwallowedException") e: TimeoutException) {
+            // not an error: the expected outcome of waiting at most timeoutMs; the task continues in background
             logger.warn("Task timed out after ${timeoutMs}ms. Returning fallback and continuing in background.")
 
             // ③ PSP task is still running on its own executor.
@@ -55,10 +57,13 @@ class ResilientExecutionAdapter(
             }, executor)
 
             onTimeoutFallback()
-        } catch (e: Exception) {
+        } catch (e: ExecutionException) {
+            // the task's own exception, not the future's wrapper;
             // not logged here: the layer that handles it logs it once
-            val cause = e.cause ?: e
-            throw cause
+            throw e.cause ?: e
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw e
         }
     }
 }

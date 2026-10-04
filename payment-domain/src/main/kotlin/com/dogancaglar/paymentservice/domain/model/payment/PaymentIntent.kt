@@ -1,7 +1,10 @@
 package com.dogancaglar.paymentservice.domain.model.payment
 
 import com.dogancaglar.common.time.Utc
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
+import com.dogancaglar.paymentservice.domain.model.common.require
+import com.dogancaglar.paymentservice.domain.model.common.requireNotNull
 import com.dogancaglar.paymentservice.domain.model.vo.BuyerId
 import com.dogancaglar.paymentservice.domain.model.vo.OrderId
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
@@ -34,13 +37,20 @@ class PaymentIntent private constructor(
     val splits: List<PaymentSplit> by splitsDelegate
 
     init {
-        require(totalAmount.isPositive()) { "Total amount must be positive" }
+        require(totalAmount.isPositive()) {
+            PaymentDomainException.InvariantViolationException(
+                "paymentIntentId=${paymentIntentId.value}: totalAmount must be positive, but was " +
+                    "${totalAmount.quantity}"
+            )
+        }
 
         // Domain invariants about PSP reference:
         when (status) {
             PaymentIntentStatus.CREATED_PENDING -> {
                 require(pspReference == null) {
-                    "pspReference must be null in CREATED_PENDING"
+                    PaymentDomainException.InvariantViolationException(
+                        "paymentIntentId=${paymentIntentId.value}: pspReference must be null in CREATED_PENDING"
+                    )
                 }
             }
             PaymentIntentStatus.CREATED,
@@ -49,7 +59,9 @@ class PaymentIntent private constructor(
             PaymentIntentStatus.DECLINED,
             -> {
                 require(!pspReference.isNullOrBlank()) {
-                    "pspReference is required in status=$status"
+                    PaymentDomainException.InvariantViolationException(
+                        "paymentIntentId=${paymentIntentId.value}: pspReference is required in status=$status"
+                    )
                 }
             }
 
@@ -60,7 +72,11 @@ class PaymentIntent private constructor(
     fun hasPspReference(): Boolean = !pspReference.isNullOrBlank()
 
     fun pspReferenceOrThrow(): String =
-        requireNotNull(pspReference) { "pspReference is not set for paymentIntentId=$paymentIntentId" }
+        requireNotNull(pspReference) {
+            PaymentDomainException.InvariantViolationException(
+                "paymentIntentId=${paymentIntentId.value}: pspReference is not set"
+            )
+        }
 
     // ------------------------
     // AUTHORIZATION WORKFLOW
@@ -72,14 +88,18 @@ class PaymentIntent private constructor(
      */
     fun markAuthorizedPending(now: LocalDateTime = Utc.nowLocalDateTime()): PaymentIntent {
         require(status == PaymentIntentStatus.CREATED) {
-            "Can only start authorization from CREATED (current=$status)"
+            PaymentDomainException.InvalidStateTransitionException(
+                "paymentIntentId=${paymentIntentId.value}: can only start authorization from CREATED (current=$status)"
+            )
         }
         return copy(status = PaymentIntentStatus.PENDING_AUTH, updatedAt = now)
     }
 
     fun markAsCreated(now: LocalDateTime = Utc.nowLocalDateTime()): PaymentIntent {
         require(status == PaymentIntentStatus.CREATED_PENDING) {
-            "Can only start authorization from CREATED (current=$status)"
+            PaymentDomainException.InvalidStateTransitionException(
+                "paymentIntentId=${paymentIntentId.value}: can only mark CREATED from CREATED_PENDING (current=$status)"
+            )
         }
         return copy(status = PaymentIntentStatus.CREATED, updatedAt = now)
     }
@@ -93,9 +113,15 @@ class PaymentIntent private constructor(
         now: LocalDateTime = Utc.nowLocalDateTime()
     ): PaymentIntent {
         require(status == PaymentIntentStatus.CREATED_PENDING) {
-            "Can only mark CREATED from CREATED_PENDING (current=$status)"
+            PaymentDomainException.InvalidStateTransitionException(
+                "paymentIntentId=${paymentIntentId.value}: can only mark CREATED from CREATED_PENDING (current=$status)"
+            )
         }
-        require(pspReference.isNotBlank()) { "pspReference must not be blank" }
+        require(pspReference.isNotBlank()) {
+            PaymentDomainException.InvariantViolationException(
+                "paymentIntentId=${paymentIntentId.value}: pspReference must not be blank"
+            )
+        }
         // Note: clientSecret is only set in-memory for response, never persisted
         return copy(
             status = PaymentIntentStatus.CREATED,
@@ -112,7 +138,9 @@ class PaymentIntent private constructor(
      */
     fun markAuthorized(cardSummary: CardSummary? = null, now: LocalDateTime = Utc.nowLocalDateTime()): PaymentIntent {
         require(status == PaymentIntentStatus.PENDING_AUTH) {
-            "Can only mark AUTHORIZED from PENDING_AUTH (current=$status)"
+            PaymentDomainException.InvalidStateTransitionException(
+                "paymentIntentId=${paymentIntentId.value}: can only mark AUTHORIZED from PENDING_AUTH (current=$status)"
+            )
         }
         return copy(status = PaymentIntentStatus.AUTHORIZED, updatedAt = now, cardSummary = cardSummary)
     }
@@ -125,7 +153,10 @@ class PaymentIntent private constructor(
      */
     fun revertToCreated(now: LocalDateTime = Utc.nowLocalDateTime()): PaymentIntent {
         require(status == PaymentIntentStatus.PENDING_AUTH) {
-            "Can only revert to CREATED from PENDING_AUTH (current=$status)"
+            PaymentDomainException.InvalidStateTransitionException(
+                "paymentIntentId=${paymentIntentId.value}: can only revert to CREATED from PENDING_AUTH " +
+                    "(current=$status)"
+            )
         }
         return copy(status = PaymentIntentStatus.CREATED, updatedAt = now)
     }
@@ -136,7 +167,9 @@ class PaymentIntent private constructor(
      */
     fun markDeclined(now: LocalDateTime = Utc.nowLocalDateTime()): PaymentIntent {
         require(status == PaymentIntentStatus.PENDING_AUTH) {
-            "Can only mark DECLINED from PENDING_AUTH (current=$status)"
+            PaymentDomainException.InvalidStateTransitionException(
+                "paymentIntentId=${paymentIntentId.value}: can only mark DECLINED from PENDING_AUTH (current=$status)"
+            )
         }
         return copy(status = PaymentIntentStatus.DECLINED, updatedAt = now)
     }
@@ -150,7 +183,10 @@ class PaymentIntent private constructor(
      */
     fun markFailed(now: LocalDateTime = Utc.nowLocalDateTime()): PaymentIntent {
         require(status == PaymentIntentStatus.CREATED_PENDING || status == PaymentIntentStatus.PENDING_AUTH) {
-            "Can only mark FAILED from CREATED_PENDING or PENDING_AUTH (current=$status)"
+            PaymentDomainException.InvalidStateTransitionException(
+                "paymentIntentId=${paymentIntentId.value}: can only mark FAILED from CREATED_PENDING or PENDING_AUTH " +
+                    "(current=$status)"
+            )
         }
         return copy(status = PaymentIntentStatus.FAILED, updatedAt = now)
     }
@@ -163,7 +199,12 @@ class PaymentIntent private constructor(
         require(
             status == PaymentIntentStatus.CREATED ||
                 status == PaymentIntentStatus.PENDING_AUTH
-        ) { "Can only cancel from CREATED or PENDING_AUTH (current=$status)" }
+        ) {
+            PaymentDomainException.InvalidStateTransitionException(
+                "paymentIntentId=${paymentIntentId.value}: can only cancel from CREATED or PENDING_AUTH " +
+                    "(current=$status)"
+            )
+        }
 
         return copy(status = PaymentIntentStatus.CANCELLED, updatedAt = now)
     }
@@ -207,7 +248,10 @@ class PaymentIntent private constructor(
     // ------------------------
 
     override fun toString(): String {
-        return "PaymentIntent(paymentIntentId=${paymentIntentId.value}, clientSecret=$clientSecret, pspReference=$pspReference, buyerId=${buyerId.value}, orderId=${orderId.value}, totalAmount=$totalAmount, paymentOrderLines=$splits, status=$status, createdAt=$createdAt, updatedAt=$updatedAt)"
+        return "PaymentIntent(paymentIntentId=${paymentIntentId.value}, clientSecret=$clientSecret, " +
+            "pspReference=$pspReference, buyerId=${buyerId.value}, orderId=${orderId.value}, " +
+            "totalAmount=$totalAmount, paymentOrderLines=$splits, status=$status, " +
+            "createdAt=$createdAt, updatedAt=$updatedAt)"
     }
 
     companion object {
@@ -224,14 +268,23 @@ class PaymentIntent private constructor(
 
             // Same rule as Payment: only a MARKETPLACE payment has splits (a DIRECT_MERCHANT sale has none)
             if (processingModel == ProcessingModel.MARKETPLACE) {
-                require(splits.isNotEmpty()) { "MARKETPLACE PaymentIntent must have at least one payment line" }
+                val id = "paymentIntentId=${paymentIntentId.value}"
+                require(splits.isNotEmpty()) {
+                    PaymentDomainException.SplitValidationException(
+                        "$id: MARKETPLACE PaymentIntent must have at least one payment line"
+                    )
+                }
                 val lineCurrencies = splits.map { it.amount.currency }.distinct()
                 require(lineCurrencies.size == 1 && lineCurrencies.first() == totalAmount.currency) {
-                    "All payment lines must use the same currency as total amount"
+                    PaymentDomainException.SplitValidationException(
+                        "$id: all payment lines must use the currency of totalAmount ${totalAmount.currency}"
+                    )
                 }
                 val sum = splits.sumOf { it.amount.quantity }
                 require(sum == totalAmount.quantity) {
-                    "Total amount (${totalAmount.quantity}) must equal sum of payment lines ($sum)"
+                    PaymentDomainException.SplitValidationException(
+                        "$id: totalAmount ${totalAmount.quantity} must equal the sum of payment lines $sum"
+                    )
                 }
             }
 

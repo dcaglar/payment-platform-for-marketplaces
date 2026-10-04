@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.domain.model.payment
 
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
@@ -56,7 +57,7 @@ class PaymentTest {
     fun `applyCapture fails when amount exceeds total`() {
         val payment = createPayment().markSentForSettle()
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.CaptureLimitExceededException> {
             payment.applyCapture(Amount.of(2000, currency))
         }
     }
@@ -90,7 +91,7 @@ class PaymentTest {
             .markSentForSettle()
             .applyCapture(Amount.of(500, currency))
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.RefundLimitExceededException> {
             payment.applyRefund(Amount.of(600, currency))
         }
     }
@@ -116,7 +117,7 @@ class PaymentTest {
             .markSentForSettle()
             .applyCapture(Amount.of(200, currency))
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvalidStateTransitionException> {
             payment.voidAuthorization()
         }
     }
@@ -127,7 +128,7 @@ class PaymentTest {
             .markSentForSettle()
             .applyCapture(Amount.of(1000, currency))
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvalidStateTransitionException> {
             payment.voidAuthorization()
         }
     }
@@ -137,7 +138,7 @@ class PaymentTest {
         val payment = createPayment()
         val voided = payment.voidAuthorization()
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvalidStateTransitionException> {
             voided.voidAuthorization()
         }
     }

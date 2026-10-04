@@ -39,9 +39,7 @@ class WebhookController(
         } catch (e: SignatureVerificationException) {
             logger.warn("Invalid Stripe signature: {}", e.message)
             ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid signature")
-        } catch (e: Exception) {
-            logger.error("Webhook processing error", e)
-            ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Webhook error")
         }
+        // any other failure is ours: it goes to the controller advice (500, logged once), so Stripe retries the webhook
     }
 }

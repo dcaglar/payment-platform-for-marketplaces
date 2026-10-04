@@ -61,17 +61,10 @@
     <ID>MaxLineLength:MerchantAccount.kt$MerchantAccount.Companion$return MerchantAccount(accountCode, status, legalName, address, industry, currency, isAutoCaptured, isAutoSettled, platformFee)</ID>
     <ID>MaxLineLength:MerchantAccount.kt$PlatformFee$"Payment currency ${amount.currency.currencyCode} differs from the platform fee currency ${fixed.currency.currencyCode}"</ID>
     <ID>MaxLineLength:OutboxEvent.kt$OutboxEvent$return "OutboxEvent(oeid=$oeid, eventType='$eventType', aggregateId='$aggregateId', '$aggregateId' payload='$payload', status=$status, createdAt=$createdAt, updatedAt=$updatedAt)"</ID>
-    <ID>MaxLineLength:Payment.kt$Payment$"Cannot reconcile settlement against a payment in $status status. Target must be CAPTURED or PARTIALLY_CAPTURED."</ID>
-    <ID>MaxLineLength:Payment.kt$Payment$"captureAmount currency (${captureAmount.currency}) must match totalAmount currency (${totalAmount.currency})"</ID>
-    <ID>MaxLineLength:Payment.kt$Payment$"capturedAmount currency (${capturedAmount.currency}) must match totalAmount currency (${totalAmount.currency})"</ID>
-    <ID>MaxLineLength:Payment.kt$Payment$"refundedAmount currency (${refundedAmount.currency}) must match totalAmount currency (${totalAmount.currency})"</ID>
-    <ID>MaxLineLength:Payment.kt$Payment$?:</ID>
-    <ID>MaxLineLength:PaymentIntent.kt$PaymentIntent$return "PaymentIntent(paymentIntentId=${paymentIntentId.value}, clientSecret=$clientSecret, pspReference=$pspReference, buyerId=${buyerId.value}, orderId=${orderId.value}, totalAmount=$totalAmount, paymentOrderLines=$splits, status=$status, createdAt=$createdAt, updatedAt=$updatedAt)"</ID>
     <ID>MaxLineLength:Tx.kt$Tx.CaptureTx$"to $newSettleStatus because it has already cleared out of UNMATCHED (Current status: ${this.settleStatus})"</ID>
     <ID>MaxLineLength:Tx.kt$Tx.Companion$val derivedStatus = if (grossAmount == originalCaptureAmount) SettleStatus.MATCHED else SettleStatus.DISCREPANCY</ID>
     <ID>MaxLineLength:Tx.kt$Tx.SettleTx$val grossAmount: Amount</ID>
     <ID>TooManyFunctions:PaymentIntent.kt$PaymentIntent</ID>
-    <ID>UseCheckOrError:Payment.kt$Payment$throw IllegalStateException("Outstanding UNMATCHED CaptureTx row not found for target paymentId=${this.paymentId.value}")</ID>
     <ID>WildcardImport:AmountTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
     <ID>WildcardImport:OutboxEventTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
     <ID>WildcardImport:PaymentIntentTest.kt$import com.dogancaglar.paymentservice.domain.model.vo.*</ID>

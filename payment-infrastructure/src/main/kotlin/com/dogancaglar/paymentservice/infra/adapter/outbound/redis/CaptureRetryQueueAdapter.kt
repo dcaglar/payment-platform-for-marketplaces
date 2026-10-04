@@ -8,7 +8,6 @@ import com.dogancaglar.paymentservice.infra.adapter.outbound.redis.client.Captur
 import com.dogancaglar.paymentservice.ports.outbound.RetryQueuePort
 import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
 import io.opentelemetry.api.OpenTelemetry
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 @Component("captureRetryQueueAdapter")
@@ -26,26 +25,19 @@ class CaptureRetryQueueAdapter(
             .buildWithCallback { it.record(captureRetryRedisCache.zsetSize()) }
     }
 
-    private val logger = LoggerFactory.getLogger(CaptureRetryQueueAdapter::class.java)
-
     override fun scheduleRetry(
         event: CaptureRequested,
         backOffMillis: Long,
     ) {
-        try {
-            val retryAt = System.currentTimeMillis() + backOffMillis
+        val retryAt = System.currentTimeMillis() + backOffMillis
 
-            val envelope = EventEnvelopeFactory.envelopeFor(
-                data = event,
-                aggregateId = event.publicPaymentIntentId,
-                parentEventId = EventLogContext.getEventId()
-            )
-            val json = serializationPort.toJson(envelope)
-            captureRetryRedisCache.scheduleRetry(json, retryAt.toDouble())
-        } catch (e: Exception) {
-            logger.error("❌ Exception during scheduleRetry for agg={}", event.publicPaymentIntentId, e)
-            throw e
-        }
+        val envelope = EventEnvelopeFactory.envelopeFor(
+            data = event,
+            aggregateId = event.publicPaymentIntentId,
+            parentEventId = EventLogContext.getEventId()
+        )
+        val json = serializationPort.toJson(envelope)
+        captureRetryRedisCache.scheduleRetry(json, retryAt.toDouble())
     }
 
     // Optional ops helpers

@@ -19,41 +19,38 @@ class AccountBalanceSnapshotJob(
     fun mergeDeltasToSnapshots() {
         logger.debug("🔁 Starting AccountBalanceSnapshotJob")
 
-        try {
-            val dirtyAccounts = cachePort.getDirtyAccounts()
-            if (dirtyAccounts.isEmpty()) {
-                logger.debug("No dirty accounts to merge")
-                return
-            }
+        // a failure propagates: Spring's scheduler logs it and the next run tries again
+        val dirtyAccounts = cachePort.getDirtyAccounts()
+        if (dirtyAccounts.isEmpty()) {
+            logger.debug("No dirty accounts to merge")
+            return
+        }
 
-            dirtyAccounts.forEach { accountCode ->
-                val (delta, upToEntryId) = cachePort.getAndResetDeltaWithWatermark(accountCode)
-                if (delta == 0L) return@forEach
+        dirtyAccounts.forEach { accountCode ->
+            val (delta, upToEntryId) = cachePort.getAndResetDeltaWithWatermark(accountCode)
+            if (delta == 0L) return@forEach
 
-                val current = snapshotPort.getSnapshot(accountCode)
-                    ?: AccountBalanceSnapshot(accountCode, 0L, 0L, Utc.nowLocalDateTime(), Utc.nowLocalDateTime())
+            val current = snapshotPort.getSnapshot(accountCode)
+                ?: AccountBalanceSnapshot(accountCode, 0L, 0L, Utc.nowLocalDateTime(), Utc.nowLocalDateTime())
 
-                val newBalance = current.balance + delta
-                val newWatermark = maxOf(current.lastAppliedEntryId, upToEntryId)
+            val newBalance = current.balance + delta
+            val newWatermark = maxOf(current.lastAppliedEntryId, upToEntryId)
 
-                val updated = current.copy(
-                    balance = newBalance,
-                    lastAppliedEntryId = newWatermark,
-                    lastSnapshotAt = Utc.nowLocalDateTime(),
-                    updatedAt = Utc.nowLocalDateTime()
-                )
+            val updated = current.copy(
+                balance = newBalance,
+                lastAppliedEntryId = newWatermark,
+                lastSnapshotAt = Utc.nowLocalDateTime(),
+                updatedAt = Utc.nowLocalDateTime()
+            )
 
-                snapshotPort.saveSnapshot(updated)
-                logger.debug(
-                    "✅ Merged Δ{} for {}, new balance={}, watermark={}",
-                    delta,
-                    accountCode,
-                    newBalance,
-                    newWatermark
-                )
-            }
-        } catch (ex: Exception) {
-            logger.error("❌ Error during snapshot merge job", ex)
+            snapshotPort.saveSnapshot(updated)
+            logger.debug(
+                "✅ Merged Δ{} for {}, new balance={}, watermark={}",
+                delta,
+                accountCode,
+                newBalance,
+                newWatermark
+            )
         }
     }
 }

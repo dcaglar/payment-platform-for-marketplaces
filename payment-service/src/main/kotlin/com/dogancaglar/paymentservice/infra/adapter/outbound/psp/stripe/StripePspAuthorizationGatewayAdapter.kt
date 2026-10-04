@@ -1,6 +1,8 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.psp.stripe
 
+import com.dogancaglar.paymentservice.domain.exception.PaymentPlatformException
 import com.dogancaglar.paymentservice.domain.exception.PspInvalidPaymentException
+import com.dogancaglar.paymentservice.domain.exception.PspOperation
 import com.dogancaglar.paymentservice.domain.exception.PspPermanentException
 import com.dogancaglar.paymentservice.domain.exception.PspTransientException
 import com.dogancaglar.paymentservice.domain.exception.PspUnknownException
@@ -11,7 +13,12 @@ import com.dogancaglar.paymentservice.infra.adapter.outbound.psp.PspCardSummary
 import com.dogancaglar.paymentservice.ports.outbound.PspAuthorizationGatewayPort
 import com.stripe.StripeClient
 import com.stripe.exception.ApiConnectionException
+import com.stripe.exception.ApiException
+import com.stripe.exception.AuthenticationException
 import com.stripe.exception.CardException
+import com.stripe.exception.IdempotencyException
+import com.stripe.exception.InvalidRequestException
+import com.stripe.exception.RateLimitException
 import com.stripe.exception.StripeException
 import com.stripe.net.RequestOptions
 import com.stripe.param.PaymentIntentConfirmParams
@@ -21,7 +28,6 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.stereotype.Component
-import java.net.SocketTimeoutException
 import java.util.concurrent.*
 
 @Component
@@ -36,19 +42,18 @@ class StripePspAuthorizationGatewayAdapter(
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
-
     override fun createPaymentIntent(paymentIntent: PaymentIntent): CompletableFuture<PaymentIntent> {
         // do not execute this in request thread, but hand the task to be executed in pspAuthExecutor
         /*Returns a new CompletableFuture that is asynchronously completed by a task( callCreatePaymentIntentApi(paymentIntent)) running in the given
          executor(pspAuthExecutor) with the value obtained by calling the given Supplier.
          */
-        return submit(createPaymentIntentExecutor) {
+        return submit(createPaymentIntentExecutor, PspOperation.CREATE_INTENT, paymentIntent.paymentIntentId.value) {
             callCreatePaymentIntentApi(paymentIntent)
         }
     }
 
     override fun authorizePaymentIntent(paymentIntent: PaymentIntent, token: PaymentMethod?): CompletableFuture<PaymentIntent> {
-        return submit(authorizePaymentIntentExecutor) {
+        return submit(authorizePaymentIntentExecutor, PspOperation.AUTHORIZE, paymentIntent.paymentIntentId.value) {
             callConfirmPaymentIntentApi(paymentIntent, token)
         }
     }
@@ -57,48 +62,49 @@ class StripePspAuthorizationGatewayAdapter(
         val idempotencyKey = "create:${paymentIntent.paymentIntentId.value}"
         val stripeOptions = createStripeOptions(idempotencyKey)
         val paymentIntentCreateParams = createPaymentIntentParams(paymentIntent)
-        return try {
-            val stripePaymentIntent =
-                stripeClient.v1().paymentIntents().create(paymentIntentCreateParams, stripeOptions)
-            paymentIntent.markAsCreatedWithPspReferenceAndClientSecret(
-                pspReference = stripePaymentIntent.id,
-                clientSecret = stripePaymentIntent.clientSecret
-            )
-        } catch (e: Exception) {
-            logger.error("calcretepapemyentintet api failed,", e)
-            throw handleException("creation", e)
+        val stripePaymentIntent = try {
+            stripeClient.v1().paymentIntents().create(paymentIntentCreateParams, stripeOptions)
+        } catch (e: StripeException) {
+            throw translate(PspOperation.CREATE_INTENT, paymentIntent.paymentIntentId.value, e)
         }
+        return paymentIntent.markAsCreatedWithPspReferenceAndClientSecret(
+            pspReference = stripePaymentIntent.id,
+            clientSecret = stripePaymentIntent.clientSecret
+        )
     }
 
     private fun callConfirmPaymentIntentApi(paymentIntent: PaymentIntent, token: PaymentMethod?): PaymentIntent {
         val stripeConfirmIdempotencyKey = "confirm:${paymentIntent.paymentIntentId.value}"
         val stripeOptions = createStripeOptions(stripeConfirmIdempotencyKey)
         val paymentIntentConfirmParams = confirmPaymentIntentParams(token)
-        return try {
-            val confirmedStripePaymentIntent = stripeClient.v1().paymentIntents()
-                .confirm(paymentIntent.pspReferenceOrThrow(), paymentIntentConfirmParams, stripeOptions)
-            updatePaymentIntentStatus(paymentIntent, confirmedStripePaymentIntent)
-        } catch (e: CardException) {
-            // Stripe reports a card decline as an exception; for us a decline is a result
-            paymentIntent.markDeclined()
-        } catch (e: Exception) {
-            throw handleException("confirmation", e)
+        val pspReference = paymentIntent.pspReferenceOrThrow()
+        val confirmedStripePaymentIntent = try {
+            stripeClient.v1().paymentIntents().confirm(pspReference, paymentIntentConfirmParams, stripeOptions)
+        } catch (@Suppress("SwallowedException") e: CardException) {
+            // Stripe reports a declined (or blocked) payment as an exception; for us a decline is a result
+            return paymentIntent.markDeclined()
+        } catch (e: StripeException) {
+            throw translate(PspOperation.AUTHORIZE, paymentIntent.paymentIntentId.value, e)
         }
+        return updatePaymentIntentStatus(paymentIntent, confirmedStripePaymentIntent)
     }
 
-    override fun retrieveClientSecret(pspReference: String): CompletableFuture<String>? {
-        return submit(createPaymentIntentExecutor) {
-            try {
-                val retrieved = stripeClient.v1().paymentIntents().retrieve(pspReference)
-                logger.debug(
-                    "Retrieved clientSecret from Stripe: pspReference={}, status={}",
-                    pspReference,
-                    retrieved.status
-                )
-                retrieved.clientSecret
-            } catch (e: Exception) {
-                throw handleException("retrieval", e)
+    override fun retrieveClientSecret(paymentIntent: PaymentIntent): CompletableFuture<String>? {
+        val op = PspOperation.RETRIEVE_CLIENT_SECRET
+        val id = paymentIntent.paymentIntentId.value
+        val pspReference = paymentIntent.pspReferenceOrThrow()
+        return submit(createPaymentIntentExecutor, op, id) {
+            val retrieved = try {
+                stripeClient.v1().paymentIntents().retrieve(pspReference)
+            } catch (e: StripeException) {
+                throw translate(op, id, e)
             }
+            logger.debug(
+                "Retrieved clientSecret from Stripe: pspReference={}, status={}",
+                pspReference,
+                retrieved.status
+            )
+            retrieved.clientSecret
         }
     }
 
@@ -106,30 +112,39 @@ class StripePspAuthorizationGatewayAdapter(
      * Hands the PSP call to its thread pool. A full pool means the call was never sent:
      * not done, try again later.
      */
-    private fun <T> submit(executor: ThreadPoolTaskExecutor, task: () -> T): CompletableFuture<T> {
+    private fun <T> submit(
+        executor: ThreadPoolTaskExecutor,
+        op: PspOperation,
+        id: Long,
+        task: () -> T
+    ): CompletableFuture<T> {
         try {
             return CompletableFuture.supplyAsync({ task() }, executor)
         } catch (e: RejectedExecutionException) {
-            throw PspTransientException("PSP call not sent: thread pool is full", e)
+            throw PspTransientException(op, id, "not sent: thread pool is full", e)
         }
     }
 
-    private fun handleException(action: String, e: Exception): Exception {
+    /**
+     * Stripe's exception -> our ExternalPspException, following Stripe's error-handling guidance
+     * (https://docs.stripe.com/error-handling): connection and API (5xx) errors are "indeterminate", so Unknown.
+     * Only the Stripe call is inside the try: our own errors are not translated. CardException is a decline,
+     * handled where it can occur (confirm).
+     */
+    private fun translate(op: PspOperation, id: Long, e: StripeException): PaymentPlatformException {
+        val stripe = "Stripe ${e.javaClass.simpleName} code=${e.code} requestId=${e.requestId}"
         return when (e) {
-            is StripeException -> {
-                if (isRetryableError(e)) {
-                    PspTransientException("Stripe $action transient failure: ${e.userMessage ?: e.message}", e)
-                } else {
-                    // CardException, InvalidRequestException etc. are permanent from our perspective
-                    PspPermanentException("Stripe $action permanent failure: ${e.userMessage ?: e.message}", e)
-                }
-            }
-            is SocketTimeoutException -> PspTransientException("Timeout during Stripe $action", e)
-            is ApiConnectionException -> PspTransientException("Connection failure during Stripe $action", e)
-            else -> {
-                logger.error("Unexpected exception during Stripe $action", e)
-                PspUnknownException("Unexpected error during Stripe $action", e)
-            }
+            is RateLimitException -> PspTransientException(
+                op,
+                id,
+                "rate limited ($stripe)",
+                e
+            ) // before ApiException: a subclass
+            is ApiConnectionException, is ApiException -> PspUnknownException(op, id, "outcome unknown ($stripe)", e)
+            // our request or our API key is wrong (AuthenticationException also covers PermissionException)
+            is InvalidRequestException, is IdempotencyException, is AuthenticationException ->
+                PspPermanentException(op, id, "refused our request ($stripe)", e)
+            else -> PspUnknownException(op, id, "failed ($stripe)", e)
         }
     }
 
@@ -179,35 +194,17 @@ class StripePspAuthorizationGatewayAdapter(
         return paramsBuilder.build()
     }
 
-    private fun isRetryableError(e: StripeException): Boolean {
-        // HTTP 429 and 5xx are always retryable
-        val statusCode = e.statusCode
-        if (statusCode == 429 || statusCode in 500..599) return true
-
-        // Specific Stripe error codes that represent transient issues
-        return when (e.code) {
-            "api_error",
-            "api_connection_error",
-            "rate_limit_error",
-            "idempotency_error",
-            "service_unavailable",
-            "network_error",
-            "gateway_error" -> true
-            else -> {
-                // Heuristic for timeout messages if not caught by specific types
-                e.message?.contains("timeout", ignoreCase = true) == true ||
-                    e.message?.contains("connection refused", ignoreCase = true) == true
-            }
-        }
-    }
-
     private fun updatePaymentIntentStatus(paymentIntent: PaymentIntent, confirmed: com.stripe.model.PaymentIntent): PaymentIntent =
         when (confirmed.status?.uppercase()) {
             "REQUIRES_CAPTURE", "SUCCEEDED" -> paymentIntent.markAuthorized(cardSummaryOf(confirmed))
             "CANCELED", "CANCELLED" -> paymentIntent.markCancelled()
             "PROCESSING", "REQUIRES_ACTION" -> paymentIntent // not decided yet: stays PENDING_AUTH
             "REQUIRES_CONFIRMATION", "REQUIRES_PAYMENT_METHOD" -> paymentIntent.markDeclined()
-            else -> paymentIntent.markDeclined()
+            else -> throw PspUnknownException(
+                PspOperation.AUTHORIZE,
+                paymentIntent.paymentIntentId.value,
+                "Stripe answered unknown status=${confirmed.status}"
+            )
         }
 
     // brand + last 4 of the card Stripe charged (payment_method expanded on confirm); null if Stripe did not include it

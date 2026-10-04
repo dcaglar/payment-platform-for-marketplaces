@@ -1,6 +1,7 @@
 package com.dogancaglar.paymentservice.domain.model.payment
 
 import com.dogancaglar.common.time.Utc
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
@@ -42,7 +43,7 @@ class PaymentIntentTest {
     fun `createNew should fail if total is different from sum of lines`() {
         val wrongTotal = Amount.of(5000, currency)
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.SplitValidationException> {
             PaymentIntent.createNew(
                 paymentIntentId = PaymentIntentId(1),
                 buyerId = buyerId,
@@ -85,7 +86,7 @@ class PaymentIntentTest {
             lines
         ).markAsCreatedWithPspReferenceAndClientSecret("ST_PI_1234", "SECRET_FROM_STRIPE")
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvalidStateTransitionException> {
             intent.markAsCreatedWithPspReferenceAndClientSecret("ST_PI_1234", "SECRET_FROM_STRIPE")
         }
     }
@@ -144,7 +145,7 @@ class PaymentIntentTest {
         ).markAsCreatedWithPspReferenceAndClientSecret("ST_PI_1234", "SECRET_FROM_STRIPE")
             .markAuthorizedPending()
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvalidStateTransitionException> {
             intent.markAuthorizedPending()
         }
     }
@@ -161,7 +162,7 @@ class PaymentIntentTest {
             lines
         )
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvalidStateTransitionException> {
             intent.markAuthorizedPending()
         }
     }
@@ -222,12 +223,12 @@ class PaymentIntentTest {
             lines
         )
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvalidStateTransitionException> {
             intent.markAuthorized()
         }
 
         val created = intent.markAsCreatedWithPspReferenceAndClientSecret("ST_PI_1234", "SECRET_FROM_STRIPE")
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvalidStateTransitionException> {
             created.markAuthorized()
         }
     }
@@ -278,7 +279,7 @@ class PaymentIntentTest {
             lines
         ).markAsCreatedWithPspReferenceAndClientSecret("ST_PI_1234", "SECRET_FROM_STRIPE")
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvalidStateTransitionException> {
             created.markFailed()
         }
     }
@@ -301,7 +302,7 @@ class PaymentIntentTest {
 
     @Test
     fun `createNew rejects a MARKETPLACE payment without splits`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.SplitValidationException> {
             PaymentIntent.createNew(
                 PaymentIntentId(1),
                 buyerId,
@@ -347,7 +348,7 @@ class PaymentIntentTest {
             .markAuthorizedPending()
             .markDeclined()
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvalidStateTransitionException> {
             declined.revertToCreated()
         }
     }
@@ -383,7 +384,7 @@ class PaymentIntentTest {
         )
 
         // Cancel should fail from CREATED_PENDING
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvalidStateTransitionException> {
             intent.markCancelled()
         }
 
@@ -410,7 +411,7 @@ class PaymentIntentTest {
             .markAuthorizedPending()
             .markAuthorized()
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvalidStateTransitionException> {
             authorized.markCancelled()
         }
     }
@@ -463,7 +464,7 @@ class PaymentIntentTest {
     fun `CREATED_PENDING fails if pspReference is not null`() {
         val now = Utc.nowLocalDateTime()
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvariantViolationException> {
             PaymentIntent.rehydrate(
                 paymentIntentId = PaymentIntentId(1),
                 pspReference = "pi_123", // Should be null for CREATED_PENDING
@@ -500,7 +501,7 @@ class PaymentIntentTest {
     fun `CREATED fails if pspReference is null`() {
         val now = Utc.nowLocalDateTime()
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvariantViolationException> {
             PaymentIntent.rehydrate(
                 paymentIntentId = PaymentIntentId(1),
                 pspReference = null, // Should not be null for CREATED
@@ -521,7 +522,7 @@ class PaymentIntentTest {
     fun `CREATED fails if pspReference is blank`() {
         val now = Utc.nowLocalDateTime()
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvariantViolationException> {
             PaymentIntent.rehydrate(
                 paymentIntentId = PaymentIntentId(1),
                 pspReference = "", // Should not be blank for CREATED
@@ -649,7 +650,7 @@ class PaymentIntentTest {
             lines
         )
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvariantViolationException> {
             intent.pspReferenceOrThrow()
         }
     }
@@ -666,11 +667,11 @@ class PaymentIntentTest {
             lines
         )
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvariantViolationException> {
             intent.markAsCreatedWithPspReferenceAndClientSecret("", "secret")
         }
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<PaymentDomainException.InvariantViolationException> {
             intent.markAsCreatedWithPspReferenceAndClientSecret("   ", "secret")
         }
     }

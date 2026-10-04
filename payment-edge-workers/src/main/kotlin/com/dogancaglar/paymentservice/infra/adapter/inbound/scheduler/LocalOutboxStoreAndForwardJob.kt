@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.DependsOn
+import org.springframework.dao.DataAccessException
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.stereotype.Service
@@ -103,8 +104,9 @@ class LocalOutboxStoreAndForwardJob(
                 "Step 5: Deleted worker watermark for {}. Pod is now safely cleared to terminate.",
                 appInstanceId
             )
-        } catch (t: Throwable) {
-            logger.error("Failed to delete watermark during shutdown!", t)
+        } catch (e: DataAccessException) {
+            // shutdown must go on; a stale watermark only delays nothing (the pod is going away)
+            logger.error("Failed to delete watermark during shutdown!", e)
         }
     }
 }

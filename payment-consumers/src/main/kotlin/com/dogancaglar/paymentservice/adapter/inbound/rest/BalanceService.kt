@@ -5,6 +5,7 @@ import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.BalanceDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CurrencyEnum
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.OwnerType
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PageDto
+import com.dogancaglar.paymentservice.domain.exception.NonRetryableException
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 import com.dogancaglar.paymentservice.ports.inbound.usecases.AccountBalanceReadUseCase
@@ -118,4 +119,4 @@ class BalanceService(
 }
 
 /** No seller or merchant account for the requested id (404). */
-class BalanceOwnerNotFoundException(message: String) : RuntimeException(message)
+class BalanceOwnerNotFoundException(message: String) : NonRetryableException(message)

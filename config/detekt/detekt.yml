@@ -29,3 +29,9 @@ formatting:
     active: false
   FinalNewline:
     active: false
+
+exceptions:
+  # our standard: catch the sealed exception family once and branch with an exhaustive `when (e) { is A, is B -> … }`
+  # (grouped by outcome; the compiler forces a decision for every new subtype). This rule flags exactly that pattern.
+  InstanceOfCheckForException:
+    active: false

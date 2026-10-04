@@ -3,6 +3,7 @@ package com.dogancaglar.paymentservice.infra.adapter.outbound.redis.client
 import com.dogancaglar.common.event.EventEnvelope
 import com.dogancaglar.paymentservice.application.events.CaptureRequested
 import com.dogancaglar.paymentservice.application.util.RetryItem
+import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
@@ -110,9 +111,10 @@ open class CaptureRetryRedisCache(
                 )
                 val envelope: EventEnvelope<CaptureRequested> = objectMapper.readValue(String(raw), type)
                 items += RetryItem(envelope, raw)
-            } catch (e: Exception) {
-                // If we cannot deserialize, drop from inflight to avoid poison loops
-                logger.warn("Failed to deserialize retry item, removing from inflight: \${e.message}")
+            } catch (e: JsonProcessingException) {
+                // unreadable: drop it from inflight to avoid a poison loop. That capture will not be retried,
+                // so log it findably (error, the item itself and the cause)
+                logger.error("Unreadable capture retry item dropped: {}", String(raw).take(MAX_LOGGED_ITEM_CHARS), e)
                 removeFromInflight(raw)
             }
         }
@@ -156,5 +158,9 @@ open class CaptureRetryRedisCache(
                 }
             }
         )
+    }
+
+    private companion object {
+        const val MAX_LOGGED_ITEM_CHARS = 500 // enough to identify the item in the log
     }
 }

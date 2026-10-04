@@ -8,6 +8,7 @@ import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.kafka.serde.EventEnvelopeKafkaSerializer
 import com.dogancaglar.common.logging.GenericLogFields
 import com.dogancaglar.common.time.Utc
+import com.dogancaglar.paymentservice.domain.exception.NonRetryableException
 import io.micrometer.observation.ObservationRegistry
 import org.apache.kafka.clients.consumer.CommitFailedException
 import org.apache.kafka.clients.consumer.Consumer
@@ -20,6 +21,7 @@ import org.apache.kafka.common.errors.SerializationException
 import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.serialization.ByteArraySerializer
 import org.apache.kafka.common.serialization.StringSerializer
+import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
@@ -58,6 +60,8 @@ class KafkaTypedConsumerFactoryConfig(
     @Value("\${app.kafka.concurrency.capture-commands:3}") private val captureCommandsConcurrency: Int,
     @Value("\${app.kafka.concurrency.capture-submitted:3}") private val captureSubmittedConcurrency: Int
 ) {
+    private val logger = LoggerFactory.getLogger(javaClass)
+
     companion object {
         private const val HDR_VALUE_BYTES = "springDeserializerExceptionValue"
     }
@@ -99,6 +103,20 @@ class KafkaTypedConsumerFactoryConfig(
         val recoverer = ConsumerRecordRecoverer { rec, ex ->
             val src = rec.topic()
             val target = if (src.endsWith(".DLQ")) src else Topics.dlqOf(src)
+            // the one log line per failed event (consumers don't log and rethrow): which event, which payment, why
+            val envelope = rec.value() as? EventEnvelope<*>
+            logger.error(
+                "Event failed for good, sent to {}: eventType={}, eventId={}, aggregateId={}, " +
+                    "topic={}, partition={}, offset={}",
+                target,
+                envelope?.eventType,
+                envelope?.eventId,
+                envelope?.aggregateId,
+                src,
+                rec.partition(),
+                rec.offset(),
+                ex
+            )
             val key: String? = rec.key()?.toString()
 
             // Prefer original bytes captured by ErrorHandlingDeserializer
@@ -165,6 +183,8 @@ class KafkaTypedConsumerFactoryConfig(
                 DuplicateKeyException::class.java,
                 DataIntegrityViolationException::class.java,
                 NonTransientDataAccessException::class.java,
+                // ours: every NonRetryableException (invalid request, invariant, transition, ledger, PSP refusal)
+                NonRetryableException::class.java,
             )
         }
     }

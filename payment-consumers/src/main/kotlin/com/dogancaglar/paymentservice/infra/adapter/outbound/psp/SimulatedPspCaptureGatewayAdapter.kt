@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.psp
 
+import com.dogancaglar.paymentservice.domain.exception.PspOperation
 import com.dogancaglar.paymentservice.domain.exception.PspPermanentException
 import com.dogancaglar.paymentservice.domain.exception.PspTransientException
 import com.dogancaglar.paymentservice.domain.model.payment.Payment
@@ -56,15 +57,17 @@ class SimulatedPspCaptureGatewayAdapter(
                 roll < sc.successful + sc.retryable -> {
                     pspCallsTotal.add(1, Attributes.of(AttributeKey.stringKey("result"), "RETRYABLE"))
                     throw PspTransientException(
-                        "Simulated transient gateway network timeout",
-                        RuntimeException("capture network lag")
+                        PspOperation.CAPTURE,
+                        payment.paymentIntentId.value,
+                        "simulated network timeout"
                     )
                 }
                 else -> {
                     pspCallsTotal.add(1, Attributes.of(AttributeKey.stringKey("result"), "DECLINED"))
                     throw PspPermanentException(
-                        "Simulated terminal capture rejection by card scheme",
-                        RuntimeException("capture declined")
+                        PspOperation.CAPTURE,
+                        payment.paymentIntentId.value,
+                        "simulated refusal"
                     )
                 }
             }

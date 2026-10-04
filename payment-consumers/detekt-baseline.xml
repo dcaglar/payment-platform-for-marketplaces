@@ -72,19 +72,13 @@
     <ID>MaxLineLength:BalanceService.kt$BalanceService$*</ID>
     <ID>MaxLineLength:BalanceServiceTest.kt$BalanceServiceTest$/** One rule of BalanceService: a balance has one currency and one total, so two currencies are refused, not added up. */</ID>
     <ID>MaxLineLength:CaptureCommandExecutor.kt$CaptureCommandExecutor$"Capture command executor executed successfully for paymentIntentId=${captureRequested.publicPaymentIntentId}"</ID>
-    <ID>MaxLineLength:CaptureCommandExecutor.kt$CaptureCommandExecutor$"❌ Failed to process capture command for paymentIntentId: \${captureRequested.publicPaymentIntentId}"</ID>
     <ID>MaxLineLength:CapturePspPerformedConsumer.kt$CapturePspPerformedConsumer$"Capture PSP performed consumer executed successfully for paymentIntentId=${eventData.publicPaymentIntentId}"</ID>
     <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$"Gross capture allocation consumer executed successfully for paymentIntentId=${event.publicPaymentIntentId}"</ID>
-    <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$"❌ Failed to clean and allocate gross capture suspense for paymentIntentId: ${event.publicPaymentIntentId}"</ID>
     <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$"🌿 Marketplace multi-party transaction identified. Executing clearing transfers for ${payment.splits.size} split definitions."</ID>
-    <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$"🎯 Direct Sale context identified. Moving 100% of gross funds to merchant direct payable account."</ID>
     <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$"💾 Suspense account cleanly cleared. Staged 100% allocation to direct payable for merchant: ${payment.merchantAccount}"</ID>
     <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$"💾 Suspense account cleanly cleared. Staged split ledger allocations across all ${payment.splits.size} distribution paths."</ID>
-    <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$"🛑 POISON PILL DETECTED: Payment data entity not found for paymentIntentId='$rawPaymentIntentId'."</ID>
     <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$// A2. Charge Mor-DC's infrastructure processing fee from the merchant's direct payable account (none if 0)</ID>
     <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$// B2. Charge Mor-DC's infrastructure fee straight from the operator's commission payable account (none if 0)</ID>
-    <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$// Commission split: split.account holds the merchant id, so resolve the commission account instead</ID>
-    <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$// Our platform fee for this payment: the merchant's own setting (fixed + percentage of the captured amount)</ID>
     <ID>MaxLineLength:KafkaTopicsConfig.kt$TopicAdminConfig$"🛠️ TopicAdminConfig: Explicitly initializing KafkaAdmin bean to force auto-creation of topics on broker startup!"</ID>
     <ID>MaxLineLength:KafkaTopicsConfig.kt$TopicAdminConfig$configs[org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = bootKafkaProps.bootstrapServers.joinToString(",")</ID>
     <ID>MaxLineLength:LedgerMapperIntegrationTest.kt$LedgerMapperIntegrationTest$private</ID>
@@ -106,7 +100,6 @@
     <ID>MaxLineLength:TransactionRepositoryAdapterIntegrationTest.kt$TransactionRepositoryAdapterIntegrationTest$"to_char(authorized_at, 'YYYY-MM-DD HH24:MI:SS') || '|' || to_char(captured_at, 'YYYY-MM-DD HH24:MI:SS') || '|' || "</ID>
     <ID>MaxLineLength:TransactionRepositoryAdapterIntegrationTest.kt$TransactionRepositoryAdapterIntegrationTest$fun</ID>
     <ID>MaxLineLength:TxController.kt$TxController$val tx = txUseCase.getTx(TxId(txId), merchantAccount) ?: throw TxNotFoundException("No tx $txId of $merchantAccount")</ID>
-    <ID>NestedBlockDepth:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$@KafkaListener( topics = [Topics.JOURNAL_ENTRIES_RECORDED], containerFactory = ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR + "-factory", groupId = ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR ) fun onLedgerEntriesRecorded( record: ConsumerRecord&lt;String, EventEnvelope&lt;JournalEntriesRecorded&gt;&gt; )</ID>
     <ID>NoConsecutiveBlankLines:PaymentConsumerConfig.kt$ </ID>
     <ID>NoConsecutiveBlankLines:PaymentConsumerConfig.kt$PaymentConsumerConfig$ </ID>
     <ID>ParameterListWrapping:PaymentConsumerConfig.kt$PaymentConsumerConfig$(cachePort: AccountBalanceCachePort,snapshotPort: AccountBalanceSnapshotPort)</ID>
@@ -120,17 +113,6 @@
     <ID>SpreadOperator:KafkaTopicsConfig.kt$TopicAdminConfig$(*topics.toTypedArray())</ID>
     <ID>SpreadOperator:PaymentConsumerDataSourceConfig.kt$PaymentConsumerDataSourceConfig$(*resources)</ID>
     <ID>SpreadOperator:PaymentConsumersApplication.kt$(*args)</ID>
-    <ID>SwallowedException:LedgerMapperIntegrationTest.kt$LedgerMapperIntegrationTest$e: TimeoutException</ID>
-    <ID>SwallowedException:PaymentTxMapperIntegrationTest.kt$PaymentTxMapperIntegrationTest$e: TimeoutException</ID>
-    <ID>ThrowsCount:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$@KafkaListener( topics = [Topics.JOURNAL_ENTRIES_RECORDED], containerFactory = ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR + "-factory", groupId = ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR ) fun onLedgerEntriesRecorded( record: ConsumerRecord&lt;String, EventEnvelope&lt;JournalEntriesRecorded&gt;&gt; )</ID>
-    <ID>TooGenericExceptionCaught:AccountBalanceSnapshotJob.kt$AccountBalanceSnapshotJob$ex: Exception</ID>
-    <ID>TooGenericExceptionCaught:AccountCreationCommandExecutor.kt$AccountCreationCommandExecutor$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:AccountProfileRedisCache.kt$AccountProfileRedisCache$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:CaptureCommandExecutor.kt$CaptureCommandExecutor$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:CapturePspPerformedConsumer.kt$CapturePspPerformedConsumer$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:PspResultConsumer.kt$PspResultConsumer$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:TransactionConsumer.kt$TransactionConsumer$e: Exception</ID>
     <ID>TooManyFunctions:KafkaTypedConsumerFactoryConfig.kt$KafkaTypedConsumerFactoryConfig</ID>
     <ID>TooManyFunctions:PaymentConsumerConfig.kt$PaymentConsumerConfig</ID>
     <ID>TooManyFunctions:TransactionController.kt$TransactionController</ID>

@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.psp.http
 
+import com.dogancaglar.paymentservice.domain.exception.PspOperation
 import com.dogancaglar.paymentservice.domain.exception.PspPermanentException
 import com.dogancaglar.paymentservice.domain.exception.PspTransientException
 import com.dogancaglar.paymentservice.domain.exception.PspUnknownException
@@ -18,6 +19,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.stereotype.Component
 import org.springframework.web.client.ResourceAccessException
 import org.springframework.web.client.RestClient
+import java.io.IOException
 import java.net.ConnectException
 import java.net.http.HttpClient
 import java.net.http.HttpConnectTimeoutException
@@ -73,7 +75,9 @@ class HttpPspAuthorizationGatewayAdapter(
     }
 
     override fun createPaymentIntent(paymentIntent: PaymentIntent): CompletableFuture<PaymentIntent> {
-        return submit(createPaymentIntentExecutor) {
+        val op = PspOperation.CREATE_INTENT
+        val id = paymentIntent.paymentIntentId.value
+        return submit(createPaymentIntentExecutor, op, id) {
             val request = CreateIntentRequest(
                 reference = paymentIntent.paymentIntentId.value.toString(),
                 orderId = paymentIntent.orderId.value,
@@ -81,7 +85,7 @@ class HttpPspAuthorizationGatewayAdapter(
                 amount = paymentIntent.totalAmount.quantity,
                 currency = paymentIntent.totalAmount.currency.currencyCode
             )
-            val answer = send("create") {
+            val answer = send(op, id) {
                 restClient.post()
                     .uri("/v1/intents")
                     .header("Idempotency-Key", "create-${paymentIntent.paymentIntentId.value}")
@@ -89,11 +93,11 @@ class HttpPspAuthorizationGatewayAdapter(
                     .body(request)
             }
             if (!answer.isSuccess()) {
-                throw failure("create", answer.status)
+                throw failure(op, id, answer.status)
             }
-            val intent = readIntent("create", answer)
+            val intent = readIntent(op, id, answer)
             if (intent.status != "CREATED" || intent.id.isNullOrBlank() || intent.clientSecret.isNullOrBlank()) {
-                throw PspUnknownException("PSP create answered ${answer.status} with status=${intent.status}", null)
+                throw PspUnknownException(op, id, "answered ${answer.status} with status=${intent.status}")
             }
             paymentIntent.markAsCreatedWithPspReferenceAndClientSecret(
                 pspReference = intent.id,
@@ -103,12 +107,14 @@ class HttpPspAuthorizationGatewayAdapter(
     }
 
     override fun authorizePaymentIntent(paymentIntent: PaymentIntent, token: PaymentMethod?): CompletableFuture<PaymentIntent> {
-        return submit(authorizePaymentIntentExecutor) {
+        val op = PspOperation.AUTHORIZE
+        val id = paymentIntent.paymentIntentId.value
+        return submit(authorizePaymentIntentExecutor, op, id) {
             var paymentMethodToken: String? = null
             if (token is PaymentMethod.CardToken) {
                 paymentMethodToken = token.token
             }
-            val answer = send("authorize") {
+            val answer = send(op, id) {
                 restClient.post()
                     .uri("/v1/intents/{id}/authorize", paymentIntent.pspReferenceOrThrow())
                     .header("Idempotency-Key", "authorize-${paymentIntent.paymentIntentId.value}")
@@ -119,32 +125,34 @@ class HttpPspAuthorizationGatewayAdapter(
                 // a decline is a result, not an error
                 paymentIntent.markDeclined()
             } else if (!answer.isSuccess()) {
-                throw failure("authorize", answer.status)
+                throw failure(op, id, answer.status)
             } else {
-                val intent = readIntent("authorize", answer)
+                val intent = readIntent(op, id, answer)
                 when (intent.status) {
                     "AUTHORIZED" -> paymentIntent.markAuthorized(
                         PspCardSummary.of(intent.card?.brand, intent.card?.last4)
                     )
                     "DECLINED" -> paymentIntent.markDeclined()
                     "PENDING" -> paymentIntent // not decided yet: stays PENDING_AUTH
-                    else -> throw PspUnknownException("PSP authorize answered unknown status=${intent.status}", null)
+                    else -> throw PspUnknownException(op, id, "answered unknown status=${intent.status}")
                 }
             }
         }
     }
 
-    override fun retrieveClientSecret(pspReference: String): CompletableFuture<String>? {
-        return submit(createPaymentIntentExecutor) {
-            val answer = send("retrieve") {
-                restClient.get().uri("/v1/intents/{id}", pspReference)
+    override fun retrieveClientSecret(paymentIntent: PaymentIntent): CompletableFuture<String>? {
+        val op = PspOperation.RETRIEVE_CLIENT_SECRET
+        val id = paymentIntent.paymentIntentId.value
+        return submit(createPaymentIntentExecutor, op, id) {
+            val answer = send(op, id) {
+                restClient.get().uri("/v1/intents/{id}", paymentIntent.pspReferenceOrThrow())
             }
             if (!answer.isSuccess()) {
-                throw failure("retrieve", answer.status)
+                throw failure(op, id, answer.status)
             }
-            val intent = readIntent("retrieve", answer)
+            val intent = readIntent(op, id, answer)
             if (intent.clientSecret.isNullOrBlank()) {
-                throw PspUnknownException("PSP retrieve answered without a client secret", null)
+                throw PspUnknownException(op, id, "answered without a client secret")
             }
             intent.clientSecret
         }
@@ -153,56 +161,58 @@ class HttpPspAuthorizationGatewayAdapter(
     // ---------------------------------------------------------------- helpers
 
     /** Hands the PSP call to its thread pool. A full pool means the call was never sent: try again later. */
-    private fun <T> submit(executor: ThreadPoolTaskExecutor, task: () -> T): CompletableFuture<T> {
+    private fun <T> submit(
+        executor: ThreadPoolTaskExecutor,
+        op: PspOperation,
+        id: Long,
+        task: () -> T
+    ): CompletableFuture<T> {
         try {
             return CompletableFuture.supplyAsync({ task() }, executor)
         } catch (e: RejectedExecutionException) {
-            throw PspTransientException("PSP call not sent: thread pool is full", e)
+            throw PspTransientException(op, id, "not sent: thread pool is full", e)
         }
     }
 
     /** Sends the request and returns status + body, whatever the status. Network errors are classified here. */
-    private fun send(action: String, request: () -> RestClient.RequestHeadersSpec<*>): PspAnswer {
+    private fun send(op: PspOperation, id: Long, request: () -> RestClient.RequestHeadersSpec<*>): PspAnswer {
         try {
             val answer = request().exchange { _, response ->
                 PspAnswer(response.statusCode.value(), response.body.readAllBytes())
             }
             if (answer == null) {
-                throw PspUnknownException("PSP $action gave no answer", null)
+                throw PspUnknownException(op, id, "gave no answer")
             }
             return answer
         } catch (e: ResourceAccessException) {
             val cause = e.cause
             if (cause is ConnectException || cause is HttpConnectTimeoutException) {
-                throw PspTransientException("PSP $action not sent: ${cause::class.simpleName}", e)
+                throw PspTransientException(op, id, "not sent: ${cause::class.simpleName}", e)
             }
             // read timeout, connection reset, empty or garbled answer: the PSP may have done it
-            throw PspUnknownException(
-                "PSP $action sent but no usable answer: ${cause?.let { it::class.simpleName }}",
-                e
-            )
+            throw PspUnknownException(op, id, "sent but no usable answer: ${cause?.let { it::class.simpleName }}", e)
         } catch (e: CancellationException) {
             // also a read timeout: Spring's JdkClientHttpRequest cancels the request when our read timeout
             // passes, racing the JDK's own timeout (which arrives as ResourceAccessException above)
-            throw PspUnknownException("PSP $action sent but no answer within our read timeout", e)
+            throw PspUnknownException(op, id, "sent but no answer within our read timeout", e)
         }
     }
 
-    private fun failure(action: String, status: Int): RuntimeException {
+    private fun failure(op: PspOperation, id: Long, status: Int): RuntimeException {
         if (status == 429 || status == 503) {
-            return PspTransientException("PSP $action not done, answered $status", null)
+            return PspTransientException(op, id, "not done, answered $status")
         }
         if (status in 400..499) {
-            return PspPermanentException("PSP refused our $action request, answered $status", null)
+            return PspPermanentException(op, id, "refused our request, answered $status")
         }
-        return PspUnknownException("PSP $action answered $status, outcome unknown", null)
+        return PspUnknownException(op, id, "answered $status, outcome unknown")
     }
 
-    private fun readIntent(action: String, answer: PspAnswer): IntentResponse {
+    private fun readIntent(op: PspOperation, id: Long, answer: PspAnswer): IntentResponse {
         try {
             return objectMapper.readValue(answer.body, IntentResponse::class.java)
-        } catch (e: Exception) {
-            throw PspUnknownException("PSP $action answered ${answer.status} with an unreadable body", e)
+        } catch (e: IOException) { // Jackson: unreadable / unexpected body
+            throw PspUnknownException(op, id, "answered ${answer.status} with an unreadable body", e)
         }
     }
 
