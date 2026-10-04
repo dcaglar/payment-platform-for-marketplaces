@@ -65,7 +65,7 @@ class TransactionRepositoryAdapter(
     // transaction means its save failed: fail here so the event is retried, then goes to the DLQ, never silently lost.
     private fun failIfMissing(updated: Int, paymentId: PaymentId) {
         if (updated == 0 && !transactionMapper.exists(paymentId.value)) {
-            throw IllegalStateException("No transaction saved for payment ${paymentId.value} yet")
+            error("No transaction saved for payment ${paymentId.value} yet")
         }
     }
 }

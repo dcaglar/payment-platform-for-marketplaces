@@ -33,7 +33,7 @@ open class RecordCaptureSubmissionService(
     override fun recordSubmission(event: CaptureSubmitted, parentEventId: String) {
         val paymentIntentId = PaymentIntentId(event.paymentIntentId.toLongOrNull() ?: 0L)
         val payment = paymentRepository.findByPaymentIntentId(paymentIntentId)
-            ?: throw IllegalStateException("Payment context aggregate absent for paymentIntentId=${event.paymentIntentId}")
+            ?: error("Payment context aggregate absent for paymentIntentId=${event.paymentIntentId}")
 
         // 1. Advance aggregate state mutations
         val updatedPayment = payment.markSentForSettle()
@@ -59,7 +59,7 @@ open class RecordCaptureSubmissionService(
 
         // 4. An auto-settled merchant has no acquirer: its capture confirmation and settlement are simulated here
         val merchant = merchantAccountRepository.findByCode(event.merchantAccount)
-            ?: throw IllegalStateException("Merchant account absent for merchantAccount=${event.merchantAccount}")
+            ?: error("Merchant account absent for merchantAccount=${event.merchantAccount}")
         val outboxEvents = mutableListOf<OutboxEvent>()
         if (merchant.isAutoSettled) {
             logger.debug(

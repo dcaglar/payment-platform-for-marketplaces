@@ -88,7 +88,7 @@ class BalanceService(
         for (profile in profiles) {
             if (profile.currency != currency) {
                 // One response has one currency and one total; several currencies are not supported yet
-                throw IllegalStateException("$ownerId has accounts in several currencies; expected one")
+                error("$ownerId has accounts in several currencies; expected one")
             }
         }
 

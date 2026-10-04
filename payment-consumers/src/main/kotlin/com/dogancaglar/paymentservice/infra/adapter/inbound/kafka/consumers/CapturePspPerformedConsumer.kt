@@ -34,7 +34,7 @@ class CapturePspPerformedConsumer(
             }
 
             val eventData = envelope.data
-            logger.debug("Consuming capture PSP performed event for payment: \${eventData.publicPaymentIntentId}")
+            logger.debug("Consuming capture PSP performed event for payment: ${eventData.publicPaymentIntentId}")
 
             recordCaptureSubmissionService.recordSubmission(
                 event = eventData,

@@ -32,20 +32,11 @@
     <ID>MaxLineLength:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$val deterministicBatchId = "${settlementTxRecord.txType.name}:${event.publicPaymentIntentId}:${settlementTxRecord.txId.value}:${settlementTxRecord.status.name}"</ID>
     <ID>MaxLineLength:ProcessPspResultProcessingServiceTest.kt$ProcessPspResultProcessingServiceTest$every { paymentRepository.findByPaymentIntentId(paymentIntentId) } returns payment(PaymentStatus.SENT_FOR_SETTLE)</ID>
     <ID>MaxLineLength:RecordCaptureSubmissionService.kt$RecordCaptureSubmissionService$"Atomically persisting pending state modifications and transaction outbox event for track ref=${event.pspReference}"</ID>
-    <ID>MaxLineLength:RecordCaptureSubmissionService.kt$RecordCaptureSubmissionService$?:</ID>
     <ID>MaxLineLength:RecordCaptureSubmissionService.kt$RecordCaptureSubmissionService$val authTx = txs.find { it.txType == com.dogancaglar.paymentservice.domain.model.ledger.JournalType.AUTHORIZATION }</ID>
     <ID>MaxLineLength:TransactionRepository.kt$TransactionRepository$/** Sets the capture time unless already set. Fails if the transaction is not saved yet (it is saved at authorization). */</ID>
     <ID>ReturnCount:AuthorizePaymentIntentService.kt$AuthorizePaymentIntentService$override fun authorize(cmd: AuthorizePaymentIntentCommand): PaymentIntent</ID>
     <ID>ReturnCount:Transaction.kt$Transaction$fun status(): PaymentStatus</ID>
     <ID>ThrowsCount:IdempotencyService.kt$IdempotencyService$open fun &lt;REQ : Any, RES : Any&gt; run( key: java.util.UUID, requestBody: REQ, responseClass: Class&lt;RES&gt;, idExtractor: (RES) -&gt; Long, // Final Addition: Extract internal ID from response block: () -&gt; RES ): IdempotencyResult&lt;RES&gt;</ID>
-    <ID>UseCheckOrError:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$throw IllegalStateException("InternalTransfer not found for transferId=${event.transferId}")</ID>
-    <ID>UseCheckOrError:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$throw IllegalStateException("Merchant account absent for merchantAccount=${event.merchantAccount}")</ID>
-    <ID>UseCheckOrError:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$throw IllegalStateException("Payment not found for paymentIntentId=${event.paymentIntentId}")</ID>
-    <ID>UseCheckOrError:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$throw IllegalStateException("Payment not found for paymentIntentId=\${event.publicPaymentIntentId}")</ID>
-    <ID>UseCheckOrError:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$throw IllegalStateException("Payment target absent for settlement mapping context paymentIntentId=${event.publicPaymentIntentId}")</ID>
-    <ID>UseCheckOrError:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$throw IllegalStateException("Pending CaptureTx not found for paymentId=\${payment.paymentId.value}")</ID>
-    <ID>UseCheckOrError:RecordCaptureSubmissionService.kt$RecordCaptureSubmissionService$throw IllegalStateException("Merchant account absent for merchantAccount=${event.merchantAccount}")</ID>
-    <ID>UseCheckOrError:RecordCaptureSubmissionService.kt$RecordCaptureSubmissionService$throw IllegalStateException("Payment context aggregate absent for paymentIntentId=${event.paymentIntentId}")</ID>
     <ID>WildcardImport:AuthorizePaymentIntentService.kt$import com.dogancaglar.paymentservice.ports.outbound.*</ID>
     <ID>WildcardImport:ProcessPspResultProcessingServiceTest.kt$import io.mockk.*</ID>
     <ID>WildcardImport:ProcessPspResultProcessingServiceTest.kt$import org.junit.jupiter.api.Assertions.*</ID>

@@ -16,10 +16,13 @@ import com.stripe.exception.ApiConnectionException
 import com.stripe.exception.ApiException
 import com.stripe.exception.AuthenticationException
 import com.stripe.exception.CardException
+import com.stripe.exception.EventDataObjectDeserializationException
 import com.stripe.exception.IdempotencyException
 import com.stripe.exception.InvalidRequestException
 import com.stripe.exception.RateLimitException
+import com.stripe.exception.SignatureVerificationException
 import com.stripe.exception.StripeException
+import com.stripe.exception.oauth.OAuthException
 import com.stripe.net.RequestOptions
 import com.stripe.param.PaymentIntentConfirmParams
 import com.stripe.param.PaymentIntentCreateParams
@@ -80,8 +83,16 @@ class StripePspAuthorizationGatewayAdapter(
         val pspReference = paymentIntent.pspReferenceOrThrow()
         val confirmedStripePaymentIntent = try {
             stripeClient.v1().paymentIntents().confirm(pspReference, paymentIntentConfirmParams, stripeOptions)
-        } catch (@Suppress("SwallowedException") e: CardException) {
-            // Stripe reports a declined (or blocked) payment as an exception; for us a decline is a result
+        } catch (e: CardException) {
+            // Stripe reports a declined (or blocked) payment as an exception; for us a decline is a result.
+            // Logged with Stripe's reason, so support can answer "why was my card declined"
+            logger.info(
+                "Stripe declined paymentIntentId={}: code={}, declineCode={}, requestId={}",
+                paymentIntent.paymentIntentId.value,
+                e.code,
+                e.declineCode,
+                e.requestId
+            )
             return paymentIntent.markDeclined()
         } catch (e: StripeException) {
             throw translate(PspOperation.AUTHORIZE, paymentIntent.paymentIntentId.value, e)
@@ -126,25 +137,29 @@ class StripePspAuthorizationGatewayAdapter(
     }
 
     /**
-     * Stripe's exception -> our ExternalPspException, following Stripe's error-handling guidance
+     * Stripe's exception -> our PSP exception, following Stripe's error-handling guidance
      * (https://docs.stripe.com/error-handling): connection and API (5xx) errors are "indeterminate", so Unknown.
-     * Only the Stripe call is inside the try: our own errors are not translated. CardException is a decline,
-     * handled where it can occur (confirm).
+     * Only the Stripe call is inside the try: our own errors are not translated.
+     *
+     * Every StripeException subclass of the SDK (31.0.0) is listed. StripeException is a Java abstract class, not
+     * sealed, so Kotlin still needs an `else`: it only catches a subclass a future SDK version adds.
      */
     private fun translate(op: PspOperation, id: Long, e: StripeException): PaymentPlatformException {
         val stripe = "Stripe ${e.javaClass.simpleName} code=${e.code} requestId=${e.requestId}"
         return when (e) {
-            is RateLimitException -> PspTransientException(
-                op,
-                id,
-                "rate limited ($stripe)",
-                e
-            ) // before ApiException: a subclass
+            // not done, may work later (before ApiException: RateLimitException is a subclass)
+            is RateLimitException -> PspTransientException(op, id, "rate limited ($stripe)", e)
+            // "indeterminate": the request may have been done (TemporarySessionExpiredException is an ApiException)
             is ApiConnectionException, is ApiException -> PspUnknownException(op, id, "outcome unknown ($stripe)", e)
-            // our request or our API key is wrong (AuthenticationException also covers PermissionException)
-            is InvalidRequestException, is IdempotencyException, is AuthenticationException ->
+            // our request or our API key is wrong (AuthenticationException also covers PermissionException);
+            // a CardException outside confirm (where it is a decline) means our request is wrong too
+            is InvalidRequestException, is IdempotencyException, is AuthenticationException, is CardException ->
                 PspPermanentException(op, id, "refused our request ($stripe)", e)
-            else -> PspUnknownException(op, id, "failed ($stripe)", e)
+            // webhook / OAuth errors: can't come from create, confirm or retrieve; if they do, it's our bug
+            is SignatureVerificationException, is EventDataObjectDeserializationException, is OAuthException ->
+                PspPermanentException(op, id, "unexpected error for this call ($stripe)", e)
+            // only a StripeException subclass added by a future SDK version
+            else -> PspUnknownException(op, id, "unknown Stripe error ($stripe)", e)
         }
     }
 

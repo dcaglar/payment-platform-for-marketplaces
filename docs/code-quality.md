@@ -110,7 +110,7 @@ On a push to `feature/**`, `fix/**`, `hotfix/**` and on a PR to `main`:
 | Job | Runs | Includes |
 |---|---|---|
 | `unit-tests` | `mvn clean test` | unit tests |
-| `security-scan` (in parallel) | `mvn install -Dmaven.test.skip=true` (fills `~/.m2` for Trivy, runs no tests), then `infra/scripts/security-scan.sh` | gitleaks + Trivy |
+| `security-scan` (in parallel) | `mvn install -DskipUnitTests=true -DskipITs` (fills `~/.m2` for Trivy, runs no tests), then `infra/scripts/security-scan.sh` | gitleaks + Trivy |
 | `integration-tests` (after unit-tests) | `mvn clean verify` | integration tests + **detekt** |
 | `e2e-acceptance` (after integration-tests, PR only) | `mvn verify -f e2e-tests/pom.xml` | e2e tests + detekt |
 
@@ -128,8 +128,8 @@ per committed file). They overlap with detekt, but also see what detekt can't: e
 the build; `mvn verify` decides what fails.
 
 Note for the root `pom.xml`: Surefire's `skipTests` is bound to our own `skipUnitTests` property, so a plain
-`-DskipTests` does **not** skip unit tests. Use `-DskipUnitTests=true` (unit only) or `-Dmaven.test.skip=true` (all
-tests, not even compiled).
+`-DskipTests` does **not** skip unit tests. To build without running tests: `-DskipUnitTests=true -DskipITs`.
+Not `-Dmaven.test.skip=true`: it doesn't build test jars, and `payment-application` needs `common-test`'s test jar.
 
 ## Not covered
 - **Unused public functions / classes across modules:** detekt only sees private code. Use IntelliJ:

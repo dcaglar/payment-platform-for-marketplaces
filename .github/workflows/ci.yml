@@ -63,7 +63,7 @@ jobs:
 
       # Trivy reads the dependencies from ~/.m2 offline; installing fills it
       - name: Fill the local Maven repository
-        run: mvn -B -q install -Dmaven.test.skip=true -Ddetekt.phase=none
+        run: mvn -B -q install -DskipUnitTests=true -DskipITs -Ddetekt.phase=none
 
       - name: Scan
         run: infra/scripts/security-scan.sh

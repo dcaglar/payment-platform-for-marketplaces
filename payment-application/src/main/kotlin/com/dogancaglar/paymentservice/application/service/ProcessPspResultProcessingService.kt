@@ -107,7 +107,7 @@ open class ProcessPspResultProcessingService(
 
         // 4. An auto-captured merchant's payment is captured right away: CaptureRequested goes out with the ledger event
         val merchant = merchantAccountRepository.findByCode(event.merchantAccount)
-            ?: throw IllegalStateException("Merchant account absent for merchantAccount=${event.merchantAccount}")
+            ?: error("Merchant account absent for merchantAccount=${event.merchantAccount}")
         val outboxEvents = mutableListOf<OutboxEvent>()
         if (merchant.isAutoCaptured) {
             val captureRequested = CaptureRequested(
@@ -150,11 +150,11 @@ open class ProcessPspResultProcessingService(
     override fun processCaptureConfirmed(event: CaptureConfirmed) {
         val paymentIntentId = PaymentIntentId(PublicIdFactory.toInternalId(event.publicPaymentIntentId))
         val payment = paymentRepository.findByPaymentIntentId(paymentIntentId)
-            ?: throw IllegalStateException("Payment not found for paymentIntentId=\${event.publicPaymentIntentId}")
+            ?: error("Payment not found for paymentIntentId=${event.publicPaymentIntentId}")
 
         // Invariant check: ensure it was sent for settle
         require(payment.status == SENT_FOR_SETTLE) {
-            "Payment must be in SENT_FOR_SETTLE status, but was \${payment.status}"
+            "Payment must be in SENT_FOR_SETTLE status, but was ${payment.status}"
         }
 
         // Apply capture to advance state to CAPTURED
@@ -166,7 +166,7 @@ open class ProcessPspResultProcessingService(
         val captureTx = txs.find {
             it.txType == com.dogancaglar.paymentservice.domain.model.ledger.JournalType.CAPTURE && it.status == PENDING
         }
-            ?: throw IllegalStateException("Pending CaptureTx not found for paymentId=\${payment.paymentId.value}")
+            ?: error("Pending CaptureTx not found for paymentId=${payment.paymentId.value}")
 
         val updatedTx = (captureTx as CaptureTx).copy(
             status = SUCCESS
@@ -242,11 +242,11 @@ open class ProcessPspResultProcessingService(
 
         val paymentIntentId = PaymentIntentId(event.paymentIntentId.toLongOrNull() ?: 0L)
         val payment = paymentRepository.findByPaymentIntentId(paymentIntentId)
-            ?: throw IllegalStateException("Payment not found for paymentIntentId=${event.paymentIntentId}")
+            ?: error("Payment not found for paymentIntentId=${event.paymentIntentId}")
         // 2. Load InternalTransfer and Tx
         val transferId = com.dogancaglar.paymentservice.domain.model.vo.InternalTransferId(event.transferId)
         val transfer = transferRepository.findById(transferId)
-            ?: throw IllegalStateException("InternalTransfer not found for transferId=${event.transferId}")
+            ?: error("InternalTransfer not found for transferId=${event.transferId}")
 
         val updatedTransfer = transfer.markTransferred()
 
@@ -313,7 +313,7 @@ open class ProcessPspResultProcessingService(
 
         // 1. Fetch complete domain models from read-write ports
         val payment = paymentRepository.findByPaymentIntentId(paymentIntentId)
-            ?: throw IllegalStateException("Payment target absent for settlement mapping context paymentIntentId=${event.publicPaymentIntentId}")
+            ?: error("Payment target absent for settlement mapping context paymentIntentId=${event.publicPaymentIntentId}")
 
         val txHistory = paymentTxPort.findByPaymentId(payment.paymentId.value)
 

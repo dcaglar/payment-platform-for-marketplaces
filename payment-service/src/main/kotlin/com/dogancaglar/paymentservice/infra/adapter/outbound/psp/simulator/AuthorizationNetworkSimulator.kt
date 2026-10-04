@@ -13,7 +13,7 @@ class AuthorizationNetworkSimulator(
 
     private val active: AuthorizationSimulationProperties.ScenarioConfig
         get() = config.scenarios[config.scenario]
-            ?: throw IllegalStateException("No scenario config for ${config.scenario}")
+            ?: error("No scenario config for ${config.scenario}")
 
     @WithSpan("AuthorizationNetworkSimulator.simulate")
     fun simulate() {

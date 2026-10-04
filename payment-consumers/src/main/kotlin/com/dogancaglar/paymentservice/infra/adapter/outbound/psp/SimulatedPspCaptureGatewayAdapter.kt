@@ -34,11 +34,11 @@ class SimulatedPspCaptureGatewayAdapter(
 
     private val activeCapture: CaptureSimulationProperties.ScenarioConfig
         get() = captureConfig.scenarios[captureConfig.scenario]
-            ?: throw IllegalStateException("No capture scenario config for ${captureConfig.scenario}")
+            ?: error("No capture scenario config for ${captureConfig.scenario}")
 
     private val activeRefund: RefundSimulationProperties.ScenarioConfig
         get() = refundConfig.scenarios[refundConfig.scenario]
-            ?: throw IllegalStateException("No refund scenario config for ${refundConfig.scenario}")
+            ?: error("No refund scenario config for ${refundConfig.scenario}")
 
     override fun capture(payment: Payment): CompletableFuture<PspCaptureGatewayResponse> {
         return CompletableFuture.supplyAsync({

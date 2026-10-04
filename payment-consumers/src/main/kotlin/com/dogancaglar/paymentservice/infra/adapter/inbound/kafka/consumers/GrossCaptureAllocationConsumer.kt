@@ -92,7 +92,7 @@ class GrossCaptureAllocationConsumer(
 
             // Our platform fee for this payment: the merchant's own setting (fixed + percentage of the captured amount)
             val merchant = merchantAccountRepository.findByCode(merchantAccount)
-                ?: throw IllegalStateException("Merchant account absent for merchantAccount=$merchantAccount")
+                ?: error("Merchant account absent for merchantAccount=$merchantAccount")
             val morDcPlatformFee = merchant.platformFee.feeFor(
                 Amount.of(captureEntry.postings.first().amount, currency)
             )
@@ -157,22 +157,26 @@ class GrossCaptureAllocationConsumer(
             payment.splits.forEach { split ->
                 val targetAccountCode: String
                 val reason: String
-                if (split.accountType == LedgerAccountType.MERCHANT_COMMISSION_PAYABLE) {
-                    // Commission split: split.account holds the merchant id, so resolve the commission account instead
-                    targetAccountCode = operatorCommissionAccount.accountCode
-                    reason = "MARKETPLACE_OPERATOR_COMMISSION_DISTRIBUTION"
-                } else if (split.accountType == LedgerAccountType.SELLER_PAYABLE) {
-                    // Seller split: split.account holds the seller id. The seller must belong to this merchant.
-                    val sellerAccount = accountDirectory.getSubEntityAccountProfile(
-                        LedgerAccountType.SELLER_PAYABLE,
-                        merchantAccount,
-                        split.account,
-                        split.amount.currency
-                    )
-                    targetAccountCode = sellerAccount.accountCode
-                    reason = "MARKETPLACE_SELLER_SPLIT_DISTRIBUTION"
-                } else {
-                    throw IllegalArgumentException(
+                when (split.accountType) {
+                    LedgerAccountType.MERCHANT_COMMISSION_PAYABLE -> {
+                        // Commission split: split.account holds the merchant id,
+                        // so resolve the commission account instead
+                        targetAccountCode = operatorCommissionAccount.accountCode
+                        reason = "MARKETPLACE_OPERATOR_COMMISSION_DISTRIBUTION"
+                    }
+                    LedgerAccountType.SELLER_PAYABLE -> {
+                        // Seller split: split.account holds the seller id. The seller must belong to this merchant.
+                        val sellerAccount = accountDirectory.getSubEntityAccountProfile(
+                            LedgerAccountType.SELLER_PAYABLE,
+                            merchantAccount,
+                            split.account,
+                            split.amount.currency
+                        )
+                        targetAccountCode = sellerAccount.accountCode
+                        reason = "MARKETPLACE_SELLER_SPLIT_DISTRIBUTION"
+                    }
+                    // bad data: not retried by the Kafka error handler, straight to the DLQ (as before)
+                    else -> throw IllegalArgumentException(
                         "Unsupported split account type: ${split.accountType} for account=${split.account}"
                     )
                 }

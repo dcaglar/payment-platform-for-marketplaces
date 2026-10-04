@@ -116,12 +116,6 @@
     <ID>TooManyFunctions:KafkaTypedConsumerFactoryConfig.kt$KafkaTypedConsumerFactoryConfig</ID>
     <ID>TooManyFunctions:PaymentConsumerConfig.kt$PaymentConsumerConfig</ID>
     <ID>TooManyFunctions:TransactionController.kt$TransactionController</ID>
-    <ID>UseCheckOrError:BalanceService.kt$BalanceService$throw IllegalStateException("$ownerId has accounts in several currencies; expected one")</ID>
-    <ID>UseCheckOrError:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$throw IllegalStateException("Merchant account absent for merchantAccount=$merchantAccount")</ID>
-    <ID>UseCheckOrError:SimulatedPspCaptureGatewayAdapter.kt$SimulatedPspCaptureGatewayAdapter$throw IllegalStateException("No capture scenario config for ${captureConfig.scenario}")</ID>
-    <ID>UseCheckOrError:SimulatedPspCaptureGatewayAdapter.kt$SimulatedPspCaptureGatewayAdapter$throw IllegalStateException("No refund scenario config for ${refundConfig.scenario}")</ID>
-    <ID>UseCheckOrError:TransactionRepositoryAdapter.kt$TransactionRepositoryAdapter$throw IllegalStateException("No transaction saved for payment ${paymentId.value} yet")</ID>
-    <ID>UseRequire:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$throw IllegalArgumentException( "Unsupported split account type: ${split.accountType} for account=${split.account}" )</ID>
     <ID>WildcardImport:AccountBalanceSnapshotJobTest.kt$import io.mockk.*</ID>
     <ID>WildcardImport:KafkaTypedConsumerFactoryConfig.kt$import org.springframework.kafka.core.*</ID>
     <ID>Wrapping:PaymentTxMapper.kt$PaymentTxMapper$(</ID>

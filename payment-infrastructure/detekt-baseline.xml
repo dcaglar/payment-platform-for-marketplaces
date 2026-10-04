@@ -7,7 +7,6 @@
     <ID>MagicNumber:SnowflakeIdGeneratorAdapter.kt$SnowflakeIdGeneratorAdapter$32</ID>
     <ID>NoConsecutiveBlankLines:FakeSnowflakeCore.kt$ </ID>
     <ID>TooManyFunctions:CaptureRetryRedisCache.kt$CaptureRetryRedisCache</ID>
-    <ID>UseCheckOrError:RedisIdGeneratorPortAdapter.kt$RedisIdGeneratorPortAdapter$throw IllegalStateException("Redis ID generation failed for namespace: $namespace")</ID>
     <ID>WildcardImport:AccountBalanceRedisCacheAdapterIntegrationTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
     <ID>WildcardImport:AccountBalanceRedisCacheAdapterTest.kt$import io.mockk.*</ID>
     <ID>WildcardImport:AccountBalanceRedisCacheAdapterTest.kt$import org.junit.jupiter.api.Assertions.*</ID>

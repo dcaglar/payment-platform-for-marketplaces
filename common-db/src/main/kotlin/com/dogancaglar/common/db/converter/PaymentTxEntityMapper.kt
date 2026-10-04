@@ -208,8 +208,8 @@ object PaymentTxEntityMapper {
                 createdAt = createdAt
             )
 
-            else -> throw IllegalStateException(
-                "Unknown Tx type ${entity.txType} for txId={entity.txId}."
+            else -> error(
+                "Unknown Tx type ${entity.txType} for txId=${entity.txId}."
             )
         }
     }
