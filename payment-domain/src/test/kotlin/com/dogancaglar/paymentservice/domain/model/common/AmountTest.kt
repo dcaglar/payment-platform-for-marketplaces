@@ -1,7 +1,5 @@
 package com.dogancaglar.paymentservice.domain.model.common
 
-import com.dogancaglar.paymentservice.domain.model.common.Amount
-import com.dogancaglar.paymentservice.domain.model.common.Currency
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
@@ -151,7 +149,7 @@ class AmountTest {
         val amounts = listOf(
             Amount.of(10000L, Currency("USD")), // $100.00
             Amount.of(20000L, Currency("EUR")), // €200.00
-            Amount.of(30000L, Currency("GBP"))  // £300.00
+            Amount.of(30000L, Currency("GBP")) // £300.00
         )
 
         assertEquals(3, amounts.size)

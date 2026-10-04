@@ -1,18 +1,20 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper
 
+import com.dogancaglar.paymentservice.domain.model.account.AccountStatus
 import com.dogancaglar.paymentservice.domain.model.common.Currency
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountCategory
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountStatus
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
@@ -25,7 +27,8 @@ import org.testcontainers.utility.DockerImageName
  * Tests every method of AccountDirectoryMapper against a real Postgres (Testcontainers).
  * Liquibase builds the schema from the real changelog before the tests run.
  *
- * Each test inserts the rows it needs, calls one mapper method, and checks what comes back.
+ * Each test inserts the rows it needs into `accounts` (merchant, seller, ledger account), calls one
+ * mapper method, and checks what comes back through the ledger_account_directory view.
  *
  * Runs via `mvn verify -pl payment-consumers -am` (Failsafe, @Tag "integration").
  */
@@ -67,8 +70,8 @@ class AccountDirectoryMapperIntegrationTest {
 
     @BeforeEach
     fun cleanDatabase() {
-        // Clean the table before each test to keep tests independent from each other
-        jdbcTemplate.execute("TRUNCATE TABLE account_directory CASCADE")
+        // Clean the table before each test (this also removes the seed) to keep tests independent
+        jdbcTemplate.execute("TRUNCATE TABLE accounts CASCADE")
     }
 
     // ------------------------------------------------------------ findByAccountCode
@@ -81,12 +84,10 @@ class AccountDirectoryMapperIntegrationTest {
 
         val expected = AccountProfile(
             accountCode = "PLATFORM_FEE_RESERVE.MERCHANT-A.EUR",
-            type = AccountType.PLATFORM_FEE_RESERVE,
+            type = LedgerAccountType.PLATFORM_FEE_RESERVE,
             masterAccountCode = "MERCHANT-A",
             subEntityId = null,
             currency = Currency("EUR"),
-            category = AccountCategory.LIABILITY,
-            country = "NL",
             status = AccountStatus.ACTIVE
         )
         assertEquals(expected, result)
@@ -105,7 +106,13 @@ class AccountDirectoryMapperIntegrationTest {
 
     @Test
     fun `should find merchant account by type, merchant and currency`() {
-        insertAccount("MERCHANT_COMMISSION_PAYABLE.MERCHANT-A.EUR", "MERCHANT_COMMISSION_PAYABLE", "MERCHANT-A", null, "EUR")
+        insertAccount(
+            "MERCHANT_COMMISSION_PAYABLE.MERCHANT-A.EUR",
+            "MERCHANT_COMMISSION_PAYABLE",
+            "MERCHANT-A",
+            null,
+            "EUR"
+        )
 
         val result = accountDirectoryMapper.findByEntityAndType(
             accountType = "MERCHANT_COMMISSION_PAYABLE",
@@ -115,12 +122,10 @@ class AccountDirectoryMapperIntegrationTest {
 
         val expected = AccountProfile(
             accountCode = "MERCHANT_COMMISSION_PAYABLE.MERCHANT-A.EUR",
-            type = AccountType.MERCHANT_COMMISSION_PAYABLE,
+            type = LedgerAccountType.MERCHANT_COMMISSION_PAYABLE,
             masterAccountCode = "MERCHANT-A",
             subEntityId = null,
             currency = Currency("EUR"),
-            category = AccountCategory.LIABILITY,
-            country = "NL",
             status = AccountStatus.ACTIVE
         )
         assertEquals(expected, result)
@@ -129,7 +134,13 @@ class AccountDirectoryMapperIntegrationTest {
     @Test
     fun `should find only the account of the requested type`() {
         insertAccount("MERCHANT_DIRECT_PAYABLE.MERCHANT-A.EUR", "MERCHANT_DIRECT_PAYABLE", "MERCHANT-A", null, "EUR")
-        insertAccount("MERCHANT_COMMISSION_PAYABLE.MERCHANT-A.EUR", "MERCHANT_COMMISSION_PAYABLE", "MERCHANT-A", null, "EUR")
+        insertAccount(
+            "MERCHANT_COMMISSION_PAYABLE.MERCHANT-A.EUR",
+            "MERCHANT_COMMISSION_PAYABLE",
+            "MERCHANT-A",
+            null,
+            "EUR"
+        )
 
         val result = accountDirectoryMapper.findByEntityAndType("MERCHANT_DIRECT_PAYABLE", "MERCHANT-A", "EUR")
 
@@ -190,12 +201,10 @@ class AccountDirectoryMapperIntegrationTest {
 
         val expected = AccountProfile(
             accountCode = "SELLER_PAYABLE.MERCHANT-A.SELLER-A-1.EUR",
-            type = AccountType.SELLER_PAYABLE,
+            type = LedgerAccountType.SELLER_PAYABLE,
             masterAccountCode = "MERCHANT-A",
             subEntityId = "SELLER-A-1",
             currency = Currency("EUR"),
-            category = AccountCategory.LIABILITY,
-            country = "NL",
             status = AccountStatus.ACTIVE
         )
         assertEquals(expected, result)
@@ -229,6 +238,32 @@ class AccountDirectoryMapperIntegrationTest {
         assertNull(result)
     }
 
+    // ----------------------------------------------------------- findAllSubEntitiesByMaster
+
+    @Test
+    fun `should list a merchant's seller accounts in natural order of the seller code, without other merchants' sellers`() {
+        insertAccount("SELLER_PAYABLE.MERCHANT-A.SELLER-A-10.EUR", "SELLER_PAYABLE", "MERCHANT-A", "SELLER-A-10", "EUR")
+        insertAccount("SELLER_PAYABLE.MERCHANT-A.SELLER-A-2.EUR", "SELLER_PAYABLE", "MERCHANT-A", "SELLER-A-2", "EUR")
+        insertAccount("SELLER_PAYABLE.MERCHANT-A.SELLER-A-1.EUR", "SELLER_PAYABLE", "MERCHANT-A", "SELLER-A-1", "EUR")
+        // not in the list: another merchant's seller, and the merchant's own (non-seller) account
+        insertAccount("SELLER_PAYABLE.MERCHANT-B.SELLER-B-1.EUR", "SELLER_PAYABLE", "MERCHANT-B", "SELLER-B-1", "EUR")
+        insertAccount(
+            "MERCHANT_COMMISSION_PAYABLE.MERCHANT-A.EUR",
+            "MERCHANT_COMMISSION_PAYABLE",
+            "MERCHANT-A",
+            null,
+            "EUR"
+        )
+
+        val result = accountDirectoryMapper.findAllSubEntitiesByMaster("SELLER_PAYABLE", "MERCHANT-A")
+
+        val sellers = mutableListOf<String?>()
+        for (profile in result) {
+            sellers.add(profile.subEntityId)
+        }
+        assertEquals(listOf("SELLER-A-1", "SELLER-A-2", "SELLER-A-10"), sellers)
+    }
+
     // ----------------------------------------------------------- findAllBySubEntity
 
     @Test
@@ -258,19 +293,26 @@ class AccountDirectoryMapperIntegrationTest {
         assertEquals(0, results.size)
     }
 
-    // --------------------------------------------------------------- test helper
+    // ------------------------------------------------------------ findAllByMaster
 
-    /** Inserts a test record directly using JdbcTemplate. The mapper has no insert method. */
     @Test
     fun `should find all accounts of one merchant and type, one per currency`() {
         insertAccount("MERCHANT_DIRECT_PAYABLE.MERCHANT-A.EUR", "MERCHANT_DIRECT_PAYABLE", "MERCHANT-A", null, "EUR")
         insertAccount("MERCHANT_DIRECT_PAYABLE.MERCHANT-A.USD", "MERCHANT_DIRECT_PAYABLE", "MERCHANT-A", null, "USD")
         insertAccount("MERCHANT_DIRECT_PAYABLE.MERCHANT-B.EUR", "MERCHANT_DIRECT_PAYABLE", "MERCHANT-B", null, "EUR")
-        insertAccount("MERCHANT_COMMISSION_PAYABLE.MERCHANT-A.EUR", "MERCHANT_COMMISSION_PAYABLE", "MERCHANT-A", null, "EUR")
+        insertAccount(
+            "MERCHANT_COMMISSION_PAYABLE.MERCHANT-A.EUR",
+            "MERCHANT_COMMISSION_PAYABLE",
+            "MERCHANT-A",
+            null,
+            "EUR"
+        )
 
         val result = accountDirectoryMapper.findAllByMaster("MERCHANT_DIRECT_PAYABLE", "MERCHANT-A")
 
-        assertEquals(listOf("MERCHANT_DIRECT_PAYABLE.MERCHANT-A.EUR", "MERCHANT_DIRECT_PAYABLE.MERCHANT-A.USD"), result.map { it.accountCode })
+        assertEquals("MERCHANT_DIRECT_PAYABLE.MERCHANT-A.EUR", result[0].accountCode)
+        assertEquals("MERCHANT_DIRECT_PAYABLE.MERCHANT-A.USD", result[1].accountCode)
+        assertEquals(2, result.size)
     }
 
     @Test
@@ -282,14 +324,71 @@ class AccountDirectoryMapperIntegrationTest {
         assertEquals(0, result.size)
     }
 
-    private fun insertAccount(accountCode: String, accountType: String, merchant: String, subEntityId: String?, currency: String) {
+    // ---------------------------------------------------------- accounts table rules
+
+    @Test
+    fun `should reject a seller row that carries ledger columns`() {
+        insertMerchant("MERCHANT-A", "EUR")
+
+        val error = assertThrows(DataIntegrityViolationException::class.java) {
+            jdbcTemplate.update(
+                "INSERT INTO accounts (account_code, kind, parent_code, ledger_type) VALUES ('SELLER-A-1', 'SELLER', 'MERCHANT-A', 'SELLER_PAYABLE')"
+            )
+        }
+        assertTrue(error.message!!.contains("chk_accounts_seller"), error.message)
+    }
+
+    @Test
+    fun `should reject a ledger row whose owner does not exist`() {
+        val error = assertThrows(DataIntegrityViolationException::class.java) {
+            insertLedger("CAPTURE_SUSPENSE.MERCHANT-X.EUR", "CAPTURE_SUSPENSE", "MERCHANT-X", "EUR")
+        }
+        assertTrue(error.message!!.contains("accounts_parent_code_fkey"), error.message)
+    }
+
+    // --------------------------------------------------------------- test helpers (the mapper has no insert method)
+
+    /** The ledger account plus the rows it hangs under: its merchant, and its seller for seller accounts. */
+    private fun insertAccount(
+        accountCode: String,
+        accountType: String,
+        merchant: String,
+        subEntityId: String?,
+        currency: String
+    ) {
+        insertMerchant(merchant, currency)
+        var owner = merchant
+        if (subEntityId != null) {
+            jdbcTemplate.update(
+                "INSERT INTO accounts (account_code, kind, parent_code) VALUES (?, 'SELLER', ?) ON CONFLICT (account_code) DO NOTHING",
+                subEntityId,
+                merchant
+            )
+            owner = subEntityId
+        }
+        insertLedger(accountCode, accountType, owner, currency)
+    }
+
+    private fun insertMerchant(merchant: String, currency: String) {
         jdbcTemplate.update(
             """
-            INSERT INTO account_directory (
-                account_code, account_type, master_account_code, sub_entity_id, currency, category, country, status
-            ) VALUES (?, ?, ?, ?, ?, 'LIABILITY', 'NL', 'ACTIVE')
+            INSERT INTO accounts (account_code, kind, currency, is_auto_captured, is_auto_settled,
+                                  platform_fee_fixed, platform_fee_bps, profile)
+            VALUES (?, 'MERCHANT', ?, true, false, 0, 0, '{}'::jsonb)
+            ON CONFLICT (account_code) DO NOTHING
             """.trimIndent(),
-            accountCode, accountType, merchant, subEntityId, currency
+            merchant,
+            currency
+        )
+    }
+
+    private fun insertLedger(accountCode: String, accountType: String, owner: String, currency: String) {
+        jdbcTemplate.update(
+            "INSERT INTO accounts (account_code, kind, parent_code, ledger_type, currency) VALUES (?, 'LEDGER', ?, ?, ?)",
+            accountCode,
+            owner,
+            accountType,
+            currency
         )
     }
 }

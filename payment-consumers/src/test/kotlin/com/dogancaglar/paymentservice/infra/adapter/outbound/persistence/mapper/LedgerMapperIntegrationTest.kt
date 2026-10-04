@@ -104,7 +104,9 @@ class LedgerMapperIntegrationTest {
     fun `should insert a journal entry with every field in its own column`() {
         insertPaymentTx(captureTxId)
 
-        val inserted = ledgerMapper.insertJournalEntry(journal("CAPTURE:pi_1:tx_1", captureTxId, "Gross Asset Capture Pool"))
+        val inserted = ledgerMapper.insertJournalEntry(
+            journal("CAPTURE:pi_1:tx_1", captureTxId, "Gross Asset Capture Pool")
+        )
 
         assertEquals(1, inserted)
         val row = jdbcTemplate.queryForMap("SELECT * FROM journal_entries WHERE id = 'CAPTURE:pi_1:tx_1'")
@@ -118,7 +120,9 @@ class LedgerMapperIntegrationTest {
 
     @Test
     fun `should insert a journal entry without a tx id`() {
-        val inserted = ledgerMapper.insertJournalEntry(journal("INTERNAL_TRANSFER:pi_1-tr_1", null, "Internal Transfer"))
+        val inserted = ledgerMapper.insertJournalEntry(
+            journal("INTERNAL_TRANSFER:pi_1-tr_1", null, "Internal Transfer")
+        )
 
         assertEquals(1, inserted)
         val row = jdbcTemplate.queryForMap("SELECT * FROM journal_entries WHERE id = 'INTERNAL_TRANSFER:pi_1-tr_1'")
@@ -133,7 +137,13 @@ class LedgerMapperIntegrationTest {
         assertEquals(1, firstInserted)
         assertEquals(0, secondInserted)
         assertEquals(1, countRows("journal_entries"))
-        assertEquals("first delivery", jdbcTemplate.queryForObject("SELECT name FROM journal_entries WHERE id = 'CAPTURE:pi_1:tx_1'", String::class.java))
+        assertEquals(
+            "first delivery",
+            jdbcTemplate.queryForObject(
+                "SELECT name FROM journal_entries WHERE id = 'CAPTURE:pi_1:tx_1'",
+                String::class.java
+            )
+        )
     }
 
     @Test
@@ -171,9 +181,11 @@ class LedgerMapperIntegrationTest {
             assertEquals(1, insertedByA)
 
             // worker B inserts the same id on another thread, on its own connection
-            val insertByB: Future<Int> = executor.submit(Callable {
-                ledgerMapper.insertJournalEntry(journal("CAPTURE:pi_1:tx_1", null, "worker B"))
-            })
+            val insertByB: Future<Int> = executor.submit(
+                Callable {
+                    ledgerMapper.insertJournalEntry(journal("CAPTURE:pi_1:tx_1", null, "worker B"))
+                }
+            )
             assertTrue(isStillWaiting(insertByB), "B must wait for A's transaction to end")
 
             transactionManager.commit(transactionA)
@@ -188,7 +200,13 @@ class LedgerMapperIntegrationTest {
         }
 
         assertEquals(1, countRows("journal_entries"))
-        assertEquals("worker A", jdbcTemplate.queryForObject("SELECT name FROM journal_entries WHERE id = 'CAPTURE:pi_1:tx_1'", String::class.java))
+        assertEquals(
+            "worker A",
+            jdbcTemplate.queryForObject(
+                "SELECT name FROM journal_entries WHERE id = 'CAPTURE:pi_1:tx_1'",
+                String::class.java
+            )
+        )
     }
 
     @Test
@@ -199,9 +217,11 @@ class LedgerMapperIntegrationTest {
         try {
             ledgerMapper.insertJournalEntry(journal("CAPTURE:pi_1:tx_1", null, "worker A"))
 
-            val insertByB: Future<Int> = executor.submit(Callable {
-                ledgerMapper.insertJournalEntry(journal("CAPTURE:pi_1:tx_1", null, "worker B"))
-            })
+            val insertByB: Future<Int> = executor.submit(
+                Callable {
+                    ledgerMapper.insertJournalEntry(journal("CAPTURE:pi_1:tx_1", null, "worker B"))
+                }
+            )
             assertTrue(isStillWaiting(insertByB), "B must wait for A's transaction to end")
 
             transactionManager.rollback(transactionA)
@@ -216,7 +236,13 @@ class LedgerMapperIntegrationTest {
         }
 
         assertEquals(1, countRows("journal_entries"))
-        assertEquals("worker B", jdbcTemplate.queryForObject("SELECT name FROM journal_entries WHERE id = 'CAPTURE:pi_1:tx_1'", String::class.java))
+        assertEquals(
+            "worker B",
+            jdbcTemplate.queryForObject(
+                "SELECT name FROM journal_entries WHERE id = 'CAPTURE:pi_1:tx_1'",
+                String::class.java
+            )
+        )
     }
 
     // ----------------------------------------------------------------- insertPosting
@@ -225,7 +251,9 @@ class LedgerMapperIntegrationTest {
     fun `should insert a posting with every field in its own column`() {
         ledgerMapper.insertJournalEntry(journal("CAPTURE:pi_1:tx_1", null, "Gross Asset Capture Pool"))
 
-        val inserted = ledgerMapper.insertPosting(posting("CAPTURE:pi_1:tx_1", pspReceivable, "PSP_RECEIVABLE", 3000L, "DEBIT"))
+        val inserted = ledgerMapper.insertPosting(
+            posting("CAPTURE:pi_1:tx_1", pspReceivable, "PSP_RECEIVABLE", 3000L, "DEBIT")
+        )
 
         assertEquals(1, inserted)
         val row = jdbcTemplate.queryForMap("SELECT * FROM postings WHERE journal_id = 'CAPTURE:pi_1:tx_1'")
@@ -241,7 +269,9 @@ class LedgerMapperIntegrationTest {
     @Test
     fun `should reject a posting whose journal does not exist`() {
         val exception = assertThrows(DataIntegrityViolationException::class.java) {
-            ledgerMapper.insertPosting(posting("CAPTURE:no-such-journal", pspReceivable, "PSP_RECEIVABLE", 3000L, "DEBIT"))
+            ledgerMapper.insertPosting(
+                posting("CAPTURE:no-such-journal", pspReceivable, "PSP_RECEIVABLE", 3000L, "DEBIT")
+            )
         }
 
         assertTrue(exception.message!!.contains("fk_postings_journal"), exception.message)
@@ -252,8 +282,12 @@ class LedgerMapperIntegrationTest {
     fun `should return 0 and keep the first posting when the same account is posted twice in one journal`() {
         ledgerMapper.insertJournalEntry(journal("CAPTURE:pi_1:tx_1", null, "Gross Asset Capture Pool"))
 
-        val firstInserted = ledgerMapper.insertPosting(posting("CAPTURE:pi_1:tx_1", suspense, "CAPTURE_SUSPENSE", 3000L, "CREDIT"))
-        val secondInserted = ledgerMapper.insertPosting(posting("CAPTURE:pi_1:tx_1", suspense, "CAPTURE_SUSPENSE", 9999L, "DEBIT"))
+        val firstInserted = ledgerMapper.insertPosting(
+            posting("CAPTURE:pi_1:tx_1", suspense, "CAPTURE_SUSPENSE", 3000L, "CREDIT")
+        )
+        val secondInserted = ledgerMapper.insertPosting(
+            posting("CAPTURE:pi_1:tx_1", suspense, "CAPTURE_SUSPENSE", 9999L, "DEBIT")
+        )
 
         assertEquals(1, firstInserted)
         assertEquals(0, secondInserted)
@@ -267,8 +301,12 @@ class LedgerMapperIntegrationTest {
         ledgerMapper.insertJournalEntry(journal("INTERNAL_TRANSFER:pi_1-tr_1", null, "Internal Transfer"))
         ledgerMapper.insertJournalEntry(journal("INTERNAL_TRANSFER:pi_1-tr_2", null, "Internal Transfer"))
 
-        val firstInserted = ledgerMapper.insertPosting(posting("INTERNAL_TRANSFER:pi_1-tr_1", sellerPayable, "SELLER_PAYABLE", 1400L, "CREDIT"))
-        val secondInserted = ledgerMapper.insertPosting(posting("INTERNAL_TRANSFER:pi_1-tr_2", sellerPayable, "SELLER_PAYABLE", 1400L, "CREDIT"))
+        val firstInserted = ledgerMapper.insertPosting(
+            posting("INTERNAL_TRANSFER:pi_1-tr_1", sellerPayable, "SELLER_PAYABLE", 1400L, "CREDIT")
+        )
+        val secondInserted = ledgerMapper.insertPosting(
+            posting("INTERNAL_TRANSFER:pi_1-tr_2", sellerPayable, "SELLER_PAYABLE", 1400L, "CREDIT")
+        )
 
         assertEquals(1, firstInserted)
         assertEquals(1, secondInserted)
@@ -280,12 +318,16 @@ class LedgerMapperIntegrationTest {
     @Test
     fun `second delivery of the same journal should insert nothing`() {
         // first delivery, in the order CentralDbTransactionalFacadeAdapter uses
-        val firstJournalInserted = ledgerMapper.insertJournalEntry(journal("CAPTURE:pi_1:tx_1", null, "Gross Asset Capture Pool"))
+        val firstJournalInserted = ledgerMapper.insertJournalEntry(
+            journal("CAPTURE:pi_1:tx_1", null, "Gross Asset Capture Pool")
+        )
         ledgerMapper.insertPosting(posting("CAPTURE:pi_1:tx_1", pspReceivable, "PSP_RECEIVABLE", 3000L, "DEBIT"))
         ledgerMapper.insertPosting(posting("CAPTURE:pi_1:tx_1", suspense, "CAPTURE_SUSPENSE", 3000L, "CREDIT"))
 
         // second delivery of the same event: the adapter stops at 0 and never reaches the postings
-        val secondJournalInserted = ledgerMapper.insertJournalEntry(journal("CAPTURE:pi_1:tx_1", null, "Gross Asset Capture Pool"))
+        val secondJournalInserted = ledgerMapper.insertJournalEntry(
+            journal("CAPTURE:pi_1:tx_1", null, "Gross Asset Capture Pool")
+        )
 
         assertEquals(1, firstJournalInserted)
         assertEquals(0, secondJournalInserted)
@@ -360,7 +402,8 @@ class LedgerMapperIntegrationTest {
             INSERT INTO payment_tx (tx_id, tx_type, payment_intent_id, payment_id, status, amount_value, amount_currency)
             VALUES (?, 'CAPTURE', 230392644730224640, ?, 'SUCCESS', 3000, 'EUR')
             """.trimIndent(),
-            txId, paymentId
+            txId,
+            paymentId
         )
     }
 

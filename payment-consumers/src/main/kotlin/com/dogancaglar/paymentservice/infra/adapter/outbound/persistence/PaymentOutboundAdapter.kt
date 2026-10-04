@@ -1,28 +1,16 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
 import com.dogancaglar.common.db.converter.PaymentEntityMapper
+import com.dogancaglar.paymentservice.application.dto.PaymentSplitDto
 import com.dogancaglar.paymentservice.domain.model.payment.Payment
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
+import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.PaymentMapper
 import com.dogancaglar.paymentservice.ports.outbound.PaymentRepository
-import org.springframework.stereotype.Repository
-import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
-
-/**
- * PaymentOutboundAdapter
- *
- * Outbound persistence adapter implementing [PaymentRepository] for the
- * Central DB. Lives in payment-consumers because the Payment aggregate is
- * created and mutated exclusively by Central Core consumers
- * (PspResultConsumer, CapturePspPerformedConsumer, etc.).
- *
- * The Edge Cell (payment-service) does NOT write to this repository.
- * The edge only writes PaymentIntent, PaymentOrder, and OutboxEvent.
- */
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Qualifier
-import com.dogancaglar.paymentservice.application.dto.PaymentSplitDto
+import org.springframework.stereotype.Repository
 
 @Repository
 class PaymentOutboundAdapter(

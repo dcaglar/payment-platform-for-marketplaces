@@ -1,0 +1,31 @@
+# Overrides on top of detekt's default rules (buildUponDefaultConfig=true in the root pom).
+# Only list a rule here to change it; everything else keeps detekt's default.
+# Full list of rules and defaults: https://detekt.dev/docs/rules/style
+
+style:
+  # unused code: on by default, listed so it's visible that we rely on them
+  UnusedImports:
+    active: true
+  UnusedPrivateMember:
+    active: true
+  UnusedPrivateProperty:
+    active: true
+  UnusedParameter:
+    active: true
+
+naming:
+  # the package declaration must match the folder the file is in
+  InvalidPackageDeclaration:
+    active: true
+
+formatting:
+  # detekt's own rules already cover these (style>MaxLineLength, UnusedImports, WildcardImport, NewLineAtEndOfFile);
+  # off here so a finding isn't reported twice
+  MaximumLineLength:
+    active: false
+  NoUnusedImports:
+    active: false
+  NoWildcardImports:
+    active: false
+  FinalNewline:
+    active: false

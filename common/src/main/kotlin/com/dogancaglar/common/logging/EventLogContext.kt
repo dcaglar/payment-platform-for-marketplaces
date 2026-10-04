@@ -1,14 +1,11 @@
 package com.dogancaglar.common.logging
 
-
 import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.EventEnvelope
-import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import java.util.*
 
 object EventLogContext {
-    private val logger = LoggerFactory.getLogger(EventLogContext::class.java)
     fun getEventId(): String? =
         MDC.get(GenericLogFields.EVENT_ID)
     fun getParentEventId(): String? =
@@ -42,7 +39,6 @@ object EventLogContext {
         }
     }
 
-
     // New: Fully explicit context map
     fun with(
         context: Map<String, String>,
@@ -56,7 +52,6 @@ object EventLogContext {
             if (previous != null) MDC.setContextMap(previous) else MDC.clear()
         }
     }
-
 
     fun withRetryFields(
         retryCount: Int,
@@ -76,6 +71,4 @@ object EventLogContext {
             MDC.setContextMap(previous ?: emptyMap())
         }
     }
-
-
 }

@@ -1,25 +1,24 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.kafka.consumers
 
+import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.EventEnvelope
-import com.dogancaglar.paymentservice.application.events.PaymentAuthorized
 import com.dogancaglar.common.kafka.metadata.CONSUMER_GROUPS
 import com.dogancaglar.common.kafka.metadata.Topics
+import com.dogancaglar.common.logging.EventLogContext
+import com.dogancaglar.paymentservice.application.events.CaptureConfirmed
+import com.dogancaglar.paymentservice.application.events.InternalTransferCommand
+import com.dogancaglar.paymentservice.application.events.PaymentAuthorized
+import com.dogancaglar.paymentservice.application.events.SettlementReceived
+import com.dogancaglar.paymentservice.ports.inbound.usecases.ProcessPspResultUseCase
 import com.dogancaglar.paymentservice.ports.outbound.EventDeduplicationPort
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.stereotype.Component
-import com.dogancaglar.common.event.Event
-import com.dogancaglar.common.logging.EventLogContext
-import com.dogancaglar.paymentservice.application.events.CaptureConfirmed
-import com.dogancaglar.paymentservice.application.events.InternalTransferCommand
-import com.dogancaglar.paymentservice.application.events.SettlementReceived
-import com.dogancaglar.paymentservice.ports.inbound.usecases.ProcessPspResultUseCase
-import org.apache.kafka.clients.consumer.Consumer
 
 /**
  * PspResultConsumer
- * 
+ *
  * Mandate: Listens to psp-result-queue and delegates to ProcessPspResultProcessingService
  * to execute real financial state mutations in a transactional manner.
  */
@@ -36,13 +35,11 @@ class PspResultConsumer(
         groupId = CONSUMER_GROUPS.PSP_RESULT_CONSUMER
     )
     fun onPspResult(
-        record: ConsumerRecord<String, EventEnvelope<Event>>,
-        consumer: Consumer<*, *>
+        record: ConsumerRecord<String, EventEnvelope<Event>>
     ) {
         val envelope = record.value()
         EventLogContext.with(envelope) {
-
-           val eventId = envelope.data.deterministicEventId()
+            val eventId = envelope.data.deterministicEventId()
             if (dedupe.exists(CONSUMER_GROUPS.PSP_RESULT_CONSUMER, eventId)) {
                 logger.warn("⚠️ Event is processed already, skipping eventId=$eventId")
                 return@with
@@ -51,16 +48,19 @@ class PspResultConsumer(
             val event = record.value().data
 
             try {
-                //default if it ist auth+capture
+                // default if it ist auth+capture
                 when (event) {
                     is PaymentAuthorized -> {
-                        logger.debug("🎬 Processing PaymentAuthorized event for paymentIntentId: ${event.paymentIntentId}")
+                        logger.debug(
+                            "🎬 Processing PaymentAuthorized event for paymentIntentId: ${event.paymentIntentId}"
+                        )
                         processPspResultUseCase.processAuthorized(event)
-
                     }
 
                     is CaptureConfirmed -> {
-                        logger.debug("🎬 Processing CaptureConfirmed event for paymentIntentId: ${event.publicPaymentIntentId}")
+                        logger.debug(
+                            "🎬 Processing CaptureConfirmed event for paymentIntentId: ${event.publicPaymentIntentId}"
+                        )
                         processPspResultUseCase.processCaptureConfirmed(event)
                     }
 
@@ -70,7 +70,9 @@ class PspResultConsumer(
                     }
 
                     is SettlementReceived -> {
-                        logger.debug("🎬 Processing SettlementReceived event from simulated SDR line for paymentIntentId: ${event.publicPaymentIntentId}")
+                        logger.debug(
+                            "🎬 Processing SettlementReceived event from simulated SDR line for paymentIntentId: ${event.publicPaymentIntentId}"
+                        )
                         processPspResultUseCase.processSettlementLineReconciled(event)
                     }
 

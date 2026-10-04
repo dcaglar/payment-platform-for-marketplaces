@@ -17,8 +17,13 @@ class AccountBalanceReadService(
     override fun getRealTimeBalance(accountCode: String): Long {
         val snapshot = snapshotPort.getSnapshot(accountCode)
         val snapshotBalanceVal = snapshot?.balance ?: 0L
-        val realTimeBalanceVal = cachePort.getRealTimeBalance(accountCode,snapshotBalanceVal)
-        logger.debug("Real-time read for {}: snapshot={} + balance={} ", accountCode, snapshotBalanceVal, realTimeBalanceVal)
+        val realTimeBalanceVal = cachePort.getRealTimeBalance(accountCode, snapshotBalanceVal)
+        logger.debug(
+            "Real-time read for {}: snapshot={} + balance={} ",
+            accountCode,
+            snapshotBalanceVal,
+            realTimeBalanceVal
+        )
         return realTimeBalanceVal
     }
 
@@ -50,7 +55,13 @@ class AccountBalanceReadService(
 
             // 4️⃣ Persist (UPSERT guarded by last_applied_entry_id)
             snapshotPort.saveSnapshot(updated)
-            logger.debug("Strong merge applied for {}: Δ{} new balance={} watermark={}", accountCode, delta, newBalance, newWatermark)
+            logger.debug(
+                "Strong merge applied for {}: Δ{} new balance={} watermark={}",
+                accountCode,
+                delta,
+                newBalance,
+                newWatermark
+            )
             return newBalance
         }
 

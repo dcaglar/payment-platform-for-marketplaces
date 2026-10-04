@@ -57,7 +57,7 @@ class PaymentServiceThreadPoolConfig(private val openTelemetry: OpenTelemetry) {
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
-        
+
         executor.initialize()
         monitorExecutor(executor, "create-payment-intent")
 
@@ -76,7 +76,7 @@ class PaymentServiceThreadPoolConfig(private val openTelemetry: OpenTelemetry) {
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
-        
+
         executor.initialize()
         monitorExecutor(executor, "authorize-payment-intent")
 
@@ -109,7 +109,7 @@ class PaymentServiceThreadPoolConfig(private val openTelemetry: OpenTelemetry) {
 
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
-        
+
         executor.initialize()
         monitorExecutor(executor, "resilient-executor")
 
@@ -136,25 +136,25 @@ class PaymentServiceThreadPoolConfig(private val openTelemetry: OpenTelemetry) {
 
         meter.gaugeBuilder("executor_active_threads")
             .ofLongs()
-            .buildWithCallback { 
+            .buildWithCallback {
                 if (executor.threadPoolExecutor != null) {
-                    it.record(executor.activeCount.toLong(), attributes) 
+                    it.record(executor.activeCount.toLong(), attributes)
                 }
             }
 
         meter.gaugeBuilder("executor_pool_size_threads")
             .ofLongs()
-            .buildWithCallback { 
+            .buildWithCallback {
                 if (executor.threadPoolExecutor != null) {
-                    it.record(executor.poolSize.toLong(), attributes) 
+                    it.record(executor.poolSize.toLong(), attributes)
                 }
             }
 
         meter.gaugeBuilder("executor_queue_size")
             .ofLongs()
-            .buildWithCallback { 
+            .buildWithCallback {
                 if (executor.threadPoolExecutor != null) {
-                    it.record(executor.threadPoolExecutor.queue.size.toLong(), attributes) 
+                    it.record(executor.threadPoolExecutor.queue.size.toLong(), attributes)
                 }
             }
     }

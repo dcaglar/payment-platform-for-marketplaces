@@ -2,7 +2,6 @@ package com.dogancaglar.common.db
 
 import com.dogancaglar.common.db.typehandler.IdempotencyStatusTypeHandler
 import com.dogancaglar.common.db.typehandler.InstantTypeHandler
-
 import com.dogancaglar.common.db.typehandler.UUIDTypeHandler
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.context.annotation.Bean

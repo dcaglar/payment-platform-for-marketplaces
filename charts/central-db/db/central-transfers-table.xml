@@ -3,7 +3,7 @@
  val transferId: Long,
     val paymentId  : Long,
     val paymentIntentId:Long,
-    val merchantAccountId:String,
+    val merchantAccount:String,
     val amountValue: Long,
     val currency: String,
     val sourceAccount: String,
@@ -30,7 +30,7 @@
             <column name="payment_intent_id" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
-            <column name="merchant_account_id" type="VARCHAR(255)">
+            <column name="merchant_account" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
             <column name="amount_value" type="BIGINT">

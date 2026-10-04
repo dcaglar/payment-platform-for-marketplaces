@@ -1,0 +1,895 @@
+{
+  "ifResourceExists" : "OVERWRITE",
+  "clients" : [ {
+    "clientId" : "merchant-api-MARKETPLACE-1",
+    "name" : "MARKETPLACE-1 backend (client credentials)",
+    "enabled" : true,
+    "protocol" : "openid-connect",
+    "publicClient" : false,
+    "clientAuthenticatorType" : "client-secret",
+    "secret" : "merchant-api-MARKETPLACE-1-secret",
+    "standardFlowEnabled" : false,
+    "implicitFlowEnabled" : false,
+    "directAccessGrantsEnabled" : false,
+    "serviceAccountsEnabled" : true,
+    "fullScopeAllowed" : true,
+    "attributes" : {
+      "access.token.lifespan" : "36000"
+    },
+    "protocolMappers" : [ {
+      "name" : "merchant_id",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-hardcoded-claim-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "claim.name" : "merchant_id",
+        "claim.value" : "MARKETPLACE-1",
+        "jsonType.label" : "String",
+        "access.token.claim" : "true",
+        "id.token.claim" : "true",
+        "userinfo.token.claim" : "true"
+      }
+    } ]
+  }, {
+    "clientId" : "merchant-api-MARKETPLACE-2",
+    "name" : "MARKETPLACE-2 backend (client credentials)",
+    "enabled" : true,
+    "protocol" : "openid-connect",
+    "publicClient" : false,
+    "clientAuthenticatorType" : "client-secret",
+    "secret" : "merchant-api-MARKETPLACE-2-secret",
+    "standardFlowEnabled" : false,
+    "implicitFlowEnabled" : false,
+    "directAccessGrantsEnabled" : false,
+    "serviceAccountsEnabled" : true,
+    "fullScopeAllowed" : true,
+    "attributes" : {
+      "access.token.lifespan" : "36000"
+    },
+    "protocolMappers" : [ {
+      "name" : "merchant_id",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-hardcoded-claim-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "claim.name" : "merchant_id",
+        "claim.value" : "MARKETPLACE-2",
+        "jsonType.label" : "String",
+        "access.token.claim" : "true",
+        "id.token.claim" : "true",
+        "userinfo.token.claim" : "true"
+      }
+    } ]
+  }, {
+    "clientId" : "merchant-api-MARKETPLACE-3",
+    "name" : "MARKETPLACE-3 backend (client credentials)",
+    "enabled" : true,
+    "protocol" : "openid-connect",
+    "publicClient" : false,
+    "clientAuthenticatorType" : "client-secret",
+    "secret" : "merchant-api-MARKETPLACE-3-secret",
+    "standardFlowEnabled" : false,
+    "implicitFlowEnabled" : false,
+    "directAccessGrantsEnabled" : false,
+    "serviceAccountsEnabled" : true,
+    "fullScopeAllowed" : true,
+    "attributes" : {
+      "access.token.lifespan" : "36000"
+    },
+    "protocolMappers" : [ {
+      "name" : "merchant_id",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-hardcoded-claim-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "claim.name" : "merchant_id",
+        "claim.value" : "MARKETPLACE-3",
+        "jsonType.label" : "String",
+        "access.token.claim" : "true",
+        "id.token.claim" : "true",
+        "userinfo.token.claim" : "true"
+      }
+    } ]
+  }, {
+    "clientId" : "merchant-api-MARKETPLACE-4",
+    "name" : "MARKETPLACE-4 backend (client credentials)",
+    "enabled" : true,
+    "protocol" : "openid-connect",
+    "publicClient" : false,
+    "clientAuthenticatorType" : "client-secret",
+    "secret" : "merchant-api-MARKETPLACE-4-secret",
+    "standardFlowEnabled" : false,
+    "implicitFlowEnabled" : false,
+    "directAccessGrantsEnabled" : false,
+    "serviceAccountsEnabled" : true,
+    "fullScopeAllowed" : true,
+    "attributes" : {
+      "access.token.lifespan" : "36000"
+    },
+    "protocolMappers" : [ {
+      "name" : "merchant_id",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-hardcoded-claim-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "claim.name" : "merchant_id",
+        "claim.value" : "MARKETPLACE-4",
+        "jsonType.label" : "String",
+        "access.token.claim" : "true",
+        "id.token.claim" : "true",
+        "userinfo.token.claim" : "true"
+      }
+    } ]
+  }, {
+    "clientId" : "merchant-api-MARKETPLACE-5",
+    "name" : "MARKETPLACE-5 backend (client credentials)",
+    "enabled" : true,
+    "protocol" : "openid-connect",
+    "publicClient" : false,
+    "clientAuthenticatorType" : "client-secret",
+    "secret" : "merchant-api-MARKETPLACE-5-secret",
+    "standardFlowEnabled" : false,
+    "implicitFlowEnabled" : false,
+    "directAccessGrantsEnabled" : false,
+    "serviceAccountsEnabled" : true,
+    "fullScopeAllowed" : true,
+    "attributes" : {
+      "access.token.lifespan" : "36000"
+    },
+    "protocolMappers" : [ {
+      "name" : "merchant_id",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-hardcoded-claim-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "claim.name" : "merchant_id",
+        "claim.value" : "MARKETPLACE-5",
+        "jsonType.label" : "String",
+        "access.token.claim" : "true",
+        "id.token.claim" : "true",
+        "userinfo.token.claim" : "true"
+      }
+    } ]
+  } ],
+  "users" : [ {
+    "username" : "service-account-merchant-api-marketplace-1",
+    "enabled" : true,
+    "serviceAccountClientId" : "merchant-api-MARKETPLACE-1",
+    "realmRoles" : [ "MERCHANT" ]
+  }, {
+    "username" : "marketplace-1",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "merchant123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "MERCHANT" ],
+    "attributes" : {
+      "merchant_id" : [ "MARKETPLACE-1" ]
+    }
+  }, {
+    "username" : "seller-1-1",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-1-1" ]
+    }
+  }, {
+    "username" : "seller-1-2",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-1-2" ]
+    }
+  }, {
+    "username" : "seller-1-3",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-1-3" ]
+    }
+  }, {
+    "username" : "seller-1-4",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-1-4" ]
+    }
+  }, {
+    "username" : "seller-1-5",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-1-5" ]
+    }
+  }, {
+    "username" : "seller-1-6",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-1-6" ]
+    }
+  }, {
+    "username" : "seller-1-7",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-1-7" ]
+    }
+  }, {
+    "username" : "seller-1-8",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-1-8" ]
+    }
+  }, {
+    "username" : "seller-1-9",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-1-9" ]
+    }
+  }, {
+    "username" : "seller-1-10",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-1-10" ]
+    }
+  }, {
+    "username" : "service-account-merchant-api-marketplace-2",
+    "enabled" : true,
+    "serviceAccountClientId" : "merchant-api-MARKETPLACE-2",
+    "realmRoles" : [ "MERCHANT" ]
+  }, {
+    "username" : "marketplace-2",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "merchant123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "MERCHANT" ],
+    "attributes" : {
+      "merchant_id" : [ "MARKETPLACE-2" ]
+    }
+  }, {
+    "username" : "seller-2-1",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-2-1" ]
+    }
+  }, {
+    "username" : "seller-2-2",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-2-2" ]
+    }
+  }, {
+    "username" : "seller-2-3",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-2-3" ]
+    }
+  }, {
+    "username" : "seller-2-4",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-2-4" ]
+    }
+  }, {
+    "username" : "seller-2-5",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-2-5" ]
+    }
+  }, {
+    "username" : "seller-2-6",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-2-6" ]
+    }
+  }, {
+    "username" : "seller-2-7",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-2-7" ]
+    }
+  }, {
+    "username" : "seller-2-8",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-2-8" ]
+    }
+  }, {
+    "username" : "seller-2-9",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-2-9" ]
+    }
+  }, {
+    "username" : "seller-2-10",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-2-10" ]
+    }
+  }, {
+    "username" : "service-account-merchant-api-marketplace-3",
+    "enabled" : true,
+    "serviceAccountClientId" : "merchant-api-MARKETPLACE-3",
+    "realmRoles" : [ "MERCHANT" ]
+  }, {
+    "username" : "marketplace-3",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "merchant123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "MERCHANT" ],
+    "attributes" : {
+      "merchant_id" : [ "MARKETPLACE-3" ]
+    }
+  }, {
+    "username" : "seller-3-1",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-3-1" ]
+    }
+  }, {
+    "username" : "seller-3-2",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-3-2" ]
+    }
+  }, {
+    "username" : "seller-3-3",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-3-3" ]
+    }
+  }, {
+    "username" : "seller-3-4",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-3-4" ]
+    }
+  }, {
+    "username" : "seller-3-5",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-3-5" ]
+    }
+  }, {
+    "username" : "seller-3-6",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-3-6" ]
+    }
+  }, {
+    "username" : "seller-3-7",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-3-7" ]
+    }
+  }, {
+    "username" : "seller-3-8",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-3-8" ]
+    }
+  }, {
+    "username" : "seller-3-9",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-3-9" ]
+    }
+  }, {
+    "username" : "seller-3-10",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-3-10" ]
+    }
+  }, {
+    "username" : "service-account-merchant-api-marketplace-4",
+    "enabled" : true,
+    "serviceAccountClientId" : "merchant-api-MARKETPLACE-4",
+    "realmRoles" : [ "MERCHANT" ]
+  }, {
+    "username" : "marketplace-4",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "merchant123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "MERCHANT" ],
+    "attributes" : {
+      "merchant_id" : [ "MARKETPLACE-4" ]
+    }
+  }, {
+    "username" : "seller-4-1",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-4-1" ]
+    }
+  }, {
+    "username" : "seller-4-2",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-4-2" ]
+    }
+  }, {
+    "username" : "seller-4-3",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-4-3" ]
+    }
+  }, {
+    "username" : "seller-4-4",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-4-4" ]
+    }
+  }, {
+    "username" : "seller-4-5",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-4-5" ]
+    }
+  }, {
+    "username" : "seller-4-6",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-4-6" ]
+    }
+  }, {
+    "username" : "seller-4-7",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-4-7" ]
+    }
+  }, {
+    "username" : "seller-4-8",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-4-8" ]
+    }
+  }, {
+    "username" : "seller-4-9",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-4-9" ]
+    }
+  }, {
+    "username" : "seller-4-10",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-4-10" ]
+    }
+  }, {
+    "username" : "service-account-merchant-api-marketplace-5",
+    "enabled" : true,
+    "serviceAccountClientId" : "merchant-api-MARKETPLACE-5",
+    "realmRoles" : [ "MERCHANT" ]
+  }, {
+    "username" : "marketplace-5",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "merchant123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "MERCHANT" ],
+    "attributes" : {
+      "merchant_id" : [ "MARKETPLACE-5" ]
+    }
+  }, {
+    "username" : "seller-5-1",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-5-1" ]
+    }
+  }, {
+    "username" : "seller-5-2",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-5-2" ]
+    }
+  }, {
+    "username" : "seller-5-3",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-5-3" ]
+    }
+  }, {
+    "username" : "seller-5-4",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-5-4" ]
+    }
+  }, {
+    "username" : "seller-5-5",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-5-5" ]
+    }
+  }, {
+    "username" : "seller-5-6",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-5-6" ]
+    }
+  }, {
+    "username" : "seller-5-7",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-5-7" ]
+    }
+  }, {
+    "username" : "seller-5-8",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-5-8" ]
+    }
+  }, {
+    "username" : "seller-5-9",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-5-9" ]
+    }
+  }, {
+    "username" : "seller-5-10",
+    "enabled" : true,
+    "emailVerified" : true,
+    "credentials" : [ {
+      "type" : "password",
+      "value" : "seller123",
+      "temporary" : false
+    } ],
+    "realmRoles" : [ "SELLER" ],
+    "attributes" : {
+      "seller_id" : [ "SELLER-5-10" ]
+    }
+  } ]
+}

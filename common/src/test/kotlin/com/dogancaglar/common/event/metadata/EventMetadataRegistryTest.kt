@@ -2,7 +2,6 @@ package com.dogancaglar.common.event.metadata
 
 import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.EventEnvelope
-import com.dogancaglar.common.logging.EventLogContextTest.TestEvent
 import com.dogancaglar.common.time.Utc
 import com.fasterxml.jackson.core.type.TypeReference
 import org.junit.jupiter.api.Test
@@ -15,10 +14,7 @@ class EventMetadataRegistryTest {
 
     data class TestEvent(
         override val eventType: String,
-        override val timestamp: Instant = Utc.nowInstant(),
-        override val paymentIntentId: String,
-        override val publicPaymentIntentId: String,
-        override val merchantAccountId: String
+        override val timestamp: Instant = Utc.nowInstant()
     ) : Event {
         override fun deterministicEventId() = "id-$eventType"
     }
@@ -45,7 +41,7 @@ class EventMetadataRegistryTest {
 
     @Test
     fun `metadataForEvent resolves via event`() {
-        val evt = TestEvent(eventType = "b",paymentIntentId = "1212", publicPaymentIntentId = "pi-3234234", merchantAccountId = "Test")
+        val evt = TestEvent(eventType = "b")
         val reg = EventMetaDataRegistry(listOf(TestMetadataA, TestMetadataB))
         assertEquals("topic-b", reg.metadataForEvent(evt).topic)
     }

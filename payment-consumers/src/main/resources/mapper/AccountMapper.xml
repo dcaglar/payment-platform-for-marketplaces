@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.AccountMapper">
+
+    <sql id="insertAccount">
+        INSERT INTO accounts (
+            account_code, kind, status, parent_code, ledger_type, currency,
+            is_auto_captured, is_auto_settled, platform_fee_fixed, platform_fee_bps, profile
+        ) VALUES (
+            #{accountCode}, #{kind}, #{status}, #{parentCode}, #{ledgerType}, #{currency},
+            #{isAutoCaptured}, #{isAutoSettled}, #{platformFeeFixed}, #{platformFeeBps}, CAST(#{profile} AS jsonb)
+        )
+    </sql>
+
+    <insert id="insert" parameterType="com.dogancaglar.common.db.entity.AccountEntity">
+        <include refid="insertAccount"/>
+    </insert>
+
+    <insert id="insertIfAbsent" parameterType="com.dogancaglar.common.db.entity.AccountEntity">
+        <include refid="insertAccount"/>
+        ON CONFLICT (account_code) DO NOTHING
+    </insert>
+
+    <!-- Column order must match the AccountEntity constructor -->
+    <select id="findMerchantByCode" parameterType="string" resultType="com.dogancaglar.common.db.entity.AccountEntity">
+        SELECT account_code, kind, status, parent_code, ledger_type, currency,
+               is_auto_captured, is_auto_settled, platform_fee_fixed, platform_fee_bps, profile::text AS profile
+        FROM accounts
+        WHERE account_code = #{accountCode}
+          AND kind = 'MERCHANT'
+    </select>
+</mapper>

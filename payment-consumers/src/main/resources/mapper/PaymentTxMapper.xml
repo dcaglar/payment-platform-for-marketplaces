@@ -53,6 +53,29 @@
         ORDER BY created_at ASC
     </select>
 
+    <!-- the payment's txs, only when the payment is this merchant's (finance reads it per merchant) -->
+    <select id="findByPaymentIdForMerchant" resultMap="PaymentTxResultMap">
+        SELECT t.tx_id, t.tx_type, t.payment_id, t.payment_intent_id, t.parent_tx_id, t.acquirer_reference,
+               t.amount_value, t.amount_currency, t.status, t.settle_status, t.acquirer_batch_ref,
+               t.settled_amount_value, t.created_at
+        FROM payment_tx t
+        JOIN payments p ON p.payment_id = t.payment_id
+        WHERE t.payment_id = #{paymentId}
+          AND p.merchant_account = #{merchantAccount}
+        ORDER BY t.created_at ASC, t.tx_id ASC
+    </select>
+
+    <!-- one tx, only when its payment is this merchant's -->
+    <select id="findByTxIdForMerchant" resultMap="PaymentTxResultMap">
+        SELECT t.tx_id, t.tx_type, t.payment_id, t.payment_intent_id, t.parent_tx_id, t.acquirer_reference,
+               t.amount_value, t.amount_currency, t.status, t.settle_status, t.acquirer_batch_ref,
+               t.settled_amount_value, t.created_at
+        FROM payment_tx t
+        JOIN payments p ON p.payment_id = t.payment_id
+        WHERE t.tx_id = #{txId}
+          AND p.merchant_account = #{merchantAccount}
+    </select>
+
     <!-- ================================================================
          WRITE
          ================================================================ -->

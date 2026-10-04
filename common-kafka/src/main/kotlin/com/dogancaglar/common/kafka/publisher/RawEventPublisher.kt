@@ -3,7 +3,6 @@ package com.dogancaglar.common.kafka.publisher
 import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.metadata.EventMetaDataRegistry
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
-import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.Headers
 import org.apache.kafka.common.header.internals.RecordHeader
@@ -22,10 +21,8 @@ class RawEventPublisher(
     fun publishRaw(
         outboxEvent: OutboxEvent,
     ): CompletableFuture<KafkaDeliveryResult> {
-
         // 1. Centralized Routing: The publisher is now the "Enforcer"
         val metadata = eventMetaDataRegistry.metadataFor<Event>(outboxEvent.eventType)
-
 
         val partitionKey = outboxEvent.partitionKey
 
@@ -44,7 +41,6 @@ class RawEventPublisher(
                 throw ex
             }
     }
-
 
     private fun Headers.addString(key: String, value: String?) {
         add(RecordHeader(key, value?.toByteArray(StandardCharsets.UTF_8)))

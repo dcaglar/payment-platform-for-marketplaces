@@ -1,15 +1,11 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.serialization
 
-import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
-import com.dogancaglar.paymentservice.infra.adapter.outbound.serialization.JacksonUtil
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.springframework.beans.factory.annotation.Qualifier
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Primary
-import org.springframework.stereotype.Component
 import com.dogancaglar.common.kafka.metadata.PaymentEventMetadataCatalog
+import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.jsontype.NamedType
+import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.stereotype.Component
 
 @Component
 class JacksonSerializationAdapter(

@@ -12,5 +12,4 @@ interface RetryQueuePort<T : Event> {
     fun getRetryCount(identifier: String): Int
     fun resetRetryCounter(identifier: String)
     fun pollDueRetriesToInflight(maxBatchSize: Long): List<RetryItem>
-
 }

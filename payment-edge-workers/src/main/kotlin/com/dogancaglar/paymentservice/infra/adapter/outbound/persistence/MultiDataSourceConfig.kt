@@ -1,37 +1,31 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
 import com.zaxxer.hikari.HikariDataSource
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.instrumentation.hikaricp.v3_0.HikariTelemetry
 import org.springframework.beans.factory.annotation.Qualifier
-import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.liquibase.LiquibaseDataSource
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import javax.sql.DataSource
-import org.springframework.boot.autoconfigure.liquibase.LiquibaseDataSource
-import org.springframework.beans.factory.annotation.Value
-import io.opentelemetry.api.OpenTelemetry
-import io.opentelemetry.instrumentation.hikaricp.v3_0.HikariTelemetry
 
 @Configuration
-class MultiDataSourceConfig(@Value("\${app.pod-name}") private val podName: String,
-                            @Value("\${app.edge-cell-base-url}") private val baseUrl: String,
-                            @Value("\${app.edge-cell-headless-service}") private val headlessService: String,
-                            @Value("\${spring.application.name}") private val appName: String) {
-
-
-    // If you need to change the URL format, you change this one line.
-    private fun buildEdgeDbUrl(podName: String): String {
-        val ordinal = podName.substringAfterLast("-")
-        return "jdbc:postgresql://payment-edge-cell-${ordinal}.payment-edge-cell-headless:5432/edge-db?options=-c%20timezone=UTC"
-    }
+class MultiDataSourceConfig(
+    @Value("\${app.pod-name}") private val podName: String,
+    @Value("\${app.edge-cell-base-url}") private val baseUrl: String,
+    @Value("\${app.edge-cell-headless-service}") private val headlessService: String,
+    @Value("\${spring.application.name}") private val appName: String
+) {
 
     // -------- DataSources --------
 
     private fun buildDynamicEdgeUrl(): String {
         val ordinal = podName.substringAfterLast("-")
-        return "jdbc:postgresql://${baseUrl}-${ordinal}.${headlessService}:5432/edge-db?options=-c%20timezone=UTC"
+        return "jdbc:postgresql://$baseUrl-$ordinal.$headlessService:5432/edge-db?options=-c%20timezone=UTC"
     }
 
     @Bean("outboxDataSource")
@@ -143,6 +137,4 @@ class MultiDataSourceConfig(@Value("\${app.pod-name}") private val podName: Stri
 
     @Bean("maintenanceJdbcTemplate")
     fun maintenanceJdbc(@Qualifier("maintenanceDataSource") ds: DataSource) = JdbcTemplate(ds)
-
-
 }

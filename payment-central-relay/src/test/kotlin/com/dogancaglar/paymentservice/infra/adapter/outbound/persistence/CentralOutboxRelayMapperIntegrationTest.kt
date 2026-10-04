@@ -87,8 +87,8 @@ class CentralOutboxRelayMapperIntegrationTest {
     @Test
     fun `findEligible should claim rows at or before tSafe and never after it`() {
         insertOutbox(oeid = 1, createdAt = tSafe.minusSeconds(60))
-        insertOutbox(oeid = 2, createdAt = tSafe)                        // exactly AT tSafe → inclusive
-        insertOutbox(oeid = 3, createdAt = tSafe.plusMillis(1))          // 1ms after → excluded
+        insertOutbox(oeid = 2, createdAt = tSafe) // exactly AT tSafe → inclusive
+        insertOutbox(oeid = 3, createdAt = tSafe.plusMillis(1)) // 1ms after → excluded
 
         val claimed = withMapper { it.findEligible(tSafe, 100, "w-1") }
 
@@ -207,7 +207,7 @@ class CentralOutboxRelayMapperIntegrationTest {
     @Test
     fun `findEligible should keep global oeid order across partitions`() {
         insertOutbox(oeid = 2, createdAt = Instant.parse("2026-06-03T00:00:00Z")) // june partition
-        insertOutbox(oeid = 1, createdAt = base)                                  // default partition
+        insertOutbox(oeid = 1, createdAt = base) // default partition
         insertOutbox(oeid = 3, createdAt = Instant.parse("2026-06-04T00:00:00Z")) // june partition
 
         val claimed = withMapper { it.findEligible(tSafe, 100, "w-1") }
@@ -220,7 +220,7 @@ class CentralOutboxRelayMapperIntegrationTest {
         val original = TimeZone.getDefault()
         try {
             TimeZone.setDefault(TimeZone.getTimeZone("Europe/Amsterdam"))
-            insertOutbox(oeid = 1, createdAt = tSafe)               // boundary row, inclusive
+            insertOutbox(oeid = 1, createdAt = tSafe) // boundary row, inclusive
             insertOutbox(oeid = 2, createdAt = tSafe.plusSeconds(1))
 
             val claimed = withMapper { it.findEligible(tSafe, 100, "w-tz") }
@@ -304,8 +304,8 @@ class CentralOutboxRelayMapperIntegrationTest {
                       TIMESTAMP '2026-07-01 12:00:00'
                FROM generate_series(1, 10001) g"""
         )
-        insertOutbox(oeid = 20_000, createdAt = base, status = "SENT")           // wrong status
-        insertOutbox(oeid = 20_001, createdAt = tSafe.plusSeconds(60))           // after tSafe
+        insertOutbox(oeid = 20_000, createdAt = base, status = "SENT") // wrong status
+        insertOutbox(oeid = 20_001, createdAt = tSafe.plusSeconds(60)) // after tSafe
 
         // documents the LIMIT 10000 cap: a 10_001-row backlog reads as 10_000 on the gauge
         assertEquals(10_000L, withMapper { it.countEligible(tSafe) })
@@ -343,10 +343,10 @@ class CentralOutboxRelayMapperIntegrationTest {
         // only calling it after ITS OWN successful publish. These asserts pin that contract.
         insertOutbox(oeid = 1, createdAt = base)
         withMapper { it.findEligible(tSafe, 100, "w-owner") }
-        withMapper { it.markDispatched(1, base) }                      // "another" worker may mark
+        withMapper { it.markDispatched(1, base) } // "another" worker may mark
         assertEquals("SENT", scalar("SELECT status FROM outbox_event WHERE oeid = 1"))
 
-        insertOutbox(oeid = 2, createdAt = base)                        // never claimed
+        insertOutbox(oeid = 2, createdAt = base) // never claimed
         withMapper { it.markDispatched(2, base) }
         assertEquals("SENT", scalar("SELECT status FROM outbox_event WHERE oeid = 2"))
     }
@@ -358,7 +358,7 @@ class CentralOutboxRelayMapperIntegrationTest {
         insertOutbox(oeid = 1, createdAt = base)
         withMapper { it.findEligible(tSafe, 100, "w-owner") }
 
-        withMapper { it.unclaimSpecific(1, base, "w-intruder") }        // wrong worker → no-op
+        withMapper { it.unclaimSpecific(1, base, "w-intruder") } // wrong worker → no-op
         assertEquals("PROCESSING", scalar("SELECT status FROM outbox_event WHERE oeid = 1"))
 
         withMapper { it.unclaimSpecific(1, base, "w-owner") }
@@ -375,7 +375,7 @@ class CentralOutboxRelayMapperIntegrationTest {
         withMapper { it.reclaimStuckClaims(120) }
         withMapper { it.findEligible(tSafe, 100, "w-B") }
 
-        withMapper { it.unclaimSpecific(1, base, "w-A") }               // A wakes up late
+        withMapper { it.unclaimSpecific(1, base, "w-A") } // A wakes up late
 
         assertEquals("PROCESSING", scalar("SELECT status FROM outbox_event WHERE oeid = 1"))
         assertEquals("w-B", scalar("SELECT claimed_by FROM outbox_event WHERE oeid = 1"))
@@ -387,7 +387,7 @@ class CentralOutboxRelayMapperIntegrationTest {
         withMapper { it.findEligible(tSafe, 100, "w-A") }
         withMapper { it.markDispatched(1, base) }
 
-        withMapper { it.unclaimSpecific(1, base, "w-A") }               // late failure path fires anyway
+        withMapper { it.unclaimSpecific(1, base, "w-A") } // late failure path fires anyway
 
         assertEquals("SENT", scalar("SELECT status FROM outbox_event WHERE oeid = 1"))
     }
@@ -464,7 +464,7 @@ class CentralOutboxRelayMapperIntegrationTest {
         insertOutbox(oeid = 1, createdAt = base)
         withMapper { it.findEligible(tSafe, 100, "w-1") }
 
-        withMapper { it.unclaimSpecific(1, base, "w-1") }               // publish threw → clean unclaim
+        withMapper { it.unclaimSpecific(1, base, "w-1") } // publish threw → clean unclaim
 
         val next = withMapper { it.findEligible(tSafe, 100, "w-2") }
         assertEquals(listOf(1L), next.map { c -> c.oeid })
@@ -478,7 +478,7 @@ class CentralOutboxRelayMapperIntegrationTest {
         // causality (event N+1 is only appended after N was consumed), (L3) partitionKey →
         // one Kafka partition per payment, (L4) idempotent producer.
         insertOutbox(oeid = 10, createdAt = base, aggregateId = "agg-X")
-        withMapper { it.findEligible(tSafe, 100, "w-inflight") }        // oeid 10 now in flight
+        withMapper { it.findEligible(tSafe, 100, "w-inflight") } // oeid 10 now in flight
 
         insertOutbox(oeid = 11, createdAt = base.plusSeconds(1), aggregateId = "agg-X")
         val nextPoll = withMapper { it.findEligible(tSafe, 100, "w-next") }

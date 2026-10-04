@@ -44,9 +44,14 @@ class AccountBalanceSnapshotJob(
                 )
 
                 snapshotPort.saveSnapshot(updated)
-                logger.debug("✅ Merged Δ{} for {}, new balance={}, watermark={}", delta, accountCode, newBalance, newWatermark)
+                logger.debug(
+                    "✅ Merged Δ{} for {}, new balance={}, watermark={}",
+                    delta,
+                    accountCode,
+                    newBalance,
+                    newWatermark
+                )
             }
-
         } catch (ex: Exception) {
             logger.error("❌ Error during snapshot merge job", ex)
         }

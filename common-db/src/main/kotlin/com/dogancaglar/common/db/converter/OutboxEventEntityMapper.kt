@@ -1,7 +1,7 @@
 package com.dogancaglar.common.db.converter
 
-import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.common.db.entity.OutboxEventEntity
+import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import java.time.ZoneOffset
 
 object OutboxEventEntityMapper {
@@ -32,7 +32,7 @@ object OutboxEventEntityMapper {
             status = domain.status.name,
             createdAt = domain.createdAt.toInstant(ZoneOffset.UTC),
             updatedAt = domain.updatedAt.toInstant(ZoneOffset.UTC),
-            claimedAt = null,    // infra-managed
-            claimedBy = null     // infra-managed
+            claimedAt = null, // infra-managed
+            claimedBy = null // infra-managed
         )
 }

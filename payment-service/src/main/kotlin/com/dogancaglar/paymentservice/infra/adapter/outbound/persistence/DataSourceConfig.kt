@@ -8,7 +8,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.jdbc.DataSourceBuilder
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import javax.sql.DataSource
 
 @Configuration
 class DataSourceConfig {
@@ -22,7 +21,7 @@ class DataSourceConfig {
         @Value("\${spring.datasource.edge.driver-class-name}") driver: String,
         openTelemetry: OpenTelemetry
     ): HikariDataSource {
-        val datasource =  DataSourceBuilder.create()
+        val datasource = DataSourceBuilder.create()
             .type(HikariDataSource::class.java)
             .url(url)
             .username(user)
@@ -34,5 +33,4 @@ class DataSourceConfig {
             }
         return datasource
     }
-
 }

@@ -2,7 +2,6 @@ package com.dogancaglar.paymentservice.infra.adapter.inbound.scheduler
 
 import com.dogancaglar.common.time.Utc
 import io.opentelemetry.instrumentation.annotations.WithSpan
-
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
@@ -10,11 +9,10 @@ import org.springframework.context.annotation.DependsOn
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 
 /**
  * LocalOutboxStoreAndForwardJob - The Edge Local Forwarder Scheduler.
- * 
+ *
  * Handles timers, thread pools, and graceful shutdown lifecycle for edge-to-central event forwarding.
  * Delegates actual transactional work to the injected LocalOutboxDispatchWorker.
  */
@@ -56,17 +54,24 @@ class LocalOutboxStoreAndForwardJob(
 
     @jakarta.annotation.PreDestroy
     fun onShutdown() {
-        logger.info("Step 1: Graceful shutdown initiated. We will block termination until the local outbox is completely empty.")
-        
+        logger.info(
+            "Step 1: Graceful shutdown initiated. We will block termination until the local outbox is completely empty."
+        )
+
         // Forcefully reclaim any events that were CLAIMED by threads that just got interrupted
         val reclaimed = dispatchWorker.reclaimAll()
         if (reclaimed > 0) {
-            logger.info("Step 2: Rescued {} abandoned events. (Active threads were killed, so we instantly reset their events back to 'NEW')", reclaimed)
+            logger.info(
+                "Step 2: Rescued {} abandoned events. (Active threads were killed, so we instantly reset their events back to 'NEW')",
+                reclaimed
+            )
         } else {
             logger.info("Step 2: No abandoned events needed rescue.")
         }
 
-        logger.info("Step 3: Beginning the final drain loop. We will wait for 3 consecutive seconds of silence to ensure no last-minute events are missed.")
+        logger.info(
+            "Step 3: Beginning the final drain loop. We will wait for 3 consecutive seconds of silence to ensure no last-minute events are missed."
+        )
         var flushCount = 0
         var emptyCycles = 0
         while (emptyCycles < 3) {
@@ -88,10 +93,16 @@ class LocalOutboxStoreAndForwardJob(
             }
         }
 
-        logger.info("Step 4: Drain complete! We saw 3 full seconds of silence. Successfully forwarded a total of {} final events.", flushCount)
+        logger.info(
+            "Step 4: Drain complete! We saw 3 full seconds of silence. Successfully forwarded a total of {} final events.",
+            flushCount
+        )
         try {
             dispatchWorker.deleteWatermark(appInstanceId)
-            logger.info("Step 5: Deleted worker watermark for {}. Pod is now safely cleared to terminate.", appInstanceId)
+            logger.info(
+                "Step 5: Deleted worker watermark for {}. Pod is now safely cleared to terminate.",
+                appInstanceId
+            )
         } catch (t: Throwable) {
             logger.error("Failed to delete watermark during shutdown!", t)
         }

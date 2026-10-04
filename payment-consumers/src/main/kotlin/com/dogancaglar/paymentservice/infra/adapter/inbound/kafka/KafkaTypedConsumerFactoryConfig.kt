@@ -1,45 +1,31 @@
 // KafkaTypedConsumerFactoryConfig.kt
 package com.dogancaglar.paymentservice.infra.adapter.inbound.kafka
 
-import com.dogancaglar.common.time.Utc
 import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.EventEnvelope
-import com.dogancaglar.common.logging.GenericLogFields
-import com.dogancaglar.common.kafka.serde.EventEnvelopeKafkaSerializer
-import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.kafka.metadata.CONSUMER_GROUPS
+import com.dogancaglar.common.kafka.metadata.Topics
+import com.dogancaglar.common.kafka.serde.EventEnvelopeKafkaSerializer
+import com.dogancaglar.common.logging.GenericLogFields
+import com.dogancaglar.common.time.Utc
 import io.micrometer.observation.ObservationRegistry
+import org.apache.kafka.clients.consumer.CommitFailedException
 import org.apache.kafka.clients.consumer.Consumer
+import org.apache.kafka.clients.consumer.ConsumerConfig.CLIENT_ID_CONFIG
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.slf4j.LoggerFactory
+import org.apache.kafka.common.errors.RetriableException
+import org.apache.kafka.common.errors.SerializationException
+import org.apache.kafka.common.header.internals.RecordHeaders
+import org.apache.kafka.common.serialization.ByteArraySerializer
+import org.apache.kafka.common.serialization.StringSerializer
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory
-import org.springframework.kafka.core.*
-import org.springframework.kafka.listener.ConsumerRecordRecoverer
-import org.springframework.kafka.listener.DefaultErrorHandler
-import org.springframework.kafka.listener.RecordInterceptor
-import org.springframework.kafka.listener.adapter.RecordFilterStrategy
-import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries
-import org.springframework.messaging.handler.annotation.support.DefaultMessageHandlerMethodFactory
-import java.io.PrintWriter
-import java.lang.ClassCastException
-import java.lang.IllegalArgumentException
-import java.lang.NullPointerException
-import java.sql.SQLTransientException
-import org.apache.kafka.clients.consumer.CommitFailedException
-import org.apache.kafka.clients.consumer.ConsumerConfig.CLIENT_ID_CONFIG
-import org.apache.kafka.common.errors.RetriableException
-import org.apache.kafka.common.errors.SerializationException
-import org.apache.kafka.common.header.internals.RecordHeaders
-import org.apache.kafka.common.serialization.ByteArraySerializer
-import org.apache.kafka.common.serialization.StringSerializer
 import org.springframework.context.annotation.Profile
 import org.springframework.core.convert.ConversionException
 import org.springframework.dao.CannotAcquireLockException
@@ -47,10 +33,23 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.dao.NonTransientDataAccessException
 import org.springframework.dao.TransientDataAccessException
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory
+import org.springframework.kafka.core.*
+import org.springframework.kafka.listener.ConsumerRecordRecoverer
+import org.springframework.kafka.listener.DefaultErrorHandler
+import org.springframework.kafka.listener.RecordInterceptor
+import org.springframework.kafka.listener.adapter.RecordFilterStrategy
+import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries
 import org.springframework.kafka.support.KafkaHeaders.GROUP_ID
 import org.springframework.kafka.support.serializer.DeserializationException
+import org.springframework.messaging.handler.annotation.support.DefaultMessageHandlerMethodFactory
 import org.springframework.messaging.handler.annotation.support.MethodArgumentNotValidException
+import java.io.PrintWriter
 import java.io.StringWriter
+import java.lang.ClassCastException
+import java.lang.IllegalArgumentException
+import java.lang.NullPointerException
+import java.sql.SQLTransientException
 
 @Configuration
 class KafkaTypedConsumerFactoryConfig(
@@ -60,7 +59,6 @@ class KafkaTypedConsumerFactoryConfig(
     @Value("\${app.kafka.concurrency.capture-submitted:3}") private val captureSubmittedConcurrency: Int
 ) {
     companion object {
-        private val logger = LoggerFactory.getLogger(KafkaTypedConsumerFactoryConfig::class.java)
         private const val HDR_VALUE_BYTES = "springDeserializerExceptionValue"
     }
 
@@ -68,7 +66,6 @@ class KafkaTypedConsumerFactoryConfig(
     fun defaultKafkaConsumerFactory(): DefaultKafkaConsumerFactory<String, EventEnvelope<*>> {
         val configs = bootKafkaProps.buildConsumerProperties().toMutableMap()
         return DefaultKafkaConsumerFactory<String, EventEnvelope<*>>(configs)
-
     }
 
     @Bean("dlqProducerFactory")
@@ -99,7 +96,6 @@ class KafkaTypedConsumerFactoryConfig(
         @Qualifier("dlqKafkaTemplate") dlqTemplate: KafkaTemplate<String, ByteArray>,
         kafkaExponentialBackOff: ExponentialBackOffWithMaxRetries
     ): DefaultErrorHandler {
-
         val recoverer = ConsumerRecordRecoverer { rec, ex ->
             val src = rec.topic()
             val target = if (src.endsWith(".DLQ")) src else Topics.dlqOf(src)
@@ -108,7 +104,6 @@ class KafkaTypedConsumerFactoryConfig(
             // Prefer original bytes captured by ErrorHandlingDeserializer
             val raw: ByteArray? = rec.headers().lastHeader(HDR_VALUE_BYTES)?.value()
 
-
             val valueBytes: ByteArray = raw
                 ?: (rec.value() as? EventEnvelope<*>)?.let { env ->
                     EventEnvelopeKafkaSerializer().serialize(rec.topic(), env) ?: ByteArray(0)
@@ -116,13 +111,23 @@ class KafkaTypedConsumerFactoryConfig(
             // Copy headers and add error diagnostics
             val headers = RecordHeaders(rec.headers().toArray()).apply {
                 add("x-error-class", (ex?.javaClass?.name ?: "n/a").toByteArray())
-                add("x-error-message", ((ex?.message ?: "")
-                    .take(8_000)).toByteArray()) // cap to avoid jumbo headers
+                add(
+                    "x-error-message",
+                    (
+                        (ex?.message ?: "")
+                            .take(8_000)
+                        ).toByteArray()
+                ) // cap to avoid jumbo headers
                 add("x-error-stacktrace", stackTraceString(ex, 16_000).toByteArray())
                 add("x-recovered-at", Utc.nowInstant().toString().toByteArray())
-                add("x-consumer-group", (rec.headers()
-                    .lastHeader(GROUP_ID)?.let { String(it.value()) }
-                    ?: "unknown").toByteArray())
+                add(
+                    "x-consumer-group",
+                    (
+                        rec.headers()
+                            .lastHeader(GROUP_ID)?.let { String(it.value()) }
+                            ?: "unknown"
+                        ).toByteArray()
+                )
             }
 
             val pr = ProducerRecord<String, ByteArray>(
@@ -164,11 +169,14 @@ class KafkaTypedConsumerFactoryConfig(
         }
     }
 
-
     private fun stackTraceString(ex: Throwable?, max: Int): String =
-        if (ex == null) "" else StringWriter().use { sw ->
-            ex.printStackTrace(PrintWriter(sw))
-            sw.toString().take(max)
+        if (ex == null) {
+            ""
+        } else {
+            StringWriter().use { sw ->
+                ex.printStackTrace(PrintWriter(sw))
+                sw.toString().take(max)
+            }
         }
 
     @Bean
@@ -178,7 +186,6 @@ class KafkaTypedConsumerFactoryConfig(
             multiplier = 2.0
             maxInterval = 30_000L
         }
-
 
     private fun <T : Event> createFactory(
         clientId: String,
@@ -196,7 +203,7 @@ class KafkaTypedConsumerFactoryConfig(
             consumerFactory.updateConfigs(
                 mapOf(CLIENT_ID_CONFIG to clientId)
             )
-            containerProperties.pollTimeout = 1000           // block up to 1s waiting for data
+            containerProperties.pollTimeout = 1000 // block up to 1s waiting for data
             containerProperties.isMicrometerEnabled = false
             containerProperties.isObservationEnabled = false
             containerProperties.idleBetweenPolls = 250 // nap 250ms after an empty poll
@@ -213,13 +220,6 @@ class KafkaTypedConsumerFactoryConfig(
                 setAckDiscarded(ackDiscarded)
             }
         }
-
-
-
-
-
-
-
 
     @Bean(CONSUMER_GROUPS.PSP_RESULT_CONSUMER + "-factory")
     fun pspResultFactory(
@@ -255,7 +255,7 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
-    @Profile("test", "local","azure")
+    @Profile("test", "local", "azure")
     @Bean(CONSUMER_GROUPS.SETTLEMENT_RECORD_SIMULATOR + "-factory")
     fun settlementSimulatorFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
@@ -272,8 +272,6 @@ class KafkaTypedConsumerFactoryConfig(
             expectedEventType = null
         )
     }
-
-
 
     @Bean(CONSUMER_GROUPS.ACCOUNT_BALANCE_CONSUMER + "-factory")
     fun journalEntriesRecordedFactory(
@@ -292,8 +290,6 @@ class KafkaTypedConsumerFactoryConfig(
             batchListener = true
         )
     }
-
-
 
     @Bean(CONSUMER_GROUPS.CAPTURE_COMMAND_EXECUTOR + "-factory")
     fun captureCommandsFactory(
@@ -329,17 +325,45 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
+    @Bean(CONSUMER_GROUPS.TRANSACTION_CONSUMER + "-factory")
+    fun transactionConsumerFactory(
+        interceptor: RecordInterceptor<String, EventEnvelope<*>>,
+        @Qualifier("custom-kafka-consumer-factory")
+        customFactory: DefaultKafkaConsumerFactory<String, EventEnvelope<*>>,
+        errorHandler: DefaultErrorHandler
+    ): ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<Event>> {
+        return createFactory(
+            clientId = "transaction-consumer",
+            concurrency = 1,
+            interceptor = interceptor,
+            consumerFactory = customFactory,
+            errorHandler = errorHandler,
+            expectedEventType = null
+        )
+    }
 
-
-
-
+    @Bean(CONSUMER_GROUPS.ACCOUNT_CREATION_COMMAND_EXECUTOR + "-factory")
+    fun accountCreationFactory(
+        interceptor: RecordInterceptor<String, EventEnvelope<*>>,
+        @Qualifier("custom-kafka-consumer-factory")
+        customFactory: DefaultKafkaConsumerFactory<String, EventEnvelope<*>>,
+        errorHandler: DefaultErrorHandler
+    ): ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<Event>> {
+        return createFactory(
+            clientId = "account-creation-command-executor",
+            concurrency = 1,
+            interceptor = interceptor,
+            consumerFactory = customFactory,
+            errorHandler = errorHandler,
+            expectedEventType = null
+        )
+    }
 
     @Bean
     fun mdcRecordInterceptor(): RecordInterceptor<String, EventEnvelope<*>> = HeaderMdcInterceptor()
 
     @Bean
     fun messageHandlerMethodFactory(): DefaultMessageHandlerMethodFactory = DefaultMessageHandlerMethodFactory()
-
 
     private fun eventTypeFilter(expected: String): RecordFilterStrategy<String, EventEnvelope<*>> =
         RecordFilterStrategy { rec ->
@@ -352,10 +376,6 @@ class KafkaTypedConsumerFactoryConfig(
                 rec.value()?.eventType != expected
             }
         }
-
-
-
-
 }
 
 class HeaderMdcInterceptor : RecordInterceptor<String, EventEnvelope<*>> {
@@ -372,7 +392,6 @@ class HeaderMdcInterceptor : RecordInterceptor<String, EventEnvelope<*>> {
         MDC.put(GenericLogFields.EVENT_TYPE, h("eventType") ?: env?.eventType)
     }
 
-
     override fun intercept(
         record: ConsumerRecord<String, EventEnvelope<*>>,
         consumer: Consumer<String, EventEnvelope<*>>
@@ -381,7 +400,6 @@ class HeaderMdcInterceptor : RecordInterceptor<String, EventEnvelope<*>> {
         putFrom(record)
         return record // return null to skip; we’re not skipping here
     }
-
 
     override fun afterRecord(
         record: ConsumerRecord<String, EventEnvelope<*>>,

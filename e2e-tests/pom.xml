@@ -156,6 +156,11 @@
             <testResource>
                 <directory>${project.basedir}/src/test/resources</directory>
             </testResource>
+            <!-- the realm definition the cluster also uses (keycloak/setup-keycloak.sh): one source for roles and clients -->
+            <testResource>
+                <directory>${project.basedir}/../keycloak/realm</directory>
+                <targetPath>keycloak</targetPath>
+            </testResource>
         </testResources>
         <plugins>
             <!--

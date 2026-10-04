@@ -18,7 +18,6 @@ data class TopicSpec(
 @ConfigurationProperties("app.kafka")
 data class
 
-
 KafkaTopicSetProperties(
     /** key MUST exactly match the base topic names in Topics.ALL */
     var specs: Map<String, TopicSpec> = emptyMap()
@@ -33,11 +32,18 @@ class TopicAdminConfig(
     @Bean
     fun newTopics(): KafkaAdmin.NewTopics {
         val logger = org.slf4j.LoggerFactory.getLogger(TopicAdminConfig::class.java)
-        logger.info("🛠️ TopicAdminConfig: Preparing to auto-create Kafka topics based on Topics.ALL and app.kafka.specs...")
+        logger.info(
+            "🛠️ TopicAdminConfig: Preparing to auto-create Kafka topics based on Topics.ALL and app.kafka.specs..."
+        )
         val topics = mutableListOf<NewTopic>()
         for (base in Topics.ALL) {
             val spec = cfg.specs[base] ?: TopicSpec()
-            logger.info("🛠️ TopicAdminConfig: Queuing topic creation for '{}' (partitions: {}, replicas: {})", base, spec.partitions, spec.replicas)
+            logger.info(
+                "🛠️ TopicAdminConfig: Queuing topic creation for '{}' (partitions: {}, replicas: {})",
+                base,
+                spec.partitions,
+                spec.replicas
+            )
             topics += NewTopic(base, spec.partitions, spec.replicas)
             if (spec.createDlq) {
                 logger.info("🛠️ TopicAdminConfig: Queuing DLQ topic creation for '{}'", Topics.dlqOf(base))
@@ -52,7 +58,9 @@ class TopicAdminConfig(
     @Bean
     fun kafkaAdmin(bootKafkaProps: org.springframework.boot.autoconfigure.kafka.KafkaProperties): KafkaAdmin {
         val logger = org.slf4j.LoggerFactory.getLogger(TopicAdminConfig::class.java)
-        logger.info("🛠️ TopicAdminConfig: Explicitly initializing KafkaAdmin bean to force auto-creation of topics on broker startup!")
+        logger.info(
+            "🛠️ TopicAdminConfig: Explicitly initializing KafkaAdmin bean to force auto-creation of topics on broker startup!"
+        )
         val configs = java.util.HashMap<String, Any>()
         configs[org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = bootKafkaProps.bootstrapServers.joinToString(",")
         return KafkaAdmin(configs).apply {

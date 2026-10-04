@@ -1,24 +1,22 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.scheduler
 
-import com.dogancaglar.common.time.Utc
 import com.dogancaglar.common.db.partitioning.AbstractOutboxPartitionCreator
+import com.dogancaglar.common.time.Utc
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.api.common.AttributeKey
+import io.opentelemetry.api.common.Attributes
+import io.opentelemetry.context.Context
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.event.EventListener
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.annotation.Async
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.stereotype.Component
 import java.time.temporal.ChronoUnit
-import io.opentelemetry.context.Context
-
-
-import io.opentelemetry.api.OpenTelemetry
-import io.opentelemetry.api.common.AttributeKey
-import io.opentelemetry.api.common.Attributes
 
 @Component
 class LocalOutboxMaintenanceJob(
@@ -45,7 +43,10 @@ class LocalOutboxMaintenanceJob(
             val durationMs = ChronoUnit.MILLIS.between(start, end)
             logger.debug("Partition check complete started at $start, ended at $end, duration: $durationMs ")
         } catch (t: Throwable) {
-            maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.ensureCurrentAndNext"))
+            maintenanceErrorCounter.add(
+                1,
+                Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.ensureCurrentAndNext")
+            )
             throw t
         }
     }
@@ -66,7 +67,9 @@ class LocalOutboxMaintenanceJob(
                 // ignore and retry
             }
             attempts++
-            logger.info("Waiting for payment-service to create outbox_event table via Liquibase... (Attempt ${'$'}attempts/20)")
+            logger.info(
+                "Waiting for payment-service to create outbox_event table via Liquibase... (Attempt ${'$'}attempts/20)"
+            )
             Thread.sleep(3000)
         }
         logger.error("Timed out waiting for outbox_event table to be created!")
@@ -82,7 +85,10 @@ class LocalOutboxMaintenanceJob(
             val durationMs = ChronoUnit.MILLIS.between(start, end)
             logger.debug("Partition prune complete started at $start, ended at $end, duration: $durationMs ")
         } catch (t: Throwable) {
-            maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.pruneOldPartitions"))
+            maintenanceErrorCounter.add(
+                1,
+                Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.pruneOldPartitions")
+            )
             throw t
         }
     }
@@ -97,7 +103,10 @@ class LocalOutboxMaintenanceJob(
             val durationMs = ChronoUnit.MILLIS.between(start, end)
             logger.debug("Partition vacuum check complete started at $start, ended at $end, duration: $durationMs ")
         } catch (t: Throwable) {
-            maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows"))
+            maintenanceErrorCounter.add(
+                1,
+                Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows")
+            )
             throw t
         }
     }
@@ -114,7 +123,6 @@ class AsyncConfig {
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
-
     }
 
     @Bean("partitionRemovalExecutor")
@@ -126,6 +134,5 @@ class AsyncConfig {
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
-
     }
 }

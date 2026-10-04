@@ -1,10 +1,10 @@
 package com.dogancaglar.common.db.partitioning
 
+import com.dogancaglar.common.time.Utc
 import org.slf4j.LoggerFactory
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import com.dogancaglar.common.time.Utc
 
 abstract class AbstractOutboxPartitionCreator(
     protected val jdbcTemplate: JdbcTemplate
@@ -48,7 +48,7 @@ abstract class AbstractOutboxPartitionCreator(
     fun pruneOldPartitions() {
         val now = Utc.nowLocalDateTime()
         val currWindowStart = now.withMinute((now.minute / 30) * 30).withSecond(0).withNano(0)
-        
+
         val sql = """
         DO ${'$'}${'$'}
         DECLARE
@@ -104,14 +104,16 @@ abstract class AbstractOutboxPartitionCreator(
             SELECT inhrelid::regclass::text AS partition_name
             FROM pg_inherits
             WHERE inhparent = 'outbox_event'::regclass
-            """, String::class.java
+            """,
+            String::class.java
         )
 
         for (partitionName in partitionNames) {
             if (partitionName == currPartitionName || partitionName == nextPartitionName) continue
 
             val newCount: Int? = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM $partitionName WHERE status IN ('NEW', 'PROCESSING')", Int::class.java
+                "SELECT count(*) FROM $partitionName WHERE status IN ('NEW', 'PROCESSING')",
+                Int::class.java
             )
             if ((newCount ?: 0) > 0) {
                 logger.debug("VACUUM: $partitionName ($newCount NEW/PROCESSING rows remaining)")

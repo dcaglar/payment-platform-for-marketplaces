@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+
+    <!--
+      Transactions: one row per authorized payment, denormalized for display in the back office.
+      Kept up to date by TransactionConsumer from journal_entries_recorded; the screens read these tables,
+      never the ledger. A seller's incoming / available money is the sum of its splits on captured / settled
+      transactions.
+    -->
+    <changeSet id="2026-10-02-transactions" author="dogancaglar">
+        <createTable tableName="transactions">
+            <column name="payment_id" type="BIGINT"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="payment_intent_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="public_payment_intent_id" type="VARCHAR(64)"><constraints nullable="false"/></column>
+            <column name="merchant_account" type="VARCHAR(64)"><constraints nullable="false"/></column>
+            <column name="buyer_id" type="VARCHAR(128)"><constraints nullable="false"/></column>
+            <column name="order_id" type="VARCHAR(128)"><constraints nullable="false"/></column>
+            <column name="psp_reference" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="processing_model" type="VARCHAR(32)"><constraints nullable="false"/></column>
+            <column name="total_amount" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="currency" type="CHAR(3)"><constraints nullable="false"/></column>
+            <column name="authorized_at" type="TIMESTAMP WITHOUT TIME ZONE"><constraints nullable="false"/></column>
+            <column name="captured_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="settled_at" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <!-- the card: brand + last 4 digits only (null when the PSP did not say) -->
+            <column name="card_brand" type="VARCHAR(16)"/>
+            <column name="card_last4" type="CHAR(4)"/>
+        </createTable>
+        <createIndex tableName="transactions" indexName="idx_transactions_merchant_authorized">
+            <column name="merchant_account"/>
+            <column name="authorized_at" descending="true"/>
+        </createIndex>
+        <createIndex tableName="transactions" indexName="idx_transactions_order_id">
+            <column name="order_id"/>
+        </createIndex>
+        <createIndex tableName="transactions" indexName="idx_transactions_public_intent_id">
+            <column name="public_payment_intent_id"/>
+        </createIndex>
+
+        <createTable tableName="transaction_splits">
+            <column name="payment_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_transaction_splits_transaction" references="transactions(payment_id)"/>
+            </column>
+            <column name="line_no" type="INT"><constraints nullable="false"/></column>
+            <column name="account_type" type="VARCHAR(64)"><constraints nullable="false"/></column>
+            <column name="account" type="VARCHAR(64)"><constraints nullable="false"/></column>
+            <column name="amount" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="currency" type="CHAR(3)"><constraints nullable="false"/></column>
+        </createTable>
+        <addPrimaryKey tableName="transaction_splits" columnNames="payment_id, line_no" constraintName="pk_transaction_splits"/>
+        <createIndex tableName="transaction_splits" indexName="idx_transaction_splits_account">
+            <column name="account"/>
+        </createIndex>
+    </changeSet>
+
+
+</databaseChangeLog>

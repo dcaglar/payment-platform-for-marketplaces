@@ -1,13 +1,12 @@
 package com.dogancaglar.common.db.entity
 
-import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import java.time.LocalDateTime
 
 data class TransferEntity(
     val transferId: Long,
-    val paymentId  : Long,
-    val paymentIntentId:Long,
-    val merchantAccountId:String,
+    val paymentId: Long,
+    val paymentIntentId: Long,
+    val merchantAccount: String,
     val amountValue: Long,
     val currency: String,
     val sourceAccount: String,

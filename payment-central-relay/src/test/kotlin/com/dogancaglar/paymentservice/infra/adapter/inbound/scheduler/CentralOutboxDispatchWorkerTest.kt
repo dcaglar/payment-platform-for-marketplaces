@@ -1,8 +1,8 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.scheduler
 
+import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.paymentservice.ports.outbound.CentralOutboxRelayPort
-import com.dogancaglar.common.time.Utc
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot

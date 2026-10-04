@@ -66,7 +66,7 @@ sealed class Tx {
             // Invariant Check: Prevent double-clearing or regression mutations
             require(this.settleStatus == SettleStatus.UNMATCHED) {
                 "Ledger Security Invariant Violation: CaptureTx [${this.txId.value}] cannot be transitioned " +
-                        "to $newSettleStatus because it has already cleared out of UNMATCHED (Current status: ${this.settleStatus})"
+                    "to $newSettleStatus because it has already cleared out of UNMATCHED (Current status: ${this.settleStatus})"
             }
 
             return this.copy(settleStatus = newSettleStatus)
@@ -114,9 +114,7 @@ sealed class Tx {
         override val paymentIntentId: PaymentIntentId,
         val captureTxId: TxId,
         val acquirerBatchReference: String,
-        val grossAmount: Amount,
-        val feeAmount: Amount,
-        val netCashAmount: Amount,
+        val grossAmount: Amount, // what the PSP settled (the fee and net cash are booked in the settlement journal entry)
         override val amount: Amount, // Original expected capture volume
         val settleStatus: SettleStatus, // 🟢 Explicit, immutable domain property
         override val status: TxStatus = TxStatus.SUCCESS,
@@ -221,8 +219,6 @@ sealed class Tx {
             captureTxId: TxId,
             acquirerBatchReference: String,
             grossAmount: Amount,
-            feeAmount: Amount,
-            netCashAmount: Amount,
             originalCaptureAmount: Amount
         ): SettleTx {
             // 🟢 The domain logic stays encapsulated inside the domain module factory boundary
@@ -235,8 +231,6 @@ sealed class Tx {
                 captureTxId = captureTxId,
                 acquirerBatchReference = acquirerBatchReference,
                 grossAmount = grossAmount,
-                feeAmount = feeAmount,
-                netCashAmount = netCashAmount,
                 amount = originalCaptureAmount,
                 settleStatus = derivedStatus // Passed directly to the private record constructor
             )
@@ -261,5 +255,3 @@ sealed class Tx {
         )
     }
 }
-
-

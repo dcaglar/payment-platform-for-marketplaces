@@ -3,7 +3,7 @@
 /**
  * Backend proxy server that simulates order-service/checkout-service
  * - Handles Keycloak token acquisition (server-to-server)
- * - Calls payment-service with token (server-to-server)
+ * - Calls payment-service with that token, as the merchant's backend (server-to-server)
  * - Returns response to frontend
  * This simulates production flow while avoiding CORS issues
  */
@@ -63,39 +63,48 @@ const envFile = readEnvFile();
 
 // Read configuration from environment variables, .env file, or defaults
 const REALM = process.env.KEYCLOAK_REALM || envFile.KEYCLOAK_REALM || 'ecommerce-platform';
-const CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || envFile.KEYCLOAK_CLIENT_ID || 'payment-service';
-
-// The client secret and the Keycloak URL are resolved on every token request, the same way
-// keycloak/get-token.sh does, so re-provisioning Keycloak (new secret, new IP) needs no restart.
-
-// Client secret: env var > keycloak/output/secrets.txt (written by provision-keycloak.sh) > .env
-function getClientSecret() {
-  if (process.env.KEYCLOAK_CLIENT_SECRET) {
-    return process.env.KEYCLOAK_CLIENT_SECRET;
-  }
-
-  try {
-    const secretsPath = path.join(__dirname, '..', 'keycloak', 'output', 'secrets.txt');
-    if (fs.existsSync(secretsPath)) {
-      const secretsContent = fs.readFileSync(secretsPath, 'utf8');
-      const match = secretsContent.match(/PAYMENT_SERVICE_CLIENT_SECRET=(.+)/);
-      if (match) {
-        return match[1].trim();
-      }
+// The proxy plays the backend of the merchant selected on the checkout page: it calls the payment API with that
+// merchant's own credential, client merchant-api-<MERCHANT> (role MERCHANT, claim merchant_id). The secrets are
+// configuration, like any merchant backend's: MERCHANT_CREDENTIALS=MARKETPLACE-1:<secret>,MARKETPLACE-5:<secret>
+// in the environment or checkout-demo/.env.
+function merchantSecret(merchant) {
+  const configured = process.env.MERCHANT_CREDENTIALS || envFile.MERCHANT_CREDENTIALS || '';
+  for (const entry of configured.split(',')) {
+    const separator = entry.indexOf(':');
+    if (separator > 0 && entry.substring(0, separator).trim() === merchant) {
+      return entry.substring(separator + 1).trim();
     }
-  } catch (error) {
-    console.warn('Could not read secrets.txt:', error.message);
   }
-
-  // VITE_ prefix is already stripped by readEnvFile
-  if (envFile.KEYCLOAK_CLIENT_SECRET) {
-    return envFile.KEYCLOAK_CLIENT_SECRET;
-  }
-
   return null;
 }
 
-// Addresses found the same way as keycloak/get-token.sh and the curl examples: the LoadBalancer IP
+function clientIdOf(merchant) {
+  return `merchant-api-${merchant}`;
+}
+
+function configuredMerchants() {
+  const configured = process.env.MERCHANT_CREDENTIALS || envFile.MERCHANT_CREDENTIALS || '';
+  const merchants = [];
+  for (const entry of configured.split(',')) {
+    const separator = entry.indexOf(':');
+    if (separator > 0) {
+      merchants.push(entry.substring(0, separator).trim());
+    }
+  }
+  return merchants;
+}
+
+// 400 when the request names no merchant, or one this demo has no credential for
+function unknownMerchant(res, merchant) {
+  return res.status(400).json({
+    error: 'Unknown merchant',
+    message: merchant
+      ? `No credential for ${merchant}: add ${merchant}:<secret> to MERCHANT_CREDENTIALS in checkout-demo/.env`
+      : 'The request names no merchantAccount'
+  });
+}
+
+// Addresses found the same way as keycloak/get-access-token.sh and the curl examples: the LoadBalancer IP
 // of a Kubernetes service (kubectl), cached for a minute, so a rebuilt cluster needs no .env change.
 const DISCOVERY_CACHE_MS = 60000;
 const keycloakDiscovery = { namespace: 'payment', service: 'keycloak', port: ':8080', url: null, at: 0 };
@@ -153,23 +162,24 @@ async function getPaymentApiBaseUrl() {
   return envFile.API_BASE_URL || 'http://localhost';
 }
 
-// The proxy keeps one access token and renews it shortly before it expires (or right away when the
-// payment service rejects it). Only this server holds the token; the browser never sees it.
+// The proxy keeps one access token per merchant and renews it shortly before it expires (or right away when the
+// payment service rejects it). Only this server holds the tokens; the browser never sees them.
 const RENEW_BEFORE_EXPIRY_MS = 60000;
-let cachedToken = null; // { value, expiresAt }
+const cachedTokens = {}; // merchant -> { value, expiresAt }
 
-function forgetCachedToken() {
-  cachedToken = null;
+function forgetCachedToken(merchant) {
+  delete cachedTokens[merchant];
 }
 
-async function getAccessToken() {
-  if (cachedToken !== null && Date.now() < cachedToken.expiresAt - RENEW_BEFORE_EXPIRY_MS) {
-    return cachedToken.value;
+async function getAccessToken(merchant) {
+  const cached = cachedTokens[merchant];
+  if (cached && Date.now() < cached.expiresAt - RENEW_BEFORE_EXPIRY_MS) {
+    return cached.value;
   }
 
-  const clientSecret = getClientSecret();
+  const clientSecret = merchantSecret(merchant);
   if (!clientSecret) {
-    throw new Error('Client secret not configured');
+    throw new Error(`No credential for ${merchant} in MERCHANT_CREDENTIALS`);
   }
 
   const keycloakUrl = await getKeycloakUrl();
@@ -178,7 +188,7 @@ async function getAccessToken() {
 
   const formData = new URLSearchParams();
   formData.append('grant_type', 'client_credentials');
-  formData.append('client_id', CLIENT_ID);
+  formData.append('client_id', clientIdOf(merchant));
   formData.append('client_secret', clientSecret);
 
   let response;
@@ -218,24 +228,25 @@ async function getAccessToken() {
 
   // expires_in is in seconds; without it, keep the token only briefly
   const lifetimeSeconds = responseData.expires_in || 60;
-  cachedToken = { value: responseData.access_token, expiresAt: Date.now() + lifetimeSeconds * 1000 };
-  console.log(`      ♻️  New access token cached for ${Math.round(lifetimeSeconds / 60)} min`);
-  return cachedToken.value;
+  cachedTokens[merchant] = { value: responseData.access_token, expiresAt: Date.now() + lifetimeSeconds * 1000 };
+  console.log(`      ♻️  New access token for ${clientIdOf(merchant)} cached for ${Math.round(lifetimeSeconds / 60)} min`);
+  return cachedTokens[merchant].value;
 }
 
 // Calls the payment service with the proxy's token. On 401 (token expired or signed by a Keycloak that
 // was since rebuilt) it renews the token and retries once; the request was rejected before any
 // processing, and a retried create keeps the same Idempotency-Key.
-async function callPaymentService(url, options) {
-  const token = await getAccessToken();
+async function callPaymentService(url, optionsWithMerchant) {
+  const { merchant, ...options } = optionsWithMerchant;
+  const token = await getAccessToken(merchant);
   const response = await httpRequestWithHost(url, withBearer(options, token));
   if (response.status !== 401) {
     return response;
   }
 
   console.warn('      ⚠️ payment-service answered 401: renewing the token and retrying once');
-  forgetCachedToken();
-  const renewedToken = await getAccessToken();
+  forgetCachedToken(merchant);
+  const renewedToken = await getAccessToken(merchant);
   return httpRequestWithHost(url, withBearer(options, renewedToken));
 }
 
@@ -320,12 +331,10 @@ app.post('/api/checkout/process-payment', async (req, res) => {
   console.log(`   [${requestId}] Request body:`, JSON.stringify(req.body, null, 2));
   
   try {
-    if (!getClientSecret()) {
-      console.error(`   [${requestId}] ❌ Client secret not configured`);
-      return res.status(500).json({
-        error: 'Client secret not configured',
-        message: 'Please set KEYCLOAK_CLIENT_SECRET environment variable or run npm run setup-env'
-      });
+    // the merchant whose backend the proxy plays: the one the payment is for
+    const merchant = req.body && req.body.merchantAccount;
+    if (!merchant || !merchantSecret(merchant)) {
+      return unknownMerchant(res, merchant);
     }
 
     const paymentData = req.body;
@@ -347,12 +356,12 @@ app.post('/api/checkout/process-payment', async (req, res) => {
     console.log(`   [${requestId}] 🔐 Step 1: Acquiring token from Keycloak...`);
     console.log(`   [${requestId}]    Keycloak URL: ${await getKeycloakUrl()}`);
     console.log(`   [${requestId}]    Realm: ${REALM}`);
-    console.log(`   [${requestId}]    Client ID: ${CLIENT_ID}`);
+    console.log(`   [${requestId}]    Client ID: ${clientIdOf(merchant)}`);
     
     let token;
     try {
       const tokenStartTime = Date.now();
-      token = await getAccessToken();
+      token = await getAccessToken(merchant);
       const tokenDuration = Date.now() - tokenStartTime;
       console.log(`   [${requestId}] ✅ Token acquired successfully (${tokenDuration}ms)`);
       console.log(`   [${requestId}]    Token preview: ${token.substring(0, 20)}...`);
@@ -396,7 +405,7 @@ app.post('/api/checkout/process-payment', async (req, res) => {
       
       // Use custom httpRequestWithHost to properly set Host header for ingress routing
       // Node.js fetch() doesn't allow overriding Host header, so we use native http module
-      paymentResponse = await callPaymentService(paymentUrl, {
+      paymentResponse = await callPaymentService(paymentUrl, { merchant,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -509,19 +518,17 @@ app.get('/api/checkout/payment-status/:paymentId', async (req, res) => {
   console.log(`\n📥 [${requestId}] Checking payment status: ${paymentId}`);
   
   try {
-    if (!getClientSecret()) {
-      console.error(`   [${requestId}] ❌ Client secret not configured`);
-      return res.status(500).json({
-        error: 'Client secret not configured',
-        message: 'Please set KEYCLOAK_CLIENT_SECRET environment variable or run npm run setup-env'
-      });
+    // the merchant the payment belongs to (the page sends it: ?merchantAccount=)
+    const merchant = req.query.merchantAccount;
+    if (!merchant || !merchantSecret(merchant)) {
+      return unknownMerchant(res, merchant);
     }
 
     // Step 1: Get token from Keycloak
     console.log(`   [${requestId}] 🔐 Acquiring token from Keycloak...`);
     let token;
     try {
-      token = await getAccessToken();
+      token = await getAccessToken(merchant);
       console.log(`   [${requestId}] ✅ Token acquired`);
     } catch (error) {
       console.error(`   [${requestId}] ❌ Token acquisition failed:`, error.message);
@@ -540,7 +547,7 @@ app.get('/api/checkout/payment-status/:paymentId', async (req, res) => {
     
     let statusResponse;
     try {
-      statusResponse = await callPaymentService(statusUrl, {
+      statusResponse = await callPaymentService(statusUrl, { merchant,
         method: 'GET',
         headers: {
         },
@@ -606,19 +613,17 @@ app.post('/api/checkout/authorize-payment/:paymentId', async (req, res) => {
   console.log(`   [${requestId}] Request body:`, JSON.stringify(req.body, null, 2));
   
   try {
-    if (!getClientSecret()) {
-      console.error(`   [${requestId}] ❌ Client secret not configured`);
-      return res.status(500).json({
-        error: 'Client secret not configured',
-        message: 'Please set KEYCLOAK_CLIENT_SECRET environment variable or run npm run setup-env'
-      });
+    // the merchant the payment belongs to (the page sends it: ?merchantAccount=)
+    const merchant = req.query.merchantAccount;
+    if (!merchant || !merchantSecret(merchant)) {
+      return unknownMerchant(res, merchant);
     }
 
     // Step 1: Get token from Keycloak
     console.log(`   [${requestId}] 🔐 Acquiring token from Keycloak...`);
     let token;
     try {
-      token = await getAccessToken();
+      token = await getAccessToken(merchant);
       console.log(`   [${requestId}] ✅ Token acquired`);
     } catch (error) {
       console.error(`   [${requestId}] ❌ Token acquisition failed:`, error.message);
@@ -642,7 +647,7 @@ app.post('/api/checkout/authorize-payment/:paymentId', async (req, res) => {
     
     let authorizeResponse;
     try {
-      authorizeResponse = await callPaymentService(authorizeUrl, {
+      authorizeResponse = await callPaymentService(authorizeUrl, { merchant,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -720,11 +725,10 @@ app.use((req, res) => {
 
 app.listen(PORT, async () => {
   console.log(`🚀 Backend proxy server running on http://localhost:${PORT}`);
-  console.log(`   (Simulates order-service/checkout-service)`);
+  console.log(`   (Plays the backend of the merchant selected on the page)`);
   console.log(`   Keycloak URL: ${await getKeycloakUrl()} (resolved per token request)`);
   console.log(`   Realm: ${REALM}`);
-  console.log(`   Client ID: ${CLIENT_ID}`);
-  console.log(`   Client Secret: ${getClientSecret() ? '✅ Configured' : '❌ Not found'} (read per token request)`);
+  console.log(`   Merchants it can act for (MERCHANT_CREDENTIALS): ${configuredMerchants().join(', ') || 'none'}`);
   const paymentApiBaseUrl = await getPaymentApiBaseUrl();
   console.log(`   Payment API URL: ${paymentApiBaseUrl} (resolved per request)`);
   console.log(`   Payment Service Endpoint: ${paymentApiBaseUrl}/api/v1/payments`);
@@ -733,8 +737,8 @@ app.listen(PORT, async () => {
   console.log(`   POST /api/checkout/process-payment`);
   console.log(`   GET  /api/checkout/payment-status/:paymentId`);
   console.log(`   POST /api/checkout/authorize-payment/:paymentId`);
-  if (!getClientSecret()) {
-    console.log(`\n   ⚠️  Please set KEYCLOAK_CLIENT_SECRET or run: npm run setup-env`);
+  if (configuredMerchants().length === 0) {
+    console.log(`\n   ⚠️  Add MERCHANT_CREDENTIALS=MARKETPLACE-5:<secret> to checkout-demo/.env (see README)`);
   }
   if (paymentApiBaseUrl === 'http://localhost') {
     console.log(`\n   💡 Tip: Payment service may need port-forwarding if running in Kubernetes`);

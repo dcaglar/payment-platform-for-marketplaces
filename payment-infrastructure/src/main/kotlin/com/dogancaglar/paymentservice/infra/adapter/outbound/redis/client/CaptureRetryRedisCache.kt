@@ -18,7 +18,7 @@ open class CaptureRetryRedisCache(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
     private val queue = "capture_retry_queue"
-    private val inflight = "capture_retry_inflight"   // ZSET: member = raw JSON, score = first-picked timestamp
+    private val inflight = "capture_retry_inflight" // ZSET: member = raw JSON, score = first-picked timestamp
 
     fun getRetryCount(paymentIntentId: String): Int {
         val retryKey = "retry:count:capture:$paymentIntentId"
@@ -44,9 +44,9 @@ open class CaptureRetryRedisCache(
 
     fun pollDueRetries(): List<String> {
         val now = System.currentTimeMillis().toDouble()
-        //get due items from the sorted set
+        // get due items from the sorted set
         val dueItems = redisTemplate.opsForZSet().rangeByScore(queue, 0.0, now)
-        //remove them from the sorted set
+        // remove them from the sorted set
         dueItems?.forEach { json ->
             pureRemoveDueRetry(json)
         }
@@ -63,7 +63,6 @@ open class CaptureRetryRedisCache(
         return due.map { String(it.value) }
     }
 
-
     fun pureRemoveDueRetry(json: String) {
         redisTemplate.opsForZSet().remove(queue, json)
     }
@@ -71,34 +70,35 @@ open class CaptureRetryRedisCache(
     fun zsetSize(): Long =
         redisTemplate.opsForZSet().zCard(queue) ?: 0L
 
-
     fun popDueToInflightDeserialized(max: Long = 1000): List<RetryItem> {
         val now = System.currentTimeMillis().toDouble()
-        val rawItems = redisTemplate.execute(RedisCallback<List<ByteArray>> { conn ->
-            val popped = conn.zSetCommands().zPopMin(queue.toByteArray(), max) ?: emptyList()
-            if (popped.isEmpty()) return@RedisCallback emptyList()
+        val rawItems = redisTemplate.execute(
+            RedisCallback<List<ByteArray>> { conn ->
+                val popped = conn.zSetCommands().zPopMin(queue.toByteArray(), max) ?: emptyList()
+                if (popped.isEmpty()) return@RedisCallback emptyList()
 
-            val due = mutableListOf<ByteArray>()
-            val notDue = mutableListOf<Pair<ByteArray, Double>>()
+                val due = mutableListOf<ByteArray>()
+                val notDue = mutableListOf<Pair<ByteArray, Double>>()
 
-            popped.forEach { tup ->
-                val value = tup.value // ByteArray
-                val score = tup.score
-                if (score <= now) {
-                    // move to inflight with timestamp 'now'
-                    conn.zSetCommands().zAdd(inflight.toByteArray(), now, value)
-                    due += value
-                } else {
-                    notDue += value to score
+                popped.forEach { tup ->
+                    val value = tup.value // ByteArray
+                    val score = tup.score
+                    if (score <= now) {
+                        // move to inflight with timestamp 'now'
+                        conn.zSetCommands().zAdd(inflight.toByteArray(), now, value)
+                        due += value
+                    } else {
+                        notDue += value to score
+                    }
                 }
-            }
 
-            // Put not-due back to main queue with original score
-            notDue.forEach { (valBytes, score) ->
-                conn.zSetCommands().zAdd(queue.toByteArray(), score, valBytes)
+                // Put not-due back to main queue with original score
+                notDue.forEach { (valBytes, score) ->
+                    conn.zSetCommands().zAdd(queue.toByteArray(), score, valBytes)
+                }
+                due
             }
-            due
-        }) ?: emptyList()
+        ) ?: emptyList()
 
         // Deserialize each ByteArray to EventEnvelope<CaptureRequested>
         val items = mutableListOf<RetryItem>()
@@ -121,16 +121,20 @@ open class CaptureRetryRedisCache(
 
     /** Remove one item from inflight ZSET by its exact raw JSON bytes. */
     fun removeFromInflight(raw: ByteArray) {
-        redisTemplate.execute(RedisCallback<Long> { conn ->
-            conn.zSetCommands().zRem(inflight.toByteArray(), raw) ?: 0L
-        })
+        redisTemplate.execute(
+            RedisCallback<Long> { conn ->
+                conn.zSetCommands().zRem(inflight.toByteArray(), raw) ?: 0L
+            }
+        )
     }
 
     /** Number of items currently inflight. */
     fun inflightSize(): Long {
-        return redisTemplate.execute(RedisCallback<Long> { conn ->
-            conn.zSetCommands().zCard(inflight.toByteArray()) ?: 0L
-        }) ?: 0L
+        return redisTemplate.execute(
+            RedisCallback<Long> { conn ->
+                conn.zSetCommands().zCard(inflight.toByteArray()) ?: 0L
+            }
+        ) ?: 0L
     }
 
     /**
@@ -140,15 +144,17 @@ open class CaptureRetryRedisCache(
     fun reclaimInflight(olderThanMs: Long = 60_000) {
         val cutoff = (System.currentTimeMillis() - olderThanMs).toDouble()
         val nowScore = System.currentTimeMillis().toDouble()
-        redisTemplate.execute(RedisCallback<Unit> { conn ->
-            val members: MutableSet<ByteArray> =
-                conn.zSetCommands().zRangeByScore(inflight.toByteArray(), 0.0, cutoff) ?: return@RedisCallback
+        redisTemplate.execute(
+            RedisCallback<Unit> { conn ->
+                val members: MutableSet<ByteArray> =
+                    conn.zSetCommands().zRangeByScore(inflight.toByteArray(), 0.0, cutoff) ?: return@RedisCallback
 
-            // Requeue each stale member as due-now, then remove from inflight
-            members.forEach { member ->
-                conn.zSetCommands().zAdd(queue.toByteArray(), nowScore, member)
-                conn.zSetCommands().zRem(inflight.toByteArray(), member)
+                // Requeue each stale member as due-now, then remove from inflight
+                members.forEach { member ->
+                    conn.zSetCommands().zAdd(queue.toByteArray(), nowScore, member)
+                    conn.zSetCommands().zRem(inflight.toByteArray(), member)
+                }
             }
-        })
+        )
     }
 }

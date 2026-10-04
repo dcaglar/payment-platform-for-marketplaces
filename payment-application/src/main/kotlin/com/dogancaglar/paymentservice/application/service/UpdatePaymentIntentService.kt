@@ -15,7 +15,6 @@ class UpdatePaymentIntentService(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     override fun processUpdate(cmd: ProcessPaymentIntentUpdateCommand): PaymentIntent {
-
         logger.debug("Processing payment intent update: id={}, status={}", cmd.paymentIntentId.value, cmd.status)
 
         val paymentIntent = paymentIntentRepository.findById(cmd.paymentIntentId)
@@ -48,7 +47,11 @@ class UpdatePaymentIntentService(
                 }
             }
             else -> {
-                logger.debug("PaymentIntent already in state {}, ignoring update to {}", paymentIntent.status, cmd.status)
+                logger.debug(
+                    "PaymentIntent already in state {}, ignoring update to {}",
+                    paymentIntent.status,
+                    cmd.status
+                )
                 paymentIntent
             }
         }

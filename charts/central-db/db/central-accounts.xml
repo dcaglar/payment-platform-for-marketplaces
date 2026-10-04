@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+
+    <!-- accounts: every kind of account in one table (domain package `account` + LedgerAccount).
+         kind         = PLATFORM (GLOBAL) | MERCHANT | SELLER | LEDGER
+         parent_code  = SELLER -> its merchant; LEDGER -> its owner (GLOBAL, a merchant or a seller)
+         ledger_type  = LEDGER only: the LedgerAccountType (closed enum; it fixes normal balance + category)
+         merchant columns (currency, auto flags, platform fee, profile) = MERCHANT only;
+         currency is also set on LEDGER rows.
+         account_code of a LEDGER row = LEDGER_TYPE.MERCHANT.[SELLER].CURRENCY, the id stored on postings. -->
+    <changeSet id="20261001-create-accounts" author="dogancaglar">
+        <sql>
+            CREATE TABLE accounts (
+                account_code       VARCHAR(128) PRIMARY KEY,
+                kind               VARCHAR(16)  NOT NULL,
+                status             VARCHAR(16)  NOT NULL DEFAULT 'ACTIVE',
+                parent_code        VARCHAR(128) REFERENCES accounts (account_code),
+                ledger_type        VARCHAR(64),
+                currency           CHAR(3),
+                is_auto_captured   BOOLEAN,
+                is_auto_settled    BOOLEAN,
+                platform_fee_fixed BIGINT,
+                platform_fee_bps   INTEGER,
+                profile            JSONB,
+                created_at         TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (now() AT TIME ZONE 'UTC'),
+                updated_at         TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (now() AT TIME ZONE 'UTC'),
+
+                CONSTRAINT chk_accounts_kind   CHECK (kind IN ('PLATFORM', 'MERCHANT', 'SELLER', 'LEDGER')),
+                CONSTRAINT chk_accounts_status CHECK (status IN ('ACTIVE', 'SUSPENDED', 'CLOSED')),
+
+                -- which columns each kind has
+                CONSTRAINT chk_accounts_platform CHECK (kind &lt;&gt; 'PLATFORM' OR (
+                    account_code = 'GLOBAL' AND parent_code IS NULL AND ledger_type IS NULL AND currency IS NULL
+                    AND is_auto_captured IS NULL AND is_auto_settled IS NULL
+                    AND platform_fee_fixed IS NULL AND platform_fee_bps IS NULL AND profile IS NULL)),
+                CONSTRAINT chk_accounts_merchant CHECK (kind &lt;&gt; 'MERCHANT' OR (
+                    parent_code IS NULL AND ledger_type IS NULL AND currency IS NOT NULL
+                    AND is_auto_captured IS NOT NULL AND is_auto_settled IS NOT NULL
+                    AND platform_fee_fixed &gt;= 0 AND platform_fee_bps BETWEEN 0 AND 10000 AND profile IS NOT NULL)),
+                CONSTRAINT chk_accounts_seller CHECK (kind &lt;&gt; 'SELLER' OR (
+                    parent_code IS NOT NULL AND ledger_type IS NULL AND currency IS NULL
+                    AND is_auto_captured IS NULL AND is_auto_settled IS NULL
+                    AND platform_fee_fixed IS NULL AND platform_fee_bps IS NULL AND profile IS NULL)),
+                CONSTRAINT chk_accounts_ledger CHECK (kind &lt;&gt; 'LEDGER' OR (
+                    parent_code IS NOT NULL AND ledger_type IS NOT NULL AND currency IS NOT NULL
+                    AND is_auto_captured IS NULL AND is_auto_settled IS NULL
+                    AND platform_fee_fixed IS NULL AND platform_fee_bps IS NULL AND profile IS NULL)),
+                CONSTRAINT chk_accounts_currency CHECK (currency IS NULL OR currency ~ '^[A-Z]{3}$')
+            );
+
+            -- ledger lookups: one ledger account per type, owner and currency
+            CREATE UNIQUE INDEX uq_accounts_ledger
+                ON accounts (ledger_type, parent_code, currency)
+                WHERE kind = 'LEDGER';
+            -- a merchant's sellers
+            CREATE INDEX idx_accounts_parent ON accounts (parent_code);
+            -- natural order for account codes (ORDER BY ... COLLATE natural_order): digit runs compare as numbers,
+            -- so SELLER-5-2 comes before SELLER-5-10. ICU with numeric ordering (kn).
+            CREATE COLLATION natural_order (provider = icu, locale = 'und-u-kn-true');
+        </sql>
+        <rollback>
+            <sql>DROP COLLATION natural_order; DROP TABLE accounts;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- The ledger accounts in the shape the account lookups use: merchant and seller resolved,
+         whether the owner is the platform, a merchant or a seller. -->
+    <changeSet id="20261001-create-ledger-account-directory-view" author="dogancaglar">
+        <sql>
+            CREATE VIEW ledger_account_directory AS
+            SELECT l.account_code,
+                   l.ledger_type AS account_type,
+                   CASE WHEN owner.kind = 'SELLER' THEN owner.parent_code ELSE l.parent_code END AS master_account_code,
+                   CASE WHEN owner.kind = 'SELLER' THEN owner.account_code END                AS sub_entity_id,
+                   l.currency,
+                   l.status
+            FROM accounts l
+            JOIN accounts owner ON owner.account_code = l.parent_code
+            WHERE l.kind = 'LEDGER';
+        </sql>
+        <rollback>
+            <sql>DROP VIEW ledger_account_directory;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ========== SEED DATA (test data) ==========
+         Generated from charts/central-db/seed/merchants.json by AccountSeedGenerator (payment-consumers tests),
+         using the domain's account generation. Do not edit by hand: change merchants.json and regenerate. -->
+    <changeSet id="20261001-seed-accounts" author="dogancaglar">
+        <sqlFile path="accounts-seed.sql" relativeToChangelogFile="true" splitStatements="true" stripComments="true"/>
+    </changeSet>
+</databaseChangeLog>

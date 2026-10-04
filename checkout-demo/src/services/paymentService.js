@@ -66,8 +66,9 @@ export async function createPayment(paymentData, idempotencyKey) {
  * Poll payment status endpoint to check if client secret is available
  * Used when payment creation returns 202 (pending)
  */
-export async function pollPaymentStatus(paymentIntentId, maxAttempts = 30, intervalMs = 2000) {
-  const url = `${PROXY_URL}/api/checkout/payment-status/${paymentIntentId}`;
+export async function pollPaymentStatus(paymentIntentId, merchantAccount, maxAttempts = 30, intervalMs = 2000) {
+  // the proxy calls the payment API as this merchant's backend
+  const url = `${PROXY_URL}/api/checkout/payment-status/${paymentIntentId}?merchantAccount=${encodeURIComponent(merchantAccount)}`;
   
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -112,9 +113,11 @@ export async function pollPaymentStatus(paymentIntentId, maxAttempts = 30, inter
  * we send Stripe's PaymentMethod id (pm_...), which payment-service passes to Stripe's confirm.
  * @param {string} paymentIntentId - The internal payment intent ID
  * @param {string|null} paymentMethodId - Stripe PaymentMethod id (pm_...)
+ * @param {string} merchantAccount - the merchant the payment is for (the proxy acts as its backend)
  */
-export async function authorizePayment(paymentIntentId, paymentMethodId) {
-  const url = `${PROXY_URL}/api/checkout/authorize-payment/${paymentIntentId}`;
+export async function authorizePayment(paymentIntentId, paymentMethodId, merchantAccount) {
+  // the proxy calls the payment API as this merchant's backend
+  const url = `${PROXY_URL}/api/checkout/authorize-payment/${paymentIntentId}?merchantAccount=${encodeURIComponent(merchantAccount)}`;
   const body = paymentMethodId
     ? { paymentMethod: { type: 'CardToken', token: paymentMethodId } }
     : {};

@@ -1,0 +1,111 @@
+# Trivy baseline: HIGH/CRITICAL vulnerabilities and misconfigurations already present when scanning was
+# introduced (2026-10-04). Only NEW ones fail infra/scripts/security-scan.sh and CI. Most dependency CVEs come
+# from Spring Boot 3.5.0; upgrading it fixes them, then delete their lines here.
+# infra/terraform/main.tf: Ensure AKS has an API Server Authorized IP Ranges enabled
+AZU-0041
+# infra/terraform/main.tf: Ensure RBAC is enabled on AKS clusters
+AZU-0042
+# infra/terraform/main.tf: Ensure AKS cluster has Network Policy configured
+AZU-0043
+# org.lz4:lz4-java 1.8.0 (fixed in 1.8.1)
+CVE-2025-12183
+# org.springframework.security:spring-security-core 6.5.0 (fixed in 6.4.10, 6.5.4)
+CVE-2025-41248
+# org.springframework:spring-core 6.2.7 (fixed in 6.2.11)
+CVE-2025-41249
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 11.0.8, 10.1.42, 9.0.106)
+CVE-2025-48988
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 11.0.10, 10.1.44, 9.0.108)
+CVE-2025-48989
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 11.0.9, 10.1.43, 9.0.107)
+CVE-2025-52520
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 9.0.107, 10.1.43, 11.0.9)
+CVE-2025-53506
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 11.0.11, 10.1.45, 9.0.109)
+CVE-2025-55752
+# org.springframework.boot:spring-boot-starter-actuator 3.5.0 (fixed in 3.5.12, 4.0.4)
+CVE-2026-22731
+# org.springframework.security:spring-security-web 6.5.0 (fixed in 6.5.9, 7.0.4)
+CVE-2026-22732
+# org.springframework.boot:spring-boot-starter-actuator 3.5.0 (fixed in 4.0.4, 3.5.12)
+CVE-2026-22733
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 11.0.18, 10.1.52, 9.0.115)
+CVE-2026-24734
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 9.0.116, 10.1.52, 11.0.20)
+CVE-2026-24880
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 9.0.116, 10.1.54, 11.0.21)
+CVE-2026-34483
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 9.0.117, 10.1.54, 11.0.21)
+CVE-2026-34487
+# org.apache.kafka:kafka-clients 3.9.1 (fixed in 3.9.2, 4.0.2, 4.1.2)
+CVE-2026-35554
+# org.springframework.boot:spring-boot 3.5.0 (fixed in 4.0.6, 3.5.14)
+CVE-2026-40973
+# io.micrometer:micrometer-core 1.15.0 (fixed in 1.16.6, 1.15.12)
+CVE-2026-40983
+# io.micrometer:micrometer-core 1.15.0 (fixed in 1.16.6, 1.15.12)
+CVE-2026-40984
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 9.0.118, 10.1.55, 11.0.22)
+CVE-2026-41284
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 9.0.118, 10.1.55, 11.0.22)
+CVE-2026-41293
+# org.springframework.data:spring-data-commons 3.5.0 (fixed in 4.0.6, 3.5.12)
+CVE-2026-41695
+# org.springframework.data:spring-data-commons 3.5.0 (fixed in 4.0.6, 3.5.12)
+CVE-2026-41716
+# org.springframework.kafka:spring-kafka 3.3.6 (fixed in 4.0.6, 3.3.16)
+CVE-2026-41731
+# org.springframework:spring-webmvc 6.2.7 (fixed in 7.0.8, 6.2.19)
+CVE-2026-41842
+# org.springframework:spring-webmvc 6.2.7 (fixed in 7.0.8, 6.2.19)
+CVE-2026-41845
+# org.springframework:spring-expression 6.2.7 (fixed in 7.0.8, 6.2.19)
+CVE-2026-41850
+# org.postgresql:postgresql 42.7.3 (fixed in 42.7.11)
+CVE-2026-42198
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 9.0.118, 10.1.55, 11.0.22)
+CVE-2026-42498
+# io.netty:netty-codec 4.1.121.Final (fixed in 4.1.133.Final)
+CVE-2026-42583
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 9.0.118, 10.1.55, 11.0.22)
+CVE-2026-43512
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 9.0.118, 10.1.55, 11.0.22)
+CVE-2026-43513
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 9.0.118, 10.1.55, 11.0.22)
+CVE-2026-43515
+# io.netty:netty-handler 4.1.121.Final (fixed in 4.2.15.Final, 4.1.135.Final)
+CVE-2026-44249
+# io.netty:netty-handler 4.1.121.Final (fixed in 4.2.15.Final, 4.1.135.Final)
+CVE-2026-45416
+# path-to-regexp 0.1.12 (fixed in 0.1.13)
+CVE-2026-4867
+# io.netty:netty-handler 4.1.121.Final (fixed in 4.2.15.Final, 4.1.135.Final)
+CVE-2026-50010
+# com.fasterxml.jackson.core:jackson-databind 2.19.0 (fixed in 2.18.8, 3.1.4, 2.21.4)
+CVE-2026-54512
+# com.fasterxml.jackson.core:jackson-databind 2.19.0 (fixed in 2.18.8, 2.21.4, 3.1.4)
+CVE-2026-54513
+# io.netty:netty-codec 4.1.121.Final (fixed in 4.1.136.Final)
+CVE-2026-59901
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 11.0.25, 10.1.58, 9.0.121)
+CVE-2026-65182
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 11.0.25, 10.1.58, 9.0.121)
+CVE-2026-65905
+# com.fasterxml.jackson.core:jackson-core 2.19.0 (fixed in 2.18.8, 2.21.4)
+CVE-2026-68494
+# com.fasterxml.jackson.core:jackson-databind 2.19.0 (fixed in 2.18.10, 2.21.6, 2.22.2)
+CVE-2026-68497
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.41 (fixed in 11.0.25, 10.1.58, 9.0.121)
+CVE-2026-68525
+# io.netty:netty-handler 4.1.121.Final (fixed in 4.2.17.Final, 4.1.137.Final)
+CVE-2026-75595
+# com.fasterxml.jackson.core:jackson-core 2.19.0 (fixed in 2.18.11, 2.21.7, 2.22.3)
+CVE-2026-89407
+# com.fasterxml.jackson.core:jackson-core 2.19.0 (fixed in 2.21.7, 2.22.3, 2.18.11)
+CVE-2026-89425
+# com.fasterxml.jackson.core:jackson-databind 2.19.0 (fixed in 2.18.11, 2.21.7, 2.22.3)
+CVE-2026-91776
+# com.fasterxml.jackson.core:jackson-databind 2.19.0 (fixed in 2.21.7, 2.18.11, 2.22.3)
+CVE-2026-91777
+# payment-central-relay/Dockerfile: Image user should not be 'root'
+DS-0002

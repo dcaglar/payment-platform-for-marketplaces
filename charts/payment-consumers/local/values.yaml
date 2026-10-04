@@ -42,7 +42,7 @@ config:
   CENTRAL_DB_NAME: "central-db"
   SPRING_DATA_REDIS_URL: "redis://redis-master.payment.svc.cluster.local:6379"
   # Keycloak realm that signs the JWTs for the balance API (same as payment-edge-cell)
-  KEYCLOAK_ISSUER_URL: "http://keycloak:8080/realms/ecommerce-platform"
+  KEYCLOAK_ISSUER_URL: "http://keycloak.payment.svc.cluster.local:8080/realms/ecommerce-platform"
   SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka.payment.svc.cluster.local:9092"
   # -OTEL start Tracing Configuration , do not use both micrometer and OTEL Starter.
   # ✅ OTel exporter endpoint
@@ -80,6 +80,6 @@ config:
   #  # Enable explicit tracing for Redis (Lettuce client) commands
   #  SPRING_DATA_REDIS_LETTUCE_OBSERVATION_ENABLED: "true"
 
-# Route GET /api/v1/balances/... (seller and merchant balances) through the NGINX ingress
+# Route GET /api/v1/balances/... (balances) and POST /api/v1/accounts (onboarding) through the NGINX ingress
 ingress:
   enabled: true

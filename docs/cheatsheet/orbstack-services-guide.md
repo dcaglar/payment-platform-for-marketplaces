@@ -95,9 +95,10 @@ kafka-console-consumer \
 - **UI URL**: [http://127.0.0.1:32080](http://127.0.0.1:32080) (OrbStack automatically exposes NodePorts)
   - *Alternative internal DNS*: [http://keycloak.payment.svc.cluster.local:8080](http://keycloak.payment.svc.cluster.local:8080)
 
-**Getting an Access Token via CLI:**
+**Getting an Access Token via CLI** (after `./keycloak/setup-keycloak.sh`):
 ```bash
-./keycloak/get-token.sh
+./keycloak/get-access-token.sh merchant-api MARKETPLACE-5   # a merchant's backend
+./keycloak/get-access-token.sh user finance-ops             # a person (back office)
 ```
 
 ---

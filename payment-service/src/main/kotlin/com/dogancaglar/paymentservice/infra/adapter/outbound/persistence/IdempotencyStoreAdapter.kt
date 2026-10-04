@@ -26,8 +26,9 @@ class IdempotencyStoreAdapter(
         logger.info("IdempotencyStoreAdapter.insertPending TOOK {} MS", finish - start)
 
         logger.debug(
-            "🟡 [Idempotency] insertPending returned key $insertedKey , key: $key")
-        return insertedKey != null      // first request → true, duplicate → false
+            "🟡 [Idempotency] insertPending returned key $insertedKey , key: $key"
+        )
+        return insertedKey != null // first request → true, duplicate → false
     }
 
     @WithSpan("IdempotencyStoreAdapter.findByKey")
@@ -38,7 +39,6 @@ class IdempotencyStoreAdapter(
         logger.info("IdempotencyStoreAdapter.findByKey TOOK {} MS", finish - start)
         return result
     }
-
 
     @WithSpan("IdempotencyStoreAdapter.updatePaymentIntentId")
     override fun updatePaymentIntentId(key: java.util.UUID, paymentIntentId: Long) {
@@ -55,7 +55,6 @@ class IdempotencyStoreAdapter(
         val finish = System.currentTimeMillis()
         logger.info("IdempotencyStoreAdapter.updateResponsePayload TOOK {} MS", finish - start)
     }
-
 
     @WithSpan("IdempotencyStoreAdapter.deletePending")
     override fun deletePending(key: java.util.UUID) {

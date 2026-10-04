@@ -12,11 +12,8 @@ class EventEnvelopeFactoryTest {
 
     data class TestEvent(
         override val eventType: String = "test_event",
-        val x: Int=11,
-        override val timestamp: Instant = Utc.nowInstant(),
-        override val paymentIntentId: String ="121212",
-        override val publicPaymentIntentId: String = "pi-121313",
-        override val merchantAccountId: String= "Test"
+        val x: Int = 11,
+        override val timestamp: Instant = Utc.nowInstant()
     ) : Event {
         override fun deterministicEventId() = "fixed-id"
     }
@@ -38,7 +35,7 @@ class EventEnvelopeFactoryTest {
 
     @Test
     fun `envelopeFor uses provided parentEventId`() {
-        val evt = TestEvent(x=12)
+        val evt = TestEvent(x = 12)
         val env = EventEnvelopeFactory.envelopeFor(
             data = evt,
             aggregateId = "agg-1",

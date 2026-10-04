@@ -2,7 +2,8 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 // 1. INIT STAGE
-const ACCESS_TOKEN = open('../keycloak/output/jwt/payment-service.token').replace(/[\r\n]+$/, '');
+// MARKETPLACE-1's backend token (keycloak/get-access-token.sh merchant-api MARKETPLACE-1)
+const ACCESS_TOKEN = open('../keycloak/output/jwt/MARKETPLACE-1.token').replace(/[\r\n]+$/, '');
 
 export const options = {
     vus: 1,

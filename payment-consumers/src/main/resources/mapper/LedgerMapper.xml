@@ -16,4 +16,44 @@
         VALUES (#{journalId}, #{accountCode}, #{accountType}, #{amount}, #{direction}, #{currency}, #{createdAt})
         ON CONFLICT (journal_id, account_code) DO NOTHING
     </insert>
+
+    <!-- one row per posting, with its journal entry; column order matches JournalPostingRow -->
+    <resultMap id="journalPostingRow" type="com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.JournalPostingRow">
+        <constructor>
+            <arg column="journal_id" javaType="string"/>
+            <arg column="global_journal_entry_id" javaType="_long"/>
+            <arg column="journal_type" javaType="string"/>
+            <arg column="journal_name" javaType="string"/>
+            <arg column="payment_id" javaType="_long"/>
+            <arg column="tx_id" javaType="java.lang.Long"/>
+            <arg column="reason" javaType="string"/>
+            <arg column="account_code" javaType="string"/>
+            <arg column="account_type" javaType="string"/>
+            <arg column="direction" javaType="string"/>
+            <arg column="amount" javaType="_long"/>
+            <arg column="currency" javaType="string"/>
+        </constructor>
+    </resultMap>
+
+    <sql id="journalPostingColumns">
+        j.id AS journal_id, j.global_journal_entry_id, j.journal_type, j.name AS journal_name, j.payment_id, j.tx_id,
+        NULL AS reason, p.account_code, p.account_type, p.direction, p.amount, p.currency
+    </sql>
+
+    <select id="findPostingsByTxId" resultMap="journalPostingRow">
+        SELECT <include refid="journalPostingColumns"/>
+        FROM journal_entries j
+        JOIN postings p ON p.journal_id = j.id
+        WHERE j.tx_id = #{txId}
+        ORDER BY j.created_at, j.id, p.id
+    </select>
+
+    <!-- all of the payment's journal entries (with or without a tx), in recorded order -->
+    <select id="findPostingsByPaymentId" resultMap="journalPostingRow">
+        SELECT <include refid="journalPostingColumns"/>
+        FROM journal_entries j
+        JOIN postings p ON p.journal_id = j.id
+        WHERE j.payment_id = #{paymentId}
+        ORDER BY j.created_at, j.id, p.id
+    </select>
 </mapper>

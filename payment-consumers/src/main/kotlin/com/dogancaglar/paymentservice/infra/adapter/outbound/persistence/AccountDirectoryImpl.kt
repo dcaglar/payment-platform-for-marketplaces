@@ -1,11 +1,11 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
 import com.dogancaglar.paymentservice.domain.model.common.Currency
-import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.AccountDirectoryMapper
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountType
-import com.dogancaglar.paymentservice.ports.outbound.AccountDirectoryPort
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
+import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.AccountDirectoryMapper
 import com.dogancaglar.paymentservice.infra.adapter.outbound.redis.client.AccountProfileRedisCache
+import com.dogancaglar.paymentservice.ports.outbound.AccountDirectoryPort
 import org.springframework.stereotype.Service
 
 @Service
@@ -14,7 +14,7 @@ class AccountDirectoryImpl(
     private val redisCache: AccountProfileRedisCache
 ) : AccountDirectoryPort {
 
-    override fun getAccountProfile(accountType: AccountType, masterAccountCode: String, currency: Currency): AccountProfile {
+    override fun getAccountProfile(accountType: LedgerAccountType, masterAccountCode: String, currency: Currency): AccountProfile {
         // 1. Check Cache
         val cached = redisCache.getProfile(accountType, masterAccountCode, null, currency)
         if (cached != null) return cached
@@ -29,7 +29,7 @@ class AccountDirectoryImpl(
         return dbProfile
     }
 
-    override fun getSubEntityAccountProfile(accountType: AccountType, masterAccountCode: String, subEntityId: String, currency: Currency): AccountProfile {
+    override fun getSubEntityAccountProfile(accountType: LedgerAccountType, masterAccountCode: String, subEntityId: String, currency: Currency): AccountProfile {
         // 1. Check Cache
         val cached = redisCache.getProfile(accountType, masterAccountCode, subEntityId, currency)
         if (cached != null) return cached
@@ -44,14 +44,18 @@ class AccountDirectoryImpl(
         return dbProfile
     }
 
-    override fun getAccountProfilesBySubEntity(accountType: AccountType, subEntityId: String): List<AccountProfile> {
+    override fun getAccountProfilesBySubEntity(accountType: LedgerAccountType, subEntityId: String): List<AccountProfile> {
         // Not using redis cache for sub entity lookups currently, could be added later
         return mapper.findAllBySubEntity(accountType.name, subEntityId)
     }
 
-    override fun getAccountProfilesByMaster(accountType: AccountType, masterAccountCode: String): List<AccountProfile> {
+    override fun getAccountProfilesByMaster(accountType: LedgerAccountType, masterAccountCode: String): List<AccountProfile> {
         // Not using redis cache for merchant lookups currently, could be added later
         return mapper.findAllByMaster(accountType.name, masterAccountCode)
+    }
+
+    override fun getSubEntityAccountProfilesByMaster(accountType: LedgerAccountType, masterAccountCode: String): List<AccountProfile> {
+        return mapper.findAllSubEntitiesByMaster(accountType.name, masterAccountCode)
     }
 
     override fun getAccountByCode(accountCode: String): AccountProfile {

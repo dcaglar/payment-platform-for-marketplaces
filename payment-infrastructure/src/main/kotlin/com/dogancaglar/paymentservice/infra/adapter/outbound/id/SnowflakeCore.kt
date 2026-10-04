@@ -1,7 +1,6 @@
 // src/main/kotlin/.../id/SnowflakeCore.kt
 package com.dogancaglar.paymentservice.infra.adapter.outbound.id
 
-
 open class SnowflakeCore(
     private val epochMillis: Long,
     private val regionId: Int
@@ -59,7 +58,7 @@ open class SnowflakeCore(
         val tsPart = (now - epochMillis) shl TIMESTAMP_SHIFT
         val regionPart = (regionId.toLong() shl REGION_SHIFT)
         val nodePart = (nodeId.toLong() shl NODE_SHIFT)
-        val seqPart = state.sequence.toLong()
+        val seqPart = (state.sequence.toLong() shl SEQUENCE_SHIFT)
 
         return tsPart or regionPart or nodePart or seqPart
     }
@@ -93,9 +92,9 @@ open class SnowflakeCore(
         private const val TIMESTAMP_BITS = 41 // implied
 
         // Masks
-        private const val MAX_SEQUENCE = (1 shl SEQUENCE_BITS) - 1     // 4095
-        private const val MAX_NODE_ID = (1 shl NODE_BITS) - 1          // 31
-        private const val MAX_REGION_ID = (1 shl REGION_BITS) - 1      // 31
+        private const val MAX_SEQUENCE = (1 shl SEQUENCE_BITS) - 1 // 4095
+        private const val MAX_NODE_ID = (1 shl NODE_BITS) - 1 // 31
+        private const val MAX_REGION_ID = (1 shl REGION_BITS) - 1 // 31
 
         private const val SEQUENCE_SHIFT = 0
         private const val NODE_SHIFT = SEQUENCE_BITS

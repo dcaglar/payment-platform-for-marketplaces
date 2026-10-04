@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional
 @Component
 class PaymentTransactionalFacadeAdapter(
     private val paymentIntentRepository: PaymentIntentRepository,
-    @Qualifier("localOutboxWriterAdapter") private val  localOutboxWriterPort: LocalOutboxWriterPort,
+    @Qualifier("localOutboxWriterAdapter") private val localOutboxWriterPort: LocalOutboxWriterPort,
 ) : PaymentTransactionalFacadePort {
 
     @Transactional(timeout = 2)
