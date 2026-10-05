@@ -1,14 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:AccountCreationE2EIntegrationTest.kt$AccountCreationE2EIntegrationTest$@Test fun `create account request ends with exactly the expected merchant, seller and ledger accounts`()</ID>
-    <ID>LongMethod:BalanceAmountsE2EIntegrationTest.kt$BalanceAmountsE2EIntegrationTest$@Test fun `a 3000 marketplace payment gives each seller its part and the merchant its commission minus platform fee`()</ID>
-    <ID>LongMethod:FinanceTxE2EIntegrationTest.kt$FinanceTxE2EIntegrationTest$@Test fun `finance sees a settled marketplace payment's txs, its allocation entries, and each tx's journal entries`()</ID>
-    <ID>LongMethod:MerchantApiE2EIntegrationTest.kt$MerchantApiE2EIntegrationTest$@Test fun `a merchant creates, reads and authorizes its own payment, and its transaction shows what was paid`()</ID>
-    <ID>LongMethod:MerchantApiE2EIntegrationTest.kt$MerchantApiE2EIntegrationTest$@Test fun `it sees only its own transactions, even when it asks for another merchant's`()</ID>
-    <ID>LongMethod:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$@Test fun `create then authorize drives payment to SETTLED with full ledger`()</ID>
-    <ID>LongMethod:PaymentFlowE2EIntegrationTest.kt$PaymentFlowE2EIntegrationTest$@Test fun `direct sale of 5000 records exactly the expected journals, postings, transfers and txs`()</ID>
-    <ID>NestedBlockDepth:E2eSupport.kt$E2eSupport$fun &lt;T&gt; query(jdbcUrl: String, user: String, pass: String, sql: String, map: (ResultSet) -&gt; T): List&lt;T&gt;</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

@@ -1,8 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:PaymentTxEntityMapper.kt$PaymentTxEntityMapper$fun toDomain(entity: PaymentTxEntity): Tx</ID>
-    <ID>LongMethod:PaymentTxEntityMapper.kt$PaymentTxEntityMapper$fun toEntity(domain: Tx): PaymentTxEntity</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

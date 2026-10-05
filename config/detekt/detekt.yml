@@ -2,6 +2,16 @@
 # Only list a rule here to change it; everything else keeps detekt's default.
 # Full list of rules and defaults: https://detekt.dev/docs/rules/style
 
+complexity:
+  # tests are self-contained on purpose (token, data, request and assertions inside one @Test), so they are long
+  LongMethod:
+    excludes: ['**/test/**', '**/e2e-tests/**']
+
+performance:
+  # only a performance hint; `runApplication(*args)` and Spring's resource arrays are the standard way to write these
+  SpreadOperator:
+    active: false
+
 style:
   # unused code: on by default, listed so it's visible that we rely on them
   UnusedImports:

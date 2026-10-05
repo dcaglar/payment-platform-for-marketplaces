@@ -26,6 +26,7 @@ class CentralOutboxDataSourceConfig {
     // =========================================================================
 
     @Bean("centralOutboxDataSource")
+    @Suppress("LongParameterList") // one @Value per datasource setting
     fun centralOutboxDataSource(
         @Value("\${app.datasource.central-outbox.jdbc-url}") jdbcUrl: String,
         @Value("\${app.datasource.central-outbox.username}") username: String,
@@ -83,6 +84,7 @@ class CentralOutboxDataSourceConfig {
     // =========================================================================
 
     @Bean("maintenanceDataSource")
+    @Suppress("LongParameterList") // one @Value per datasource setting
     fun maintenanceDataSource(
         @Value("\${app.datasource.maintenance.jdbc-url}") jdbcUrl: String,
         @Value("\${app.datasource.maintenance.username}") username: String,

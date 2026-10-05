@@ -19,6 +19,7 @@ class WebhookController(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     @PostMapping("/webhook")
+    @Suppress("ReturnCount") // guard clauses
     fun handleWebhook(
         @RequestBody payload: String,
         @RequestHeader("Stripe-Signature") sigHeader: String?

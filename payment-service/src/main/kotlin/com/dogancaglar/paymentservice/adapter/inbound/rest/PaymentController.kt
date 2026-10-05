@@ -106,6 +106,7 @@ class PaymentController(
 
     @PostMapping("/payments/{paymentIntentId}/authorize")
     @PreAuthorize("hasAuthority('payment:write')")
+    @Suppress("ReturnCount") // guard clauses
     fun authorizePayment(
         @PathVariable("paymentIntentId") publicPaymentIntentId: String,
         @Valid @RequestBody request: AuthorizationRequestDTO,

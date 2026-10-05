@@ -19,7 +19,9 @@ import java.time.LocalDateTime
  * Lifecycle (simplified):
  *  CREATED -> PENDING_AUTH -> AUTHORIZED | DECLINED | CANCELLED
  */
-class PaymentIntent private constructor(
+class PaymentIntent
+@Suppress("LongParameterList")
+private constructor( // the object's own fields
     val paymentIntentId: PaymentIntentId,
     val clientSecret: String? = "",
     val pspReference: String?, // Stripe PaymentIntent id (nullable only before CREATED)
@@ -255,6 +257,7 @@ class PaymentIntent private constructor(
     }
 
     companion object {
+        @Suppress("LongParameterList") // the object's own fields
         fun createNew(
             paymentIntentId: PaymentIntentId,
             buyerId: BuyerId,
@@ -303,6 +306,7 @@ class PaymentIntent private constructor(
             )
         }
 
+        @Suppress("LongParameterList") // the object's own fields
         fun rehydrate(
             paymentIntentId: PaymentIntentId,
             pspReference: String? = "",

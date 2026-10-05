@@ -54,6 +54,7 @@ open class PaymentConsumerConfig(serializationPort: SerializationPort) {
     }
 
     @Bean
+    @Suppress("LongParameterList") // bean wiring: one port per collaborator
     fun pspResultProcessingService(
         centralDbTransactionalFacadePort: CentralDbTransactionalFacadePort,
         @Qualifier("accountDirectoryImpl") accountDirectoryImpl: AccountDirectoryPort,
@@ -77,6 +78,7 @@ open class PaymentConsumerConfig(serializationPort: SerializationPort) {
     }
 
     @Bean
+    @Suppress("LongParameterList") // bean wiring: one port per collaborator
     fun recordCaptureSubmissionService(
         centralDbTransactionalFacadePort: CentralDbTransactionalFacadePort,
         paymentRepository: PaymentRepository,

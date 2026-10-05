@@ -106,6 +106,7 @@ class KafkaTypedConsumerFactoryConfig(
     }
 
     @Bean
+    @Suppress("LongMethod") // the error handler and its DLQ recoverer in one place
     fun errorHandler(
         @Qualifier("dlqKafkaTemplate") dlqTemplate: KafkaTemplate<String, ByteArray>,
         kafkaExponentialBackOff: ExponentialBackOffWithMaxRetries
@@ -217,6 +218,7 @@ class KafkaTypedConsumerFactoryConfig(
             maxInterval = RETRY_MAX_INTERVAL_MS
         }
 
+    @Suppress("LongParameterList") // one argument per consumer-group setting
     private fun <T : Event> createFactory(
         clientId: String,
         concurrency: Int,

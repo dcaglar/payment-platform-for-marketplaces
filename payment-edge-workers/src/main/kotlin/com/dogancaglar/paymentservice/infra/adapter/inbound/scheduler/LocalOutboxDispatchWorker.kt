@@ -133,6 +133,7 @@ class LocalOutboxDispatchWorker(
     }
 
     @WithSpan("outbox-shutdown-flush")
+    @Suppress("ReturnCount") // guard clauses
     fun flushBatch(workerId: String): Int {
         val events = claimBatch(batchSize, workerId)
         if (events.isEmpty()) {

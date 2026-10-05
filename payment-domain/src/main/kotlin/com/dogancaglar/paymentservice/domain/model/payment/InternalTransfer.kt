@@ -9,7 +9,9 @@ import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import java.time.LocalDateTime
 
-class InternalTransfer private constructor(
+class InternalTransfer
+@Suppress("LongParameterList")
+private constructor( // the object's own fields
     val transferId: InternalTransferId,
     val paymentId: PaymentId,
     val paymentIntentId: PaymentIntentId,
@@ -113,6 +115,7 @@ class InternalTransfer private constructor(
 
     companion object {
 
+        @Suppress("LongParameterList") // the object's own fields
         fun createNew(
             transferId: InternalTransferId,
             paymentIntentId: PaymentIntentId,
@@ -139,6 +142,7 @@ class InternalTransfer private constructor(
             )
         }
 
+        @Suppress("LongParameterList") // the object's own fields
         fun rehydrate(
             transferId: InternalTransferId,
             paymentId: PaymentId,

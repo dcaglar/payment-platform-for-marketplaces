@@ -12,6 +12,7 @@ import com.dogancaglar.paymentservice.domain.model.vo.TxId
 import java.time.Instant
 
 object PaymentTxEntityMapper {
+    @Suppress("LongMethod") // one branch per tx type
     fun toEntity(domain: Tx): PaymentTxEntity = when (domain) {
         is Tx.AuthorizationTx -> PaymentTxEntity(
             txId = domain.txId.value,
@@ -109,6 +110,7 @@ object PaymentTxEntityMapper {
         )
     }
 
+    @Suppress("LongMethod") // one branch per tx type
     fun toDomain(entity: PaymentTxEntity): Tx {
         val amount = Amount.of(entity.amountValue, Currency(entity.amountCurrency))
         val createdAt = entity.createdAt ?: Instant.now()

@@ -9,7 +9,9 @@ import java.time.LocalDateTime
  * Represents a durable outbox event entry.
  * Created atomically with domain changes to ensure reliable async publication.
  */
-class OutboxEvent private constructor(
+class OutboxEvent
+@Suppress("LongParameterList")
+private constructor( // the object's own fields
     val oeid: Long,
     val partitionKey: String,
     val eventType: String,
@@ -70,6 +72,7 @@ class OutboxEvent private constructor(
     companion object {
 
         /** 🔹 Create brand new event for persistence */
+        @Suppress("LongParameterList") // the object's own fields
         fun createNew(
             oeid: Long,
             partitionKey: String,
@@ -95,6 +98,7 @@ class OutboxEvent private constructor(
         }
 
         /** 🔹 Rehydrate from persistence row */
+        @Suppress("LongParameterList") // the object's own fields
         fun rehydrate(
             oeid: Long,
             partitionKey: String,

@@ -2,12 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>LongParameterList:MultiDataSourceConfig.kt$MultiDataSourceConfig$( @Value("\${app.datasource.central.jdbc-url}") url: String, @Value("\${app.datasource.central.username}") user: String, @Value("\${app.datasource.central.password}") pass: String, @Value("\${app.datasource.central.connection-timeout:15000}") cTimeout: Long, @Value("\${app.datasource.central.validation-timeout:15000}") vTimeout: Long, @Value("\${app.datasource.central.idle-timeout:600000}") iTimeout: Long, @Value("\${app.datasource.central.max-lifetime:1800000}") mLife: Long, @Value("\${app.datasource.central.maximum-pool-size:10}") mPool: Int, openTelemetry: OpenTelemetry )</ID>
-    <ID>LongParameterList:MultiDataSourceConfig.kt$MultiDataSourceConfig$( @Value("\${app.datasource.maintenance.username}") user: String, @Value("\${app.datasource.maintenance.password}") pass: String, @Value("\${app.datasource.maintenance.connection-timeout:15000}") cTimeout: Long, @Value("\${app.datasource.maintenance.validation-timeout:15000}") vTimeout: Long, @Value("\${app.datasource.maintenance.idle-timeout:60000}") iTimeout: Long, @Value("\${app.datasource.maintenance.max-lifetime:1800000}") mLife: Long, @Value("\${app.datasource.maintenance.maximum-pool-size:1}") mPool: Int, @Value("\${app.datasource.maintenance.minimum-idle:0}") minIdleConns: Int, openTelemetry: OpenTelemetry )</ID>
-    <ID>LongParameterList:MultiDataSourceConfig.kt$MultiDataSourceConfig$( @Value("\${app.datasource.outbox.username}") user: String, @Value("\${app.datasource.outbox.password}") pass: String, @Value("\${app.datasource.outbox.connection-timeout:15000}") cTimeout: Long, @Value("\${app.datasource.outbox.validation-timeout:15000}") vTimeout: Long, @Value("\${app.datasource.outbox.idle-timeout:600000}") iTimeout: Long, @Value("\${app.datasource.outbox.max-lifetime:1800000}") mLife: Long, @Value("\${app.datasource.outbox.maximum-pool-size:20}") mPool: Int, openTelemetry: OpenTelemetry )</ID>
-    <ID>ReturnCount:LocalOutboxDispatchWorker.kt$LocalOutboxDispatchWorker$@WithSpan("outbox-shutdown-flush") fun flushBatch(workerId: String): Int</ID>
-    <ID>SpreadOperator:MyBatisFactoriesConfig.kt$MyBatisFactoriesConfig$(*resolver.getResources("classpath*:mapper/**/*.xml"))</ID>
-    <ID>SpreadOperator:PaymentEdgeWorkersApplication.kt$(*args)</ID>
     <ID>TooManyFunctions:LocalOutboxDispatchWorker.kt$LocalOutboxDispatchWorker</ID>
   </CurrentIssues>
 </SmellBaseline>

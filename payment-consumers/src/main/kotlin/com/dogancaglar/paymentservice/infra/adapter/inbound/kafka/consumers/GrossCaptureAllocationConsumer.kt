@@ -43,6 +43,7 @@ class GrossCaptureAllocationConsumer(
         containerFactory = ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR + "-factory",
         groupId = ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR
     )
+    @Suppress("LongMethod") // the allocation logic belongs in a use case (separate refactor)
     fun onLedgerEntriesRecorded(
         record: ConsumerRecord<String, EventEnvelope<JournalEntriesRecorded>>
     ) {

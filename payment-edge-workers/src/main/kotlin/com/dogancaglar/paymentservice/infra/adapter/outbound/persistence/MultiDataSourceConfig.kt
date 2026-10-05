@@ -31,6 +31,7 @@ class MultiDataSourceConfig(
     @Bean("outboxDataSource")
     @Primary
     @LiquibaseDataSource
+    @Suppress("LongParameterList") // one @Value per datasource setting
     fun outboxDataSource(
         @Value("\${app.datasource.outbox.username}") user: String,
         @Value("\${app.datasource.outbox.password}") pass: String,
@@ -57,6 +58,7 @@ class MultiDataSourceConfig(
     }
 
     @Bean("maintenanceDataSource")
+    @Suppress("LongParameterList") // one @Value per datasource setting
     fun maintenanceDataSource(
         @Value("\${app.datasource.maintenance.username}") user: String,
         @Value("\${app.datasource.maintenance.password}") pass: String,
@@ -85,6 +87,7 @@ class MultiDataSourceConfig(
     }
 
     @Bean("centralDataSource")
+    @Suppress("LongParameterList") // one @Value per datasource setting
     fun centralDataSource(
         @Value("\${app.datasource.central.jdbc-url}") url: String,
         @Value("\${app.datasource.central.username}") user: String,

@@ -142,6 +142,7 @@ object AccountSeedGenerator {
         )
     }
 
+    @Suppress("LongParameterList") // one argument per account column
     private fun insert(
         code: String,
         kind: String,

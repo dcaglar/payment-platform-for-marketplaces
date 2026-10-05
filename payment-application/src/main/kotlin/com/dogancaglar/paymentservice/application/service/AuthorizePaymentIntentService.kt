@@ -43,6 +43,7 @@ class AuthorizePaymentIntentService(
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    @Suppress("LongMethod", "ReturnCount") // the authorize flow reads top to bottom, one early return per status
     override fun authorize(cmd: AuthorizePaymentIntentCommand): PaymentIntent {
         // only the caller's own intent: another merchant's is "not found" (404)
         val paymentIntent = paymentIntentRepository.findByIdForMerchant(cmd.paymentIntentId, cmd.merchantAccount)

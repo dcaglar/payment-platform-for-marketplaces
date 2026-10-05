@@ -536,6 +536,7 @@ class CentralOutboxRelayMapperIntegrationTest {
         }
     }
 
+    @Suppress("NestedBlockDepth") // JDBC use { use { use { } } } chain
     private fun scalar(sql: String): Any? =
         TestDatabases.connection(db).use { conn ->
             conn.createStatement().use { st ->

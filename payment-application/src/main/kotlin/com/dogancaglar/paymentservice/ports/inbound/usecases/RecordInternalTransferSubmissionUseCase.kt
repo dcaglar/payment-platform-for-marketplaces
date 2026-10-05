@@ -5,6 +5,7 @@ import com.dogancaglar.paymentservice.domain.model.ledger.JournalType
 import com.dogancaglar.paymentservice.domain.model.payment.Payment
 
 interface RecordInternalTransferSubmissionUseCase {
+    @Suppress("LongParameterList") // the transfer's own fields
     fun recordSubmission(
         payment: Payment,
         sourceAccount: String,

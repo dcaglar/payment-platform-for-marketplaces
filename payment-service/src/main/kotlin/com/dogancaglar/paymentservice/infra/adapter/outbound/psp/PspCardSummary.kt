@@ -16,15 +16,11 @@ object PspCardSummary {
     // PSPs name brands in lower case ("visa", "mastercard", "amex"), some with spaces or dashes
     private fun brandOf(name: String): CardBrand {
         val key = name.lowercase().replace(" ", "").replace("_", "").replace("-", "")
-        if (key == "visa") {
-            return CardBrand.VISA
+        return when (key) {
+            "visa" -> CardBrand.VISA
+            "mastercard", "mc" -> CardBrand.MASTERCARD
+            "amex", "americanexpress" -> CardBrand.AMEX
+            else -> CardBrand.OTHER
         }
-        if (key == "mastercard" || key == "mc") {
-            return CardBrand.MASTERCARD
-        }
-        if (key == "amex" || key == "americanexpress") {
-            return CardBrand.AMEX
-        }
-        return CardBrand.OTHER
     }
 }

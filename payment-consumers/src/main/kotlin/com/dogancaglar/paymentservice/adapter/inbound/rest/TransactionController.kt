@@ -42,6 +42,7 @@ class TransactionController(
 
     @PreAuthorize("hasAuthority('transaction:read') and principal.claims['merchant_id'] != null")
     @GetMapping("/transactions/merchants/me")
+    @Suppress("LongParameterList") // one request parameter per filter
     fun findMyTransactions(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
@@ -85,6 +86,7 @@ class TransactionController(
 
     @PreAuthorize("hasAuthority('transaction:read') and hasAuthority('merchant:all')")
     @GetMapping("/transactions/merchants/{merchantAccount}")
+    @Suppress("LongParameterList") // one request parameter per filter
     fun findTransactionsOfMerchant(
         @PathVariable merchantAccount: String,
         @RequestParam(defaultValue = "0") page: Int,

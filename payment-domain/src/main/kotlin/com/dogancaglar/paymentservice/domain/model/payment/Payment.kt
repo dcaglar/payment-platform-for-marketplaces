@@ -63,7 +63,9 @@ import java.time.LocalDateTime
  * @param createdAt         Timestamp of aggregate creation (UTC).
  * @param updatedAt         Timestamp of last state mutation (UTC).
  */
-class Payment private constructor(
+class Payment
+@Suppress("LongParameterList")
+private constructor( // the object's own fields
     val paymentId: PaymentId,
     val paymentIntentId: PaymentIntentId,
     val buyerId: BuyerId,
@@ -457,6 +459,7 @@ class Payment private constructor(
          * @param now                 UTC timestamp (injectable for deterministic testing).
          * @return A new Payment in AUTHORIZED state.
          */
+        @Suppress("LongParameterList") // the object's own fields
         fun initializeFromAuthEvent(
             paymentId: PaymentId,
             paymentIntentId: PaymentIntentId,
@@ -495,6 +498,7 @@ class Payment private constructor(
          * Used exclusively by the repository layer (e.g., PaymentRepository MyBatis mapper).
          * No business logic runs here — all validation runs in init{}.
          */
+        @Suppress("LongParameterList") // the object's own fields
         fun rehydrate(
             paymentId: PaymentId,
             paymentIntentId: PaymentIntentId,

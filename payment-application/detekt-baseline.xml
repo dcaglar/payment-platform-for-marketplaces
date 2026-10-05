@@ -1,19 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:AuthorizePaymentIntentService.kt$AuthorizePaymentIntentService$override fun authorize(cmd: AuthorizePaymentIntentCommand): PaymentIntent</ID>
-    <ID>LongMethod:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$override fun processAuthorized(event: PaymentAuthorized)</ID>
-    <ID>LongMethod:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$override fun processCaptureConfirmed(event: CaptureConfirmed)</ID>
-    <ID>LongMethod:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$override fun processSettlementLineReconciled(event: SettlementReceived)</ID>
-    <ID>LongParameterList:CaptureConfirmed.kt$CaptureConfirmed.Companion$( paymentIntentId: String, publicPaymentIntentId: String, merchantAccount: String, amountValue: Long, currency: String, timestamp: Instant = Utc.nowInstant() )</ID>
-    <ID>LongParameterList:JournalEntriesRecorded.kt$JournalEntriesRecorded.Companion$( cmd: PaymentBaseEvent, batchId: String, entries: List&lt;JournalEntryEventData&gt;, customPartitionKey: String, now: Instant, authorization: AuthorizationDetails? = null )</ID>
-    <ID>LongParameterList:JournalEntryEventData.kt$JournalEntryEventData.Companion$( journalEntryId: String, globalJournalEntryId: Long, journalType: JournalType, journalName: String?, paymentId: Long, txId: Long?, reason: String?, createdAt: Instant, postings: List&lt;PostingEventData&gt; )</ID>
-    <ID>LongParameterList:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$( private val centralDbTransactionalFacadePort: CentralDbTransactionalFacadePort, private val accountDirectory: AccountDirectoryPort, private val paymentTxPort: PaymentTxPort, private val idGeneratorPort: IdGeneratorPort, private val paymentRepository: PaymentRepository, private val transferRepository: TransferRepository, private val outboxEventFactoryPort: OutboxEventFactoryPort, private val merchantAccountRepository: MerchantAccountRepository )</ID>
-    <ID>LongParameterList:RawEventPublisherPort.kt$RawEventPublisherPort$( eventType: String, partitionKey: String, // Explicitly passed from the DB entry traceId: String, eventId: String, parentEventId: String?, payload: String )</ID>
-    <ID>LongParameterList:RecordInternalTransferSubmissionUseCase.kt$RecordInternalTransferSubmissionUseCase$( payment: Payment, sourceAccount: String, targetAccount: String, transferAmount: Amount, journalType: JournalType, reason: String )</ID>
-    <ID>ReturnCount:AuthorizePaymentIntentService.kt$AuthorizePaymentIntentService$override fun authorize(cmd: AuthorizePaymentIntentCommand): PaymentIntent</ID>
-    <ID>ReturnCount:Transaction.kt$Transaction$fun status(): PaymentStatus</ID>
-    <ID>ThrowsCount:IdempotencyService.kt$IdempotencyService$open fun &lt;REQ : Any, RES : Any&gt; run( key: java.util.UUID, requestBody: REQ, responseClass: Class&lt;RES&gt;, idExtractor: (RES) -&gt; Long, // Final Addition: Extract internal ID from response block: () -&gt; RES ): IdempotencyResult&lt;RES&gt;</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

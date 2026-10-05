@@ -26,11 +26,6 @@ open class CaptureRetryRedisCache(
         return redisTemplate.opsForValue()[retryKey]?.toInt() ?: 0
     }
 
-    fun incrementAndGetRetryCount(paymentIntentId: String): Int {
-        val retryKey = "retry:count:capture:$paymentIntentId"
-        return redisTemplate.opsForValue().increment(retryKey)?.toInt() ?: 1
-    }
-
     fun resetRetryCounter(paymentIntentId: String) {
         val retryKey = "retry:count:capture:$paymentIntentId"
         redisTemplate.delete(retryKey)
@@ -41,31 +36,6 @@ open class CaptureRetryRedisCache(
         retryAt: Double
     ) {
         redisTemplate.opsForZSet().add(queue, json, retryAt)
-    }
-
-    fun pollDueRetries(): List<String> {
-        val now = System.currentTimeMillis().toDouble()
-        // get due items from the sorted set
-        val dueItems = redisTemplate.opsForZSet().rangeByScore(queue, 0.0, now)
-        // remove them from the sorted set
-        dueItems?.forEach { json ->
-            pureRemoveDueRetry(json)
-        }
-        return dueItems?.toList() ?: emptyList()
-    }
-
-    fun pollDueRetriesAtomic(max: Long = 1000): List<String> {
-        val now = System.currentTimeMillis().toDouble()
-        val connection = redisTemplate.connectionFactory?.connection
-        val raw = connection?.zSetCommands()?.zPopMin(queue.toByteArray(), max)
-        val (due, notDue) = raw?.partition { it.score <= now } ?: Pair(emptyList(), emptyList())
-        // Re-insert not-due items
-        notDue.forEach { connection?.zSetCommands()?.zAdd(queue.toByteArray(), it.score, it.value) }
-        return due.map { String(it.value) }
-    }
-
-    fun pureRemoveDueRetry(json: String) {
-        redisTemplate.opsForZSet().remove(queue, json)
     }
 
     fun zsetSize(): Long =
@@ -128,15 +98,6 @@ open class CaptureRetryRedisCache(
                 conn.zSetCommands().zRem(inflight.toByteArray(), raw) ?: 0L
             }
         )
-    }
-
-    /** Number of items currently inflight. */
-    fun inflightSize(): Long {
-        return redisTemplate.execute(
-            RedisCallback<Long> { conn ->
-                conn.zSetCommands().zCard(inflight.toByteArray()) ?: 0L
-            }
-        ) ?: 0L
     }
 
     /**

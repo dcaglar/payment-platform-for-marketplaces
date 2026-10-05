@@ -40,6 +40,7 @@ data class MerchantAccount private constructor(
     }
 
     companion object {
+        @Suppress("LongParameterList") // the object's own fields
         fun createNew(
             accountCode: String,
             legalName: String,
@@ -80,6 +81,7 @@ data class MerchantAccount private constructor(
         }
 
         /** Rebuilds from persisted state. Trusts the stored data. */
+        @Suppress("LongParameterList") // the object's own fields
         fun rehydrate(
             accountCode: String,
             status: AccountStatus,

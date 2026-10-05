@@ -43,7 +43,9 @@ import com.dogancaglar.paymentservice.ports.outbound.PaymentTxPort
 import com.dogancaglar.paymentservice.ports.outbound.TransferRepository
 import org.slf4j.LoggerFactory
 
-open class ProcessPspResultProcessingService(
+open class ProcessPspResultProcessingService
+@Suppress("LongParameterList")
+constructor( // constructor injection: one port per collaborator
     private val centralDbTransactionalFacadePort: CentralDbTransactionalFacadePort,
     private val accountDirectory: AccountDirectoryPort,
     private val paymentTxPort: PaymentTxPort,
@@ -59,20 +61,8 @@ open class ProcessPspResultProcessingService(
     override fun processAuthorized(event: PaymentAuthorized) {
         val amount = Amount.of(event.totalAmountValue, Currency(event.currency))
         // The authorization hold is tracked per merchant: its "authorized, not yet captured" amount
-        val authReceivable = LedgerAccount.fromProfile(
-            accountDirectory.getAccountProfile(
-                LedgerAccountType.AUTH_RECEIVABLE,
-                event.merchantAccount,
-                Currency(event.currency)
-            )
-        )
-        val authLiability = LedgerAccount.fromProfile(
-            accountDirectory.getAccountProfile(
-                LedgerAccountType.AUTH_LIABILITY,
-                event.merchantAccount,
-                Currency(event.currency)
-            )
-        )
+        val authReceivable = ledgerAccount(LedgerAccountType.AUTH_RECEIVABLE, event.merchantAccount, event.currency)
+        val authLiability = ledgerAccount(LedgerAccountType.AUTH_LIABILITY, event.merchantAccount, event.currency)
 
         val paymentIdValue = idGeneratorPort.generateId()
         val txIdValue = idGeneratorPort.generateId()
@@ -107,18 +97,10 @@ open class ProcessPspResultProcessingService(
 
         // 4. An auto-captured merchant's payment is captured right away: CaptureRequested goes out with the ledger
         // event
-        val merchant = merchantAccountRepository.findByCode(event.merchantAccount)
-            ?: throw AccountDomainException.MerchantAccountNotFoundException("merchantAccount=${event.merchantAccount}")
         val outboxEvents = mutableListOf<OutboxEvent>()
-        if (merchant.isAutoCaptured) {
-            val captureRequested = CaptureRequested(
-                paymentIntentId = event.paymentIntentId,
-                publicPaymentIntentId = event.publicPaymentIntentId,
-                merchantAccount = event.merchantAccount,
-                amountValue = event.totalAmountValue,
-                currency = event.currency
-            )
-            outboxEvents.add(outboxEventFactoryPort.create(captureRequested))
+        val captureRequested = captureRequestedIfAutoCaptured(event)
+        if (captureRequested != null) {
+            outboxEvents.add(captureRequested)
         }
 
         // 5. Emit an OutboxEvent containing the raw JournalEntries
@@ -175,31 +157,11 @@ open class ProcessPspResultProcessingService(
             status = SUCCESS
         )
         // Commit gross ledger distributions
-        val merchantGrossPool = LedgerAccount.fromProfile(
-            accountDirectory.getAccountProfile(
-                LedgerAccountType.CAPTURE_SUSPENSE,
-                event.merchantAccount,
-                Currency(event.currency)
-            )
-        )
+        val merchantGrossPool = ledgerAccount(LedgerAccountType.CAPTURE_SUSPENSE, event.merchantAccount, event.currency)
         // Releases the merchant's authorization hold (booked per merchant in processAuthorized)
-        val authReceivable = LedgerAccount.fromProfile(
-            accountDirectory.getAccountProfile(
-                LedgerAccountType.AUTH_RECEIVABLE,
-                event.merchantAccount,
-                Currency(event.currency)
-            )
-        )
-        val authLiability = LedgerAccount.fromProfile(
-            accountDirectory.getAccountProfile(
-                LedgerAccountType.AUTH_LIABILITY,
-                event.merchantAccount,
-                Currency(event.currency)
-            )
-        )
-        val pspReceivable = LedgerAccount.fromProfile(
-            accountDirectory.getAccountProfile(LedgerAccountType.PSP_RECEIVABLE, "GLOBAL", Currency(event.currency))
-        )
+        val authReceivable = ledgerAccount(LedgerAccountType.AUTH_RECEIVABLE, event.merchantAccount, event.currency)
+        val authLiability = ledgerAccount(LedgerAccountType.AUTH_LIABILITY, event.merchantAccount, event.currency)
+        val pspReceivable = ledgerAccount(LedgerAccountType.PSP_RECEIVABLE, "GLOBAL", event.currency)
 
         val journalEntries = JournalEntry.captureGrossAsset(
             globalJournalEntryId = idGeneratorPort.generateId(),
@@ -341,15 +303,9 @@ open class ProcessPspResultProcessingService(
         val settlementTxId = TxId(idGeneratorPort.generateId())
         val journalIdentifier = "SDR_RECON_LN_${settlementTxId.value}"
 
-        val platformCash = LedgerAccount.fromProfile(
-            accountDirectory.getAccountProfile(LedgerAccountType.PLATFORM_CASH, "GLOBAL", Currency(event.currency))
-        )
-        val pspReceivable = LedgerAccount.fromProfile(
-            accountDirectory.getAccountProfile(LedgerAccountType.PSP_RECEIVABLE, "GLOBAL", Currency(event.currency))
-        )
-        val pspFeeExpense = LedgerAccount.fromProfile(
-            accountDirectory.getAccountProfile(LedgerAccountType.PSP_FEE_EXPENSE, "GLOBAL", Currency(event.currency))
-        )
+        val platformCash = ledgerAccount(LedgerAccountType.PLATFORM_CASH, "GLOBAL", event.currency)
+        val pspReceivable = ledgerAccount(LedgerAccountType.PSP_RECEIVABLE, "GLOBAL", event.currency)
+        val pspFeeExpense = ledgerAccount(LedgerAccountType.PSP_FEE_EXPENSE, "GLOBAL", event.currency)
 
         val netCashAmount = Amount.of(event.netCashAmountValue, Currency(event.currency))
         val feeAmount = Amount.of(event.pspFeeAmountValue, Currency(event.currency))
@@ -399,4 +355,25 @@ open class ProcessPspResultProcessingService(
         // Save updated child status row to complete the lifecycle trace
         paymentTxPort.save(updatedCaptureTx)
     }
+
+    /** CaptureRequested for an auto-captured merchant's payment, null if the merchant captures manually. */
+    private fun captureRequestedIfAutoCaptured(event: PaymentAuthorized): OutboxEvent? {
+        val merchant = merchantAccountRepository.findByCode(event.merchantAccount)
+            ?: throw AccountDomainException.MerchantAccountNotFoundException("merchantAccount=${event.merchantAccount}")
+        if (!merchant.isAutoCaptured) {
+            return null
+        }
+        val captureRequested = CaptureRequested(
+            paymentIntentId = event.paymentIntentId,
+            publicPaymentIntentId = event.publicPaymentIntentId,
+            merchantAccount = event.merchantAccount,
+            amountValue = event.totalAmountValue,
+            currency = event.currency
+        )
+        return outboxEventFactoryPort.create(captureRequested)
+    }
+
+    /** The ledger account of [type] for [owner] (a merchant code or GLOBAL) in [currency]. */
+    private fun ledgerAccount(type: LedgerAccountType, owner: String, currency: String): LedgerAccount =
+        LedgerAccount.fromProfile(accountDirectory.getAccountProfile(type, owner, Currency(currency)))
 }

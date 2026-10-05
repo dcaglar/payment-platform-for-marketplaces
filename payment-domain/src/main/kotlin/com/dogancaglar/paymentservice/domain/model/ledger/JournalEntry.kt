@@ -22,7 +22,9 @@ import com.dogancaglar.paymentservice.domain.model.vo.TxId
  *
  * ============================================================
  */
-class JournalEntry private constructor(
+class JournalEntry
+@Suppress("LongParameterList")
+private constructor( // the object's own fields
     val id: String,
     val globalJournalEntryId: Long,
     val journalType: JournalType,
@@ -73,6 +75,7 @@ class JournalEntry private constructor(
         // AUTHORIZATION  is succesful in sync api call
         // =====================================================================
 
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun authHold(
             globalJournalEntryId: Long,
             authTx: Tx.AuthorizationTx, // the payment, the tx and the authorized amount
@@ -102,6 +105,7 @@ class JournalEntry private constructor(
         // days
         // =====================================================================
 
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun captureGrossAsset(
             globalJournalEntryId: Long,
             captureTx: Tx.CaptureTx, // the payment and the tx
@@ -130,6 +134,7 @@ class JournalEntry private constructor(
             )
         )
 
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun internalTransfer(
             globalJournalEntryId: Long,
             paymentId: PaymentId,
@@ -173,6 +178,7 @@ class JournalEntry private constructor(
          *
          * Called by: PspResultConsumer, processing a PaymentRefunded webhook event.
          */
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun refund(
             globalJournalEntryId: Long,
             refundTx: Tx.RefundTx, // the payment, the tx and the refunded amount
@@ -210,6 +216,7 @@ class JournalEntry private constructor(
          * Converts the abstract gateway receivable into physical platform cash liquidity,
          * while isolating the exact processing expense levied by the network for this payment.
          */
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun settlementLineItem(
             globalJournalEntryId: Long,
             settleTx: Tx.SettleTx, // the payment, the tx and the gross amount the PSP settled (e.g., €3,000)
@@ -272,6 +279,7 @@ class JournalEntry private constructor(
          * @param merchantPayableAccount MERCHANT_DIRECT_PAYABLE (direct sale) or MERCHANT_COMMISSION_PAYABLE
          * (marketplace)
          */
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun commissionFeeRegistered(
             globalJournalEntryId: Long,
             paymentId: PaymentId,
@@ -322,6 +330,7 @@ class JournalEntry private constructor(
          * @param feeReserveAccount Must be LedgerAccountType.PLATFORM_FEE_RESERVE for the target tenant
          * @param platformRevenue Must be LedgerAccountType.PLATFORM_REVENUE for GLOBAL
          */
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun recognizePlatformRevenue(
             globalJournalEntryId: Long,
             recognitionIdentifier: String,
@@ -372,6 +381,7 @@ class JournalEntry private constructor(
         // =====================================================================
         // 7. PAYOUT (Clearing Liabilities & Pushing Cash to External Bank Accounts)
         // =====================================================================
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun payout(
             globalJournalEntryId: Long,
             payoutTx: Tx.PayoutTx, // the payment, the tx and the paid-out amount
@@ -406,6 +416,7 @@ class JournalEntry private constructor(
          * Used exclusively by the repository layer. No business validation runs here
          * beyond the init{} block invariants — assume the DB holds valid, balanced data.
          */
+        @Suppress("LongParameterList") // the object's own fields
         fun rehytrate(
             id: String,
             globalJournalEntryId: Long,

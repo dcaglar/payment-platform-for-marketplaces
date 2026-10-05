@@ -15,6 +15,7 @@ open class IdempotencyService(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    @Suppress("ThrowsCount") // translates each failure into our own exception type (CLAUDE.md §5)
     open fun <REQ : Any, RES : Any> run(
         key: java.util.UUID,
         requestBody: REQ,

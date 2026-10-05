@@ -89,6 +89,7 @@ object E2eSupport {
     // JDBC query helpers
     // ---------------------------------------------------------------------
 
+    @Suppress("NestedBlockDepth") // JDBC use { use { use { } } } chain
     fun <T> query(jdbcUrl: String, user: String, pass: String, sql: String, map: (ResultSet) -> T): List<T> =
         DriverManager.getConnection(jdbcUrl, user, pass).use { conn ->
             conn.createStatement().use { st ->

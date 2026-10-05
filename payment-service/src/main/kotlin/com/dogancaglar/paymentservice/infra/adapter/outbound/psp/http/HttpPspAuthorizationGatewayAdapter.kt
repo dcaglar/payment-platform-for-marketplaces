@@ -181,6 +181,7 @@ class HttpPspAuthorizationGatewayAdapter(
     }
 
     /** Sends the request and returns status + body, whatever the status. Network errors are classified here. */
+    @Suppress("ThrowsCount") // translates each failure into our own exception type (CLAUDE.md §5)
     private fun send(op: PspOperation, id: Long, request: () -> RestClient.RequestHeadersSpec<*>): PspAnswer {
         try {
             val answer = request().exchange { _, response ->
@@ -204,6 +205,7 @@ class HttpPspAuthorizationGatewayAdapter(
         }
     }
 
+    @Suppress("ReturnCount") // guard clauses
     private fun failure(op: PspOperation, id: Long, status: Int): RuntimeException {
         if (status == HttpStatus.TOO_MANY_REQUESTS.value() || status == HttpStatus.SERVICE_UNAVAILABLE.value()) {
             return PspTransientException(op, id, "not done, answered $status")

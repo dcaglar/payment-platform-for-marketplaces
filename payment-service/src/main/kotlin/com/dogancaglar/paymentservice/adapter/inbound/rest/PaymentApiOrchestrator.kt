@@ -79,27 +79,32 @@ class PaymentApiOrchestrator(
         when (event.type) {
             "payment_intent.created" -> {
                 if (stripeObject is PaymentIntent) {
-                    val metaId = stripeObject.metadata["payment_intent_id"]
-                    if (metaId != null) {
-                        try {
-                            val paymentIntentId = PaymentIntentId(metaId.toLong())
-                            val cmd = ProcessPaymentIntentUpdateCommand(
-                                paymentIntentId = paymentIntentId,
-                                pspReference = stripeObject.id,
-                                clientSecret = stripeObject.clientSecret,
-                                status = PaymentIntentStatus.CREATED
-                            )
-                            updatePaymentIntentUseCase.processUpdate(cmd)
-                            logger.debug("Processed webhook payment_intent.created for ${paymentIntentId.value}")
-                        } catch (e: NumberFormatException) {
-                            logger.error("Invalid payment_intent_id in metadata: $metaId")
-                        }
-                    } else {
-                        logger.warn("Metadata payment_intent_id missing for event ${event.id}")
-                    }
+                    handlePaymentIntentCreated(event, stripeObject)
                 }
             }
             else -> logger.debug("Unhandled event type: ${event.type}")
         }
+    }
+
+    private fun handlePaymentIntentCreated(event: Event, stripeIntent: PaymentIntent) {
+        val metaId = stripeIntent.metadata["payment_intent_id"]
+        if (metaId == null) {
+            logger.warn("Metadata payment_intent_id missing for event ${event.id}")
+            return
+        }
+        val id = metaId.toLongOrNull()
+        if (id == null) {
+            logger.error("Invalid payment_intent_id in metadata: $metaId")
+            return
+        }
+        val paymentIntentId = PaymentIntentId(id)
+        val cmd = ProcessPaymentIntentUpdateCommand(
+            paymentIntentId = paymentIntentId,
+            pspReference = stripeIntent.id,
+            clientSecret = stripeIntent.clientSecret,
+            status = PaymentIntentStatus.CREATED
+        )
+        updatePaymentIntentUseCase.processUpdate(cmd)
+        logger.debug("Processed webhook payment_intent.created for ${paymentIntentId.value}")
     }
 }
