@@ -2,6 +2,7 @@ package com.dogancaglar.paymentservice.application.service
 
 import com.dogancaglar.paymentservice.application.events.CaptureRequested
 import com.dogancaglar.paymentservice.application.events.CaptureSubmitted
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.exception.PaymentPlatformException
 import com.dogancaglar.paymentservice.domain.exception.PspOperation
 import com.dogancaglar.paymentservice.domain.exception.PspPermanentException
@@ -44,8 +45,9 @@ open class ProcessCaptureService(
 
         // our own errors (payment missing, database) are not PSP answers: they propagate, and the Kafka error
         // handler retries the event or sends it to the DLQ
-        val payment = paymentRepository.findByPaymentIntentId(PaymentIntentId(captureRequested.paymentIntentId.toLong()))
-            ?: error("Payment absent for paymentIntentId=${captureRequested.paymentIntentId}")
+        val paymentIntentId = PaymentIntentId(captureRequested.paymentIntentId.toLong())
+        val payment = paymentRepository.findByPaymentIntentId(paymentIntentId)
+            ?: throw PaymentDomainException.PaymentNotFoundException("paymentIntentId=${paymentIntentId.value}")
 
         // null: the PSP gave no normal answer, handled here (retry later, or refused for good)
         val pspResponse: PspCaptureGatewayResponse? = try {

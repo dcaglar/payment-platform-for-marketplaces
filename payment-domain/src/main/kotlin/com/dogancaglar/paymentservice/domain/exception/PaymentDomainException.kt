@@ -4,6 +4,12 @@ sealed class PaymentDomainException(message: String) : NonRetryableException(mes
 
     class InvariantViolationException(message: String) : PaymentDomainException(message)
 
+    /** No payment for this payment intent, although an event refers to it. */
+    class PaymentNotFoundException(message: String) : PaymentDomainException(message)
+
+    /** The payment has no capture tx in the state this step needs (e.g. no PENDING capture to confirm). */
+    class CaptureTxNotFoundException(message: String) : PaymentDomainException(message)
+
     class InvalidStateTransitionException(message: String) : PaymentDomainException(message)
 
     class CaptureLimitExceededException(message: String) : PaymentDomainException(message)

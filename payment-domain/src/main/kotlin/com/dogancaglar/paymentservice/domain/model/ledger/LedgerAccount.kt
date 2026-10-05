@@ -1,9 +1,11 @@
 package com.dogancaglar.paymentservice.domain.model.ledger
 
+import com.dogancaglar.paymentservice.domain.exception.LedgerDomainException
 import com.dogancaglar.paymentservice.domain.model.account.Account
 import com.dogancaglar.paymentservice.domain.model.account.AccountCodes
 import com.dogancaglar.paymentservice.domain.model.account.AccountStatus
 import com.dogancaglar.paymentservice.domain.model.common.Currency
+import com.dogancaglar.paymentservice.domain.model.common.require
 
 /**
  * A ledger account: the only kind of account postings can be made to.
@@ -46,22 +48,46 @@ data class LedgerAccount private constructor(
                 AccountOwner.PLATFORM -> {
                     require(
                         ownerCode == AccountCodes.PLATFORM
-                    ) { "$type belongs to the platform, owner must be ${AccountCodes.PLATFORM}, was $ownerCode" }
-                    require(sellerCode == null) { "$type is a platform account and has no seller" }
+                    ) {
+                        LedgerDomainException.InvariantViolationException(
+                            "$type belongs to the platform, owner must be ${AccountCodes.PLATFORM}, was $ownerCode"
+                        )
+                    }
+                    require(sellerCode == null) {
+                        LedgerDomainException.InvariantViolationException(
+                            "$type is a platform account and has no seller"
+                        )
+                    }
                 }
                 AccountOwner.MERCHANT -> {
                     require(
                         AccountCodes.isValidOwnerCode(ownerCode)
-                    ) { "$type needs a merchant code as owner, was '$ownerCode'" }
-                    require(sellerCode == null) { "$type is a merchant account and has no seller" }
+                    ) {
+                        LedgerDomainException.InvariantViolationException(
+                            "$type needs a merchant code as owner, was '$ownerCode'"
+                        )
+                    }
+                    require(sellerCode == null) {
+                        LedgerDomainException.InvariantViolationException(
+                            "$type is a merchant account and has no seller"
+                        )
+                    }
                 }
                 AccountOwner.SELLER -> {
                     require(
                         AccountCodes.isValidOwnerCode(ownerCode)
-                    ) { "$type needs the seller's merchant code as owner, was '$ownerCode'" }
+                    ) {
+                        LedgerDomainException.InvariantViolationException(
+                            "$type needs the seller's merchant code as owner, was '$ownerCode'"
+                        )
+                    }
                     require(
                         sellerCode != null && AccountCodes.isValidOwnerCode(sellerCode)
-                    ) { "$type needs a seller code, was '$sellerCode'" }
+                    ) {
+                        LedgerDomainException.InvariantViolationException(
+                            "$type needs a seller code, was '$sellerCode'"
+                        )
+                    }
                 }
             }
             return LedgerAccount(type, ownerCode, sellerCode, currency, status)
@@ -83,8 +109,14 @@ data class LedgerAccount private constructor(
          */
         fun fromCode(type: LedgerAccountType, accountCode: String): LedgerAccount {
             val parts = accountCode.split(".")
-            require(parts.size == 3 || parts.size == 4) { "Not a ledger account code: $accountCode" }
-            require(parts[0] == type.name) { "Account code $accountCode does not belong to type $type" }
+            require(parts.size == 3 || parts.size == 4) {
+                LedgerDomainException.InvariantViolationException("Not a ledger account code: $accountCode")
+            }
+            require(parts[0] == type.name) {
+                LedgerDomainException.InvariantViolationException(
+                    "Account code $accountCode does not belong to type $type"
+                )
+            }
             var sellerCode: String? = null
             if (parts.size == 4) {
                 sellerCode = parts[2]

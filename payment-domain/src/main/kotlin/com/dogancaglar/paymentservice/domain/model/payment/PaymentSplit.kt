@@ -1,6 +1,8 @@
 package com.dogancaglar.paymentservice.domain.model.payment
 
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
+import com.dogancaglar.paymentservice.domain.model.common.require
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 
 /**
@@ -31,10 +33,12 @@ data class PaymentSplit(
 ) {
     init {
         require(account.isNotBlank()) {
-            "PaymentSplit.account must not be blank"
+            PaymentDomainException.SplitValidationException("PaymentSplit.account must not be blank")
         }
         require(amount.isPositive()) {
-            "PaymentSplit.amount must be positive, but was ${amount.quantity}"
+            PaymentDomainException.SplitValidationException(
+                "PaymentSplit.amount must be positive, but was ${amount.quantity}"
+            )
         }
     }
 

@@ -30,8 +30,8 @@ the outcome is in **Status** right below. Modules in dependency order. The resul
 
 | What | Where |
 |---|---|
-| `${...}` printed literally (pattern 1) | `ProcessPspResultProcessingService` 153, 157, 169; `CapturePspPerformedConsumer` 37; `PaymentTxEntityMapper` 212 (`{entity.txId}` without `$`) |
-| STYLE: `throw IllegalStateException` / `IllegalArgumentException` (18) | `ProcessPspResultProcessingService` (6), `RecordCaptureSubmissionService` (2), `GrossCaptureAllocationConsumer` (2), simulators (4), `TransactionRepositoryAdapter`, `BalanceService`, `RedisIdGeneratorPortAdapter`, `PaymentTxEntityMapper` |
+| ~~`${...}` printed literally~~ | done |
+| ~~STYLE `throw IllegalStateException` (18)~~ | done: "not found" → domain exceptions (`PaymentNotFoundException`, `CaptureTxNotFoundException`, `TransferNotFoundException`, `MerchantAccountNotFoundException`); technical checks → `error(…)` |
 | Capture retries exhausted (#7): after 5 tries only a log line, nothing owns the payment | decision 2 below |
 | `PENDING_AUTH` without an owner (#3 save failed; also the unknown outcome now) | decision 1 below: the status-check job |
 

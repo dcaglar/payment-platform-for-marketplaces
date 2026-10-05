@@ -206,9 +206,11 @@ class PaymentIntentTest {
     @Test
     fun `a card summary takes exactly 4 digits`() {
         assertEquals("0005", CardSummary.of(CardBrand.MASTERCARD, "0005").last4)
-        assertFailsWith<IllegalArgumentException> { CardSummary.of(CardBrand.VISA, "424") }
-        assertFailsWith<IllegalArgumentException> { CardSummary.of(CardBrand.VISA, "4242424242424242") }
-        assertFailsWith<IllegalArgumentException> { CardSummary.of(CardBrand.VISA, "42a2") }
+        assertFailsWith<PaymentDomainException.InvariantViolationException> { CardSummary.of(CardBrand.VISA, "424") }
+        assertFailsWith<PaymentDomainException.InvariantViolationException> {
+            CardSummary.of(CardBrand.VISA, "4242424242424242")
+        }
+        assertFailsWith<PaymentDomainException.InvariantViolationException> { CardSummary.of(CardBrand.VISA, "42a2") }
     }
 
     @Test

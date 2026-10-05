@@ -5,6 +5,7 @@ import com.dogancaglar.common.kafka.metadata.ConsumerGroups
 import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.logging.EventLogContext
 import com.dogancaglar.paymentservice.application.events.JournalEntriesRecorded
+import com.dogancaglar.paymentservice.domain.exception.AccountDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalType
@@ -92,7 +93,7 @@ class GrossCaptureAllocationConsumer(
 
             // Our platform fee for this payment: the merchant's own setting (fixed + percentage of the captured amount)
             val merchant = merchantAccountRepository.findByCode(merchantAccount)
-                ?: error("Merchant account absent for merchantAccount=$merchantAccount")
+                ?: throw AccountDomainException.MerchantAccountNotFoundException("merchantAccount=$merchantAccount")
             val morDcPlatformFee = merchant.platformFee.feeFor(
                 Amount.of(captureEntry.postings.first().amount, currency)
             )

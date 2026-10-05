@@ -1,6 +1,8 @@
 package com.dogancaglar.paymentservice.domain.model.ledger
 
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
+import com.dogancaglar.paymentservice.domain.model.common.require
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import com.dogancaglar.paymentservice.domain.model.vo.TxId
@@ -65,8 +67,10 @@ sealed class Tx {
         fun progressReconciliation(newSettleStatus: SettleStatus): CaptureTx {
             // Invariant Check: Prevent double-clearing or regression mutations
             require(this.settleStatus == SettleStatus.UNMATCHED) {
-                "Ledger Security Invariant Violation: CaptureTx [${this.txId.value}] cannot be transitioned " +
-                    "to $newSettleStatus because it has already cleared out of UNMATCHED (Current status: ${this.settleStatus})"
+                PaymentDomainException.InvalidStateTransitionException(
+                    "CaptureTx [${this.txId.value}] cannot be transitioned to $newSettleStatus: it has already " +
+                        "cleared out of UNMATCHED (current status: ${this.settleStatus})"
+                )
             }
 
             return this.copy(settleStatus = newSettleStatus)

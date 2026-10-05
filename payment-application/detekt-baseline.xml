@@ -22,10 +22,8 @@
     <ID>MaxLineLength:OutboxEventTypes.kt$OutboxEventTypes.CAPTURE_SUBMITTED$)</ID>
     <ID>MaxLineLength:OutboxEventTypes.kt$OutboxEventTypes.PAYMENT_AUTHORIZED$)</ID>
     <ID>MaxLineLength:ProcessCaptureService.kt$ProcessCaptureService$private</ID>
-    <ID>MaxLineLength:ProcessCaptureService.kt$ProcessCaptureService$val</ID>
     <ID>MaxLineLength:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$"Committing balanced reconciliation tracking state indices atomically for paymentId=${payment.paymentId.value}"</ID>
     <ID>MaxLineLength:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$// 4. An auto-captured merchant's payment is captured right away: CaptureRequested goes out with the ledger event</ID>
-    <ID>MaxLineLength:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$?:</ID>
     <ID>MaxLineLength:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$override</ID>
     <ID>MaxLineLength:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$val deterministicBatchId = "${JournalType.INTERNAL_TRANSFER}:${event.publicPaymentIntentId}:$publicTransferId:${event.sourceAccount}:${event.targetAccount}"</ID>
     <ID>MaxLineLength:ProcessPspResultProcessingService.kt$ProcessPspResultProcessingService$val deterministicBatchId = "${captureTx.txType.name}:${event.publicPaymentIntentId}:${captureTx.txId.value}:${captureTx.status.name}"</ID>

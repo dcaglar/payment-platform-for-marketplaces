@@ -1,5 +1,7 @@
 package com.dogancaglar.paymentservice.domain.model.account
 
+import com.dogancaglar.paymentservice.domain.exception.AccountDomainException
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccount
@@ -67,34 +69,34 @@ class AccountGenerationTest {
     fun `seller ledger accounts cannot be generated under another merchant`() {
         val seller = SellerAccount.createNew("SELLER-1-1", "MARKETPLACE-1")
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<AccountDomainException.InvariantViolationException> {
             seller.ledgerAccounts(merchant())
         }
     }
 
     @Test
     fun `merchant code must be a valid owner code`() {
-        assertFailsWith<IllegalArgumentException> { merchant(code = "GLOBAL") }
-        assertFailsWith<IllegalArgumentException> { merchant(code = "MARKET.PLACE") }
-        assertFailsWith<IllegalArgumentException> { merchant(code = "") }
+        assertFailsWith<AccountDomainException.InvariantViolationException> { merchant(code = "GLOBAL") }
+        assertFailsWith<AccountDomainException.InvariantViolationException> { merchant(code = "MARKET.PLACE") }
+        assertFailsWith<AccountDomainException.InvariantViolationException> { merchant(code = "") }
     }
 
     @Test
     fun `platform fee must be in the merchant currency`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<AccountDomainException.InvariantViolationException> {
             merchant(fee = PlatformFee.of(Amount.of(30, Currency("USD")), 150))
         }
     }
 
     @Test
     fun `platform fee basis points must be between 0 and 10000`() {
-        assertFailsWith<IllegalArgumentException> { PlatformFee.of(Amount.zero(eur), -1) }
-        assertFailsWith<IllegalArgumentException> { PlatformFee.of(Amount.zero(eur), 10_001) }
+        assertFailsWith<AccountDomainException.InvariantViolationException> { PlatformFee.of(Amount.zero(eur), -1) }
+        assertFailsWith<AccountDomainException.InvariantViolationException> { PlatformFee.of(Amount.zero(eur), 10_001) }
     }
 
     @Test
     fun `a seller cannot use its merchant's code`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<AccountDomainException.InvariantViolationException> {
             SellerAccount.createNew("MARKETPLACE-5", "MARKETPLACE-5")
         }
     }
@@ -141,6 +143,8 @@ class AccountGenerationTest {
         assertEquals(Amount.of(50, eur), fixedOnly.feeFor(Amount.of(6000, eur)))
         assertEquals(Amount.of(28, eur), percentOnly.feeFor(Amount.of(999, eur))) // 28.971 rounds down
         assertEquals(Amount.zero(eur), none.feeFor(Amount.of(3000, eur)))
-        assertFailsWith<IllegalArgumentException> { fixedPlusFivePercent.feeFor(Amount.of(3000, Currency("USD"))) }
+        assertFailsWith<PaymentDomainException.CurrencyMismatchException> {
+            fixedPlusFivePercent.feeFor(Amount.of(3000, Currency("USD")))
+        }
     }
 }

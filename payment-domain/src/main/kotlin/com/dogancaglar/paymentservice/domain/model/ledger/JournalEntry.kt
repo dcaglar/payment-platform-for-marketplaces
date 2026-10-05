@@ -1,6 +1,8 @@
 package com.dogancaglar.paymentservice.domain.model.ledger
 
+import com.dogancaglar.paymentservice.domain.exception.LedgerDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
+import com.dogancaglar.paymentservice.domain.model.common.require
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
 import com.dogancaglar.paymentservice.domain.model.vo.TxId
 
@@ -33,21 +35,31 @@ class JournalEntry private constructor(
 
     init {
         require(postings.size >= 2) {
-            "JournalEntry must have at least 2 postings, but had ${postings.size}"
+            LedgerDomainException.LessThanTwoPostingsInJournalException(
+                "JournalEntry must have at least 2 postings, but had ${postings.size}"
+            )
         }
         val totalDebit = postings.filterIsInstance<Posting.Debit>().sumOf { it.amount.quantity }
         val totalCredit = postings.filterIsInstance<Posting.Credit>().sumOf { it.amount.quantity }
         require(totalDebit == totalCredit) {
-            "Unbalanced JournalEntry [$id]: debits=$totalDebit, credits=$totalCredit"
+            LedgerDomainException.UnbalancedJournalEntryException(
+                "Unbalanced JournalEntry [$id]: debits=$totalDebit, credits=$totalCredit"
+            )
         }
-        require(globalJournalEntryId > 0)
+        require(globalJournalEntryId > 0) {
+            LedgerDomainException.InvariantViolationException(
+                "globalJournalEntryId must be positive, was $globalJournalEntryId"
+            )
+        }
         val duplicates = postings
             .groupingBy { it.account.accountCode }
             .eachCount()
             .filterValues { it > 1 }
             .keys
         require(duplicates.isEmpty()) {
-            "JournalEntry [$id] contains duplicate accounts: ${duplicates.joinToString(", ")}"
+            LedgerDomainException.DuplicateAccountInJournalException(
+                "JournalEntry [$id] contains duplicate accounts: ${duplicates.joinToString(", ")}"
+            )
         }
     }
 
@@ -273,7 +285,9 @@ class JournalEntry private constructor(
             reason: String? = "CommFeeRegistered"
         ): List<JournalEntry> {
             require(feeReserveAccount.type == LedgerAccountType.PLATFORM_FEE_RESERVE) {
-                "Target must be a tenant fee reserve account: ${feeReserveAccount.accountCode}"
+                LedgerDomainException.InvariantViolationException(
+                    "Target must be a tenant fee reserve account: ${feeReserveAccount.accountCode}"
+                )
             }
 
             return listOf(
@@ -321,10 +335,14 @@ class JournalEntry private constructor(
 
         ): List<JournalEntry> {
             require(feeReserveAccount.type == LedgerAccountType.PLATFORM_FEE_RESERVE) {
-                "Source must be a tenant fee reserve account: ${feeReserveAccount.accountCode}"
+                LedgerDomainException.InvariantViolationException(
+                    "Source must be a tenant fee reserve account: ${feeReserveAccount.accountCode}"
+                )
             }
             require(platformRevenue.type == LedgerAccountType.PLATFORM_REVENUE) {
-                "Destination must be global platform revenue: ${platformRevenue.accountCode}"
+                LedgerDomainException.InvariantViolationException(
+                    "Destination must be global platform revenue: ${platformRevenue.accountCode}"
+                )
             }
 
             return listOf(

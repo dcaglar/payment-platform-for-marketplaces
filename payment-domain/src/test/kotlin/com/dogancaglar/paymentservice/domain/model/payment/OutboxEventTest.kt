@@ -1,6 +1,7 @@
 package com.dogancaglar.paymentservice.domain.model.payment
 
 import com.dogancaglar.common.time.Utc
+import com.dogancaglar.paymentservice.domain.exception.OutboxEventDomainException
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
@@ -66,7 +67,7 @@ class OutboxEventTest {
     fun `markAsProcessing should throw exception when status is not NEW`() {
         val outboxEvent = createDefaultEvent().markAsSent()
 
-        val exception = assertThrows(IllegalArgumentException::class.java) {
+        val exception = assertThrows(OutboxEventDomainException.InvalidStateTransitionException::class.java) {
             outboxEvent.markAsProcessing()
         }
 
@@ -77,7 +78,7 @@ class OutboxEventTest {
     fun `markAsSent should throw exception when status is SENT`() {
         val outboxEvent = createDefaultEvent().markAsSent()
 
-        val exception = assertThrows(IllegalArgumentException::class.java) {
+        val exception = assertThrows(OutboxEventDomainException.InvalidStateTransitionException::class.java) {
             outboxEvent.markAsSent()
         }
 

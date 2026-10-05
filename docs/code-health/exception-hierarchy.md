@@ -35,52 +35,39 @@ POST /payments          1. DTO validation (Bean Validation)          ← client 
 
 ## The hierarchy
 
-All in `payment-domain` (`domain/exception`, plain Kotlin, no framework).
+All in `payment-domain` (`domain/exception`, plain Kotlin, no framework). Every `*DomainException` is non-retryable
+(→ 500 at the API, DLQ in Kafka), except where an API handler maps a client-input subtype to 400 (accounts).
 
 ```
 RuntimeException
-└── PaymentPlatformException (abstract)                  everything we throw on purpose
-    ├── RetryableException (abstract)                     not done, may work later: retry
-    │   ├── PspTransientException            ┐ also ExternalPspException (interface): every PSP failure
-    │   ├── PspUnknownException              ┘ carries operation (PspOperation) + paymentIntentId
+└── PaymentPlatformException (abstract)
+    ├── RetryableException (abstract)
+    │   ├── PspTransientException, PspUnknownException     (also ExternalPspException: operation + paymentIntentId)
     │   ├── IdempotencyKeyInProgressException
     │   └── PaymentNotReadyException
-    └── NonRetryableException (abstract)                  won't work on retry
-        ├── PspPermanentException            ─ also ExternalPspException
-        ├── IdempotencyKeyReusedException
-        ├── PaymentIntentNotFoundException   (and the 404s of the back office)
-        ├── RequestValidationException (sealed)           the caller is wrong → 400
-        │   ├── PspInvalidPaymentException                payment method can't be sent to the PSP
-        │   └── … one subtype per kind of input rule (phase 2: accounts, PaymentValidator)
-        ├── PaymentDomainException (sealed)               a domain rule was violated: our bug → 500 / DLQ
-        │   ├── InvariantViolationException                        a required value missing / wrong (merchantAccount blank,
-        │   │                                             totalAmount ≤ 0, pspReference rules, no UNMATCHED capture)
-        │   ├── InvalidStateTransitionException                    the state machine doesn't allow this status change
-        │   ├── CaptureLimitExceededException             capture would exceed the total
-        │   ├── RefundLimitExceededException              refund would exceed what was captured (or nothing was)
-        │   ├── InvalidCaptureAmountException             capture amount ≤ 0 / captured amount negative
-        │   ├── InvalidRefundAmountException              refund amount ≤ 0 / refunded amount negative
-        │   ├── CurrencyMismatchException                 two amounts in different currencies
-        │   ├── InvalidAmountException                    Amount.of: quantity must be > 0
-        │   ├── InvalidCurrencyException                  Currency: not 3 capital letters
-        │   └── SplitValidationException                  splits missing / mixed currencies / don't sum to the total
-        └── LedgerException (sealed)                      (phase 4) the ledger code is wrong: page someone
-            ├── UnbalancedJournalEntryException
-            ├── LessThanTwoPostingsInJournalException
-            └── DuplicateAccountInJournalException
+    └── NonRetryableException (abstract)
+        ├── PspPermanentException                           (also ExternalPspException)
+        ├── IdempotencyKeyReusedException, PaymentIntentNotFoundException (+ back-office not-found)
+        ├── RequestValidationException (sealed)             → PspInvalidPaymentException
+        ├── PaymentDomainException (sealed)                 Payment, PaymentIntent, Amount, Currency, PaymentSplit,
+        │       InvariantViolationException, InvalidStateTransitionException,   CardSummary, Tx (capture reconciliation)
+        │       CaptureLimitExceededException, RefundLimitExceededException,
+        │       InvalidCaptureAmountException, InvalidRefundAmountException, CurrencyMismatchException,
+        │       InvalidAmountException, InvalidCurrencyException, SplitValidationException,
+        │       PaymentNotFoundException, CaptureTxNotFoundException
+        ├── InternalTransferDomainException (sealed)        InternalTransfer
+        │       TransferNotFoundException, InvariantViolationException, InvalidStateTransitionException
+        ├── AccountDomainException (sealed)                 MerchantAccount, Address, PlatformFee, SellerAccount
+        │       MerchantAccountNotFoundException, InvariantViolationException (→ 400 in the account API)
+        ├── LedgerDomainException (sealed)                  JournalEntry, LedgerAccount
+        │       UnbalancedJournalEntryException, LessThanTwoPostingsInJournalException,
+        │       DuplicateAccountInJournalException, InvariantViolationException
+        └── OutboxEventDomainException (sealed)             OutboxEvent
+                InvalidStateTransitionException
 ```
 
-- `ExternalPspException` is an **interface** (Kotlin has one parent class; the parent carries the retry meaning). It
-  guarantees that every PSP failure says **which operation** (`PspOperation`: CREATE_INTENT, AUTHORIZE,
-  RETRIEVE_CLIENT_SECRET, CAPTURE, REFUND) failed **for which payment**, and gives every message the same start
-  (`PSP AUTHORIZE for paymentIntentId=…: …`).
-- `PaymentPlatformException`, `RetryableException` and `NonRetryableException` are `abstract`, not `sealed`: modules
-  other than `payment-domain` (e.g. the back office's not-found exceptions in payment-consumers) must be able to extend
-  them. The families below them are `sealed`.
-- `PaymentDomainException`'s subtypes are nested classes (`PaymentDomainException.InvalidStateTransitionException`), so the
-  family is visible at every throw and catch site. It replaces the per-rule types planned earlier
-  (`InvalidTransitionException`, `CurrencyMismatchException`, `MaxAmountExceeded…`, `PaymentInvariantException`,
-  `PaymentIntentInvariantException`, `NonPositiveAmountException`).
+Every `require` in `payment-domain` (87) goes through `Preconditions.kt` and throws one of these. Each file imports our
+`require`, so a rule passing a plain message no longer compiles.
 
 ## Throwing: `require` with our own exception (`domain/model/common/Preconditions.kt`)
 
@@ -150,19 +137,14 @@ The Kafka error handler needs one line for all of them: `addNotRetryableExceptio
 **Stays Kotlin's `require` / `check` / `error`:** only true "can't happen" checks in technical code (e.g.
 `PaymentTxEntityMapper`'s unknown tx type, a simulator's missing scenario).
 
-## Phases (each one tested: unit + integration + e2e)
+## Status
 
-1. **The hierarchy**: `PaymentPlatformException` → `RetryableException` / `NonRetryableException`, today's exceptions
-   re-parented, PSP exceptions with `operation` + `paymentIntentId`, Kafka error handler and controller advice by
-   family. **Done 2026-10-05.**
-1b. **`PaymentDomainException` + `Preconditions.kt`** for `Payment`, `PaymentIntent`, `Amount`, `Currency`; tests assert
-   the exact subtype; authorize: `PspUnknownException` stays `PENDING_AUTH` (202) instead of going back to `CREATED`.
-   **Done 2026-10-05** (389 tests + e2e green).
-2. **`RequestValidationException`**: account objects, `PaymentValidator`.
-3. **Remaining transitions**: `InternalTransfer`, `Tx.CaptureTx`, `OutboxEvent`.
-4. **`LedgerException`** family.
-5. **Callers**: remove the remaining `catch (e: Exception)` and the consumers' log-and-rethrow (step-4 X-ray; log once in
-   the Kafka recoverer).
+- **Done (2026-10-05):** the hierarchy; PSP exceptions; every domain rule in `payment-domain` through `Preconditions.kt`
+  and the families above; "not found" lookups in the services (payment, capture tx, transfer, merchant) as domain
+  exceptions (non-retryable → DLQ, no longer retried 5×); no generic / swallowed catches left.
+- **Still `error(…)` on purpose:** `TransactionRepositoryAdapter` (must stay retryable), simulator config, Redis id
+  generation, `PaymentTxEntityMapper`'s unknown tx type (technical "can't happen").
+- **Open:** `PaymentValidator` → `RequestValidationException`; the callers' remaining decisions (step-4 X-ray).
 
 ## Open
 

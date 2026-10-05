@@ -1,6 +1,8 @@
 package com.dogancaglar.paymentservice.domain.model.payment
 
 import com.dogancaglar.common.time.Utc
+import com.dogancaglar.paymentservice.domain.exception.OutboxEventDomainException
+import com.dogancaglar.paymentservice.domain.model.common.require
 import java.time.LocalDateTime
 
 /**
@@ -24,14 +26,18 @@ class OutboxEvent private constructor(
     /** Domain-safe transitions */
     fun markAsProcessing(): OutboxEvent {
         require(status == Status.NEW) {
-            "Invalid transition from $status to ${Status.PROCESSING}"
+            OutboxEventDomainException.InvalidStateTransitionException(
+                "Invalid transition from $status to ${Status.PROCESSING}"
+            )
         }
         return copy(status = Status.PROCESSING)
     }
 
     fun markAsSent(): OutboxEvent {
         require(status == Status.NEW || status == Status.PROCESSING) {
-            "Invalid transition from $status to ${Status.SENT}"
+            OutboxEventDomainException.InvalidStateTransitionException(
+                "Invalid transition from $status to ${Status.SENT}"
+            )
         }
         return copy(status = Status.SENT)
     }

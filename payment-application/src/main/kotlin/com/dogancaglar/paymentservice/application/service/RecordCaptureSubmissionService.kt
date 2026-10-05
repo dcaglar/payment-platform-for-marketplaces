@@ -3,6 +3,8 @@ package com.dogancaglar.paymentservice.application.service
 import com.dogancaglar.paymentservice.application.events.CaptureConfirmed
 import com.dogancaglar.paymentservice.application.events.CaptureSubmitted
 import com.dogancaglar.paymentservice.application.events.SettlementReceived
+import com.dogancaglar.paymentservice.domain.exception.AccountDomainException
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.ledger.Tx
@@ -33,7 +35,7 @@ open class RecordCaptureSubmissionService(
     override fun recordSubmission(event: CaptureSubmitted, parentEventId: String) {
         val paymentIntentId = PaymentIntentId(event.paymentIntentId.toLongOrNull() ?: 0L)
         val payment = paymentRepository.findByPaymentIntentId(paymentIntentId)
-            ?: error("Payment context aggregate absent for paymentIntentId=${event.paymentIntentId}")
+            ?: throw PaymentDomainException.PaymentNotFoundException("paymentIntentId=${event.paymentIntentId}")
 
         // 1. Advance aggregate state mutations
         val updatedPayment = payment.markSentForSettle()
@@ -59,7 +61,7 @@ open class RecordCaptureSubmissionService(
 
         // 4. An auto-settled merchant has no acquirer: its capture confirmation and settlement are simulated here
         val merchant = merchantAccountRepository.findByCode(event.merchantAccount)
-            ?: error("Merchant account absent for merchantAccount=${event.merchantAccount}")
+            ?: throw AccountDomainException.MerchantAccountNotFoundException("merchantAccount=${event.merchantAccount}")
         val outboxEvents = mutableListOf<OutboxEvent>()
         if (merchant.isAutoSettled) {
             logger.debug(

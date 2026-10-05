@@ -61,7 +61,6 @@
     <ID>MaxLineLength:MerchantAccount.kt$MerchantAccount.Companion$return MerchantAccount(accountCode, status, legalName, address, industry, currency, isAutoCaptured, isAutoSettled, platformFee)</ID>
     <ID>MaxLineLength:MerchantAccount.kt$PlatformFee$"Payment currency ${amount.currency.currencyCode} differs from the platform fee currency ${fixed.currency.currencyCode}"</ID>
     <ID>MaxLineLength:OutboxEvent.kt$OutboxEvent$return "OutboxEvent(oeid=$oeid, eventType='$eventType', aggregateId='$aggregateId', '$aggregateId' payload='$payload', status=$status, createdAt=$createdAt, updatedAt=$updatedAt)"</ID>
-    <ID>MaxLineLength:Tx.kt$Tx.CaptureTx$"to $newSettleStatus because it has already cleared out of UNMATCHED (Current status: ${this.settleStatus})"</ID>
     <ID>MaxLineLength:Tx.kt$Tx.Companion$val derivedStatus = if (grossAmount == originalCaptureAmount) SettleStatus.MATCHED else SettleStatus.DISCREPANCY</ID>
     <ID>MaxLineLength:Tx.kt$Tx.SettleTx$val grossAmount: Amount</ID>
     <ID>TooManyFunctions:PaymentIntent.kt$PaymentIntent</ID>
