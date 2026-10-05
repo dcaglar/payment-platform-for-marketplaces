@@ -1,6 +1,10 @@
 package com.dogancaglar.paymentservice.domain.model.common
 
-import org.junit.jupiter.api.Assertions.*
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class AmountTest {
@@ -22,7 +26,7 @@ class AmountTest {
 
     @Test
     fun `should reject Amount with zero value`() {
-        val exception = assertThrows(IllegalArgumentException::class.java) {
+        val exception = assertThrows(PaymentDomainException.InvalidAmountException::class.java) {
             Amount.of(0L, Currency("USD"))
         }
         assertTrue(exception.message?.contains("must be greater than zero") == true)
@@ -110,7 +114,7 @@ class AmountTest {
 
     @Test
     fun `should reject negative values`() {
-        val exception = assertThrows(IllegalArgumentException::class.java) {
+        val exception = assertThrows(PaymentDomainException.InvalidAmountException::class.java) {
             Amount.of(-10000L, Currency("USD"))
         }
         assertTrue(exception.message?.contains("must be greater than zero") == true)

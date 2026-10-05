@@ -1,8 +1,9 @@
 # Code quality and security checks
 
-Three free, open-source tools check the code. Each one has a **baseline**: the findings that already existed when
-the tool was introduced (2026-10-04) are listed in a file and ignored. **Only new findings fail.** Old ones are
-cleaned up step by step: fix it, then remove it from the baseline.
+Three free, open-source tools check the code. Each one has a **baseline**: a file listing the findings that are
+still in the code. They are tolerated for now so the build stays green, and are being fixed step by step; it's a
+to-do list, not a list of accepted problems. **Any finding not in the baseline fails.** Fix one, then remove it
+from the baseline: the baselines only shrink.
 
 | Tool | Checks | Runs in | Baseline |
 |---|---|---|---|
@@ -32,8 +33,9 @@ excalidraw.com (Open → choose the file).
   copy is switched off so a finding isn't reported twice.
 - Plugin setup: root [`pom.xml`](../pom.xml) (`detekt-maven-plugin`). The `no-sources` profile turns detekt off
   for modules without Kotlin (the root aggregator pom).
-- The baselines were generated from the last commit, so findings in uncommitted local changes are **not** in
-  them: those must be fixed before `mvn verify` passes again.
+- Switched off on purpose: `InstanceOfCheckForException`. Our standard for handling exceptions is to catch the sealed
+  family once and branch with an exhaustive `when (e) { is A, is B -> … }`, which is exactly what that rule flags.
+  See [code-health/exception-hierarchy.md](code-health/exception-hierarchy.md).
 
 ### Check or fix only your local changes
 [`infra/scripts/detekt-changed.sh`](../infra/scripts/detekt-changed.sh) runs detekt on only the Kotlin files you
@@ -49,19 +51,14 @@ findings left ends in `BUILD FAILURE`; that's expected, the fixes are written to
 
 ### Other detekt commands
 ```bash
-mvn -pl payment-domain detekt:check              # check one module (its baseline applies)
-mvn -pl payment-domain detekt:create-baseline    # regenerate one module's baseline
+mvn -pl payment-domain detekt:check    # check one module (its baseline applies)
 ```
 Don't run `detekt:check` without `-pl` from the root: the root pom has no sources and no baseline, so it fails
 there. `mvn verify` handles that by itself.
 
-### Cleaning up old findings
-Step by step, per module: [fixing-detekt-baseline.md](fixing-detekt-baseline.md). In short:
-1. See them: `mvn -pl <module> detekt:check -Ddetekt.baselineFile=` (empty = ignore the baseline for this run).
-2. Fix them in the code.
-3. Regenerate that module's baseline: `mvn -pl <module> detekt:create-baseline`; commit both.
-
-Never regenerate a baseline to make a **new** finding go away: fix it instead.
+### Working through the baseline
+To fix the findings in the baselines (see them, fix, regenerate the baseline, track progress), see
+[fixing-detekt-baseline.md](fixing-detekt-baseline.md).
 
 ### IntelliJ plugin (optional)
 Settings → Plugins → Marketplace → **detekt** → Install. Then Settings → Tools → detekt:
@@ -69,8 +66,8 @@ Settings → Plugins → Marketplace → **detekt** → Install. Then Settings �
 - Configuration file: `config/detekt/detekt.yml`
 
 Findings are underlined while you type; right-click → **Refactor → AutoCorrect by detekt rules** fixes the
-formatting of a file. The plugin takes a single baseline file, so it may also show findings that the module's
-baseline ignores. `mvn verify` decides what fails.
+formatting of a file. The plugin takes a single baseline file, so it may also show findings that are in the
+module's baseline (still to fix, but not failing the build). `mvn verify` decides what fails.
 
 ---
 
@@ -113,7 +110,7 @@ On a push to `feature/**`, `fix/**`, `hotfix/**` and on a PR to `main`:
 | Job | Runs | Includes |
 |---|---|---|
 | `unit-tests` | `mvn clean test` | unit tests |
-| `security-scan` (in parallel) | `infra/scripts/security-scan.sh` | gitleaks + Trivy |
+| `security-scan` (in parallel) | `mvn install -DskipUnitTests=true -DskipITs` (fills `~/.m2` for Trivy, runs no tests), then `infra/scripts/security-scan.sh` | gitleaks + Trivy |
 | `integration-tests` (after unit-tests) | `mvn clean verify` | integration tests + **detekt** |
 | `e2e-acceptance` (after integration-tests, PR only) | `mvn verify -f e2e-tests/pom.xml` | e2e tests + detekt |
 
@@ -122,7 +119,19 @@ Settings → Code security:
 - **Dependabot alerts** and **Dependabot security updates**: PRs that bump vulnerable dependencies.
 - **Secret scanning** and **Push protection**: GitHub blocks a push that contains a known secret format.
 
+## IntelliJ inspections (not detekt)
+
+IntelliJ runs its own Kotlin inspections, separate from detekt and CI: in the editor, in **Code → Inspect Code**, in
+the *Problems* tool window, and on commit when the Commit window's **Analyze code** check is on (it lists the warnings
+per committed file). They overlap with detekt, but also see what detekt can't: e.g. unused **public** functions
+("Function … is never used"), redundant modifiers, redundant SAM constructors. They are warnings only and don't block
+the build; `mvn verify` decides what fails.
+
+Note for the root `pom.xml`: Surefire's `skipTests` is bound to our own `skipUnitTests` property, so a plain
+`-DskipTests` does **not** skip unit tests. To build without running tests: `-DskipUnitTests=true -DskipITs`.
+Not `-Dmaven.test.skip=true`: it doesn't build test jars, and `payment-application` needs `common-test`'s test jar.
+
 ## Not covered
 - **Unused public functions / classes across modules:** detekt only sees private code. Use IntelliJ:
-  Code → Inspect Code → "Unused declaration".
+  Code → Inspect Code → "Unused declaration" (see above).
 - **Spring-specific checks:** no good free tool for Spring in Kotlin.

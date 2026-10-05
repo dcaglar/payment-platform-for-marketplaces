@@ -1,7 +1,7 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
-import com.dogancaglar.port.out.web.dto.BalanceDto
-import com.dogancaglar.port.out.web.dto.PageDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.BalanceDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PageDto
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
@@ -18,7 +18,8 @@ import org.springframework.web.bind.annotation.RestController
  *   - a seller (claim seller_id): its own balance;
  *   - a merchant (claim merchant_id): its own balance, its sellers, one of its sellers (another merchant's: 404);
  *   - staff (merchant:all): the balance and the sellers of the merchant named in the path, any seller.
- * URL convention (also TransactionController): /<api>/merchants/me… = the token's merchant, /<api>/merchants/{merchantAccount}… = staff.
+ * URL convention (also TransactionController): /<api>/merchants/me… = the token's merchant,
+ * /<api>/merchants/{merchantAccount}… = staff.
  * See new-backoffice.md, "Security".
  */
 @RestController

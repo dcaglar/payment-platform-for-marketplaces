@@ -1,13 +1,16 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
-import com.dogancaglar.common.db.converter.LedgerEntitiyMapper
+import com.dogancaglar.common.db.converter.OutboxEventEntityMapper
 import com.dogancaglar.common.db.converter.PaymentEntityMapper
 import com.dogancaglar.common.db.converter.PaymentTxEntityMapper
+import com.dogancaglar.common.db.converter.TransferEntityMapper
 import com.dogancaglar.paymentservice.application.dto.PaymentSplitDto
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
 import com.dogancaglar.paymentservice.domain.model.ledger.Tx
+import com.dogancaglar.paymentservice.domain.model.payment.InternalTransfer
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.paymentservice.domain.model.payment.Payment
+import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.converter.LedgerEntityMapper
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.CentralOutboxWriterMapper
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.LedgerMapper
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.PaymentMapper
@@ -72,11 +75,11 @@ open class CentralDbTransactionalFacadeAdapter(
 
     @Transactional(timeout = 5)
     override fun recordInternalTransferOperationInLedger(
-        internalTransfer: com.dogancaglar.paymentservice.domain.model.payment.InternalTransfer,
+        internalTransfer: InternalTransfer,
         journalEntries: List<JournalEntry>,
         outboxEvents: List<OutboxEvent>
     ) {
-        val transferEntity = com.dogancaglar.common.db.converter.TransferEntityMapper.toEntity(internalTransfer)
+        val transferEntity = TransferEntityMapper.toEntity(internalTransfer)
         transferMapper.upsert(transferEntity)
         saveJournalAndOutbox(journalEntries, outboxEvents)
     }
@@ -88,7 +91,7 @@ open class CentralDbTransactionalFacadeAdapter(
         if (journalEntries.isNotEmpty()) {
             journalEntries.forEach { entry ->
                 // 1. Insert journal entry (idempotent via ON CONFLICT)
-                val journalEntity = LedgerEntitiyMapper.toJournalEntryEntity(entry)
+                val journalEntity = LedgerEntityMapper.toJournalEntryEntity(entry)
                 val journalInserted = ledgerMapper.insertJournalEntry(journalEntity)
                 if (journalInserted == 0) {
                     logger.debug("🟦 Duplicate journal entry id={} — skipping insert", journalEntity.id)
@@ -96,7 +99,7 @@ open class CentralDbTransactionalFacadeAdapter(
                 }
 
                 // 2. Insert postings
-                LedgerEntitiyMapper.toPostingEntities(entry).forEach { posting ->
+                LedgerEntityMapper.toPostingEntities(entry).forEach { posting ->
                     ledgerMapper.insertPosting(posting)
                 }
 
@@ -106,9 +109,11 @@ open class CentralDbTransactionalFacadeAdapter(
         }
 
         if (outboxEvents.isNotEmpty()) {
-            val outboxEntities = outboxEvents.map { com.dogancaglar.common.db.converter.OutboxEventEntityMapper.toEntity(
-                it
-            ) }
+            val outboxEntities = outboxEvents.map {
+                OutboxEventEntityMapper.toEntity(
+                    it
+                )
+            }
             centralOutboxWriterMapper.insertAllOutboxEvents(outboxEntities)
             logger.info("💾 Outbox batch persisted with {} events", outboxEvents.size)
         }

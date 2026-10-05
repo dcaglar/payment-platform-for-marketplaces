@@ -19,7 +19,10 @@ class GlobalExceptionHandler {
         logger.warn("Malformed JSON request: {}", ex.message)
 
         // Custom message for our specific polymorphic type failure requirement
-        val errorMessage = if (ex.message?.contains("Could not resolve type id") == true || ex.message?.contains("Invalid type id") == true) {
+        val errorMessage = if (
+            ex.message?.contains("Could not resolve type id") == true ||
+            ex.message?.contains("Invalid type id") == true
+        ) {
             "Invalid type parameter provided for PaymentSplit. Supported types are: Commission, BalanceAccount."
         } else {
             "Malformed JSON request."

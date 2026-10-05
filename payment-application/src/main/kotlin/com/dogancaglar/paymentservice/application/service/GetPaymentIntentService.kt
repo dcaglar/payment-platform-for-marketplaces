@@ -1,7 +1,8 @@
 package com.dogancaglar.paymentservice.application.service
 
 import com.dogancaglar.paymentservice.application.command.GetPaymentIntentCommand
-import com.dogancaglar.paymentservice.domain.exception.PaymentIntentNotFoundException
+import com.dogancaglar.paymentservice.domain.exception.PaymentIntentDomainException
+import com.dogancaglar.paymentservice.domain.exception.PspOperation
 import com.dogancaglar.paymentservice.domain.exception.PspTransientException
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntentStatus
@@ -21,7 +22,9 @@ class GetPaymentIntentService(
 
     override fun getPaymentIntent(cmd: GetPaymentIntentCommand): PaymentIntent {
         val paymentIntent = paymentIntentRepository.findByIdForMerchant(cmd.paymentIntentId, cmd.merchantAccount)
-            ?: throw PaymentIntentNotFoundException("PaymentIntent ${cmd.paymentIntentId.value} not found")
+            ?: throw PaymentIntentDomainException.PaymentIntentNotFoundException(
+                "PaymentIntent ${cmd.paymentIntentId.value} not found"
+            )
 
         // The client secret (never persisted) is only needed to show the card form, i.e. while CREATED.
         // Every other status is answered from our database only, so polling does not add PSP calls.
@@ -32,13 +35,14 @@ class GetPaymentIntentService(
         // PSP errors go to the caller: without the secret the card form cannot be shown
         val clientSecret = resilientExecutionPort.executeWithTimeoutAndBackgroundFallback(
             primaryTask = {
-                pspAuthGatewayPort.retrieveClientSecret(paymentIntent.pspReferenceOrThrow())!!
+                pspAuthGatewayPort.retrieveClientSecret(paymentIntent)!!
             },
             timeoutMs = 2000,
             onTimeoutFallback = {
                 throw PspTransientException(
-                    "Timed out retrieving the client secret for ${cmd.paymentIntentId.value}",
-                    null
+                    PspOperation.RETRIEVE_CLIENT_SECRET,
+                    cmd.paymentIntentId.value,
+                    "no answer within 2000 ms"
                 )
             },
             // a late answer is not needed: the client retries the GET

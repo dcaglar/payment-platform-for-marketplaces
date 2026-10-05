@@ -34,12 +34,10 @@ data class Transaction(
 ) {
     /** What the back office shows as the status: the furthest step reached. */
     fun status(): PaymentStatus {
-        if (settledAt != null) {
-            return PaymentStatus.SETTLED
+        return when {
+            settledAt != null -> PaymentStatus.SETTLED
+            capturedAt != null -> PaymentStatus.CAPTURED
+            else -> PaymentStatus.AUTHORIZED
         }
-        if (capturedAt != null) {
-            return PaymentStatus.CAPTURED
-        }
-        return PaymentStatus.AUTHORIZED
     }
 }

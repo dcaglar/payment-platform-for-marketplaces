@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.kafka
 
+import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.metadata.EventMetaDataRegistry
 import com.dogancaglar.common.kafka.metadata.PaymentEventMetadataCatalog
 import com.dogancaglar.common.kafka.publisher.RawEventPublisher
@@ -8,7 +9,9 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.kafka.support.SendResult
@@ -54,7 +57,7 @@ class RawEventPublisherTest {
         val record = recordSlot.captured
         assertEquals("pk-payment-7", record.key())
         assertEquals(
-            registry.metadataFor<com.dogancaglar.common.event.Event>("payment_authorized").topic,
+            registry.metadataFor<Event>("payment_authorized").topic,
             record.topic()
         )
         assertTrue(record.topic().isNotBlank())

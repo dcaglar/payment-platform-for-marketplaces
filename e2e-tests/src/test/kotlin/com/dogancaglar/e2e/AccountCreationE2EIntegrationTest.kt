@@ -57,7 +57,8 @@ class AccountCreationE2EIntegrationTest {
         // ---- A1: the request is in the central outbox ---------------------------
         await().atMost(relayed).pollInterval(poll).untilAsserted {
             val payload = centralScalar(
-                "SELECT payload FROM outbox_event WHERE event_type='account_creation_requested' AND aggregate_id='$merchant'"
+                "SELECT payload FROM outbox_event WHERE event_type='account_creation_requested' AND " +
+                    "aggregate_id='$merchant'"
             )
             assertThat(payload).isNotNull()
             val data = E2eSupport.mapper.readTree(payload).get("data")
@@ -73,7 +74,8 @@ class AccountCreationE2EIntegrationTest {
         await().atMost(relayed).pollInterval(poll).untilAsserted {
             assertThat(
                 centralScalar(
-                    "SELECT status FROM outbox_event WHERE event_type='account_creation_requested' AND aggregate_id='$merchant'"
+                    "SELECT status FROM outbox_event WHERE event_type='account_creation_requested' AND " +
+                        "aggregate_id='$merchant'"
                 )
             )
                 .isEqualTo("SENT")
@@ -83,8 +85,9 @@ class AccountCreationE2EIntegrationTest {
         await().atMost(created).pollInterval(poll).untilAsserted {
             assertThat(
                 centralRows(
-                    "SELECT kind || '|' || status || '|' || currency || '|' || is_auto_captured || '|' || is_auto_settled || '|' || " +
-                        "platform_fee_fixed || '|' || platform_fee_bps || '|' || (profile->>'legalName') || '|' || (profile->'address'->>'country') " +
+                    "SELECT kind || '|' || status || '|' || currency || '|' || is_auto_captured || '|' || " +
+                        "is_auto_settled || '|' || platform_fee_fixed || '|' || platform_fee_bps || '|' || " +
+                        "(profile->>'legalName') || '|' || (profile->'address'->>'country') " +
                         "FROM accounts WHERE account_code='$merchant'"
                 )
             ).containsExactly("MERCHANT|ACTIVE|EUR|true|false|30|150|Marketplace E2E One B.V.|NL")
@@ -159,7 +162,8 @@ class AccountCreationE2EIntegrationTest {
         await().atMost(relayed).pollInterval(poll).untilAsserted {
             assertThat(
                 centralCount(
-                    "SELECT count(*) FROM outbox_event WHERE event_type='account_creation_requested' AND aggregate_id='$merchant' AND status='SENT'"
+                    "SELECT count(*) FROM outbox_event WHERE event_type='account_creation_requested' AND " +
+                        "aggregate_id='$merchant' AND status='SENT'"
                 )
             )
                 .isEqualTo(2L)

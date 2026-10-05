@@ -22,6 +22,7 @@ data class JournalEntryEventData private constructor(
     val postings: List<PostingEventData>
 ) {
     companion object {
+        @Suppress("LongParameterList") // one argument per event field
         fun create(
             journalEntryId: String,
             globalJournalEntryId: Long,

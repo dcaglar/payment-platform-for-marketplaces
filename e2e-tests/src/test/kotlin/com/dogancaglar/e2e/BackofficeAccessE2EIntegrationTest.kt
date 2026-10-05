@@ -33,8 +33,18 @@ class BackofficeAccessE2EIntegrationTest {
     fun data() {
         PlatformStack.start()
         val run = UUID.randomUUID().toString().take(8)
-        paymentOf5 = E2eSupport.authorizedPayment(E2eSupport.merchantToken("MARKETPLACE-5"), "MARKETPLACE-5", "SELLER-5-1", "ORDER-BO5-$run")
-        paymentOf1 = E2eSupport.authorizedPayment(E2eSupport.merchantToken("MARKETPLACE-1"), "MARKETPLACE-1", "SELLER-1-1", "ORDER-BO1-$run")
+        paymentOf5 = E2eSupport.authorizedPayment(
+            E2eSupport.merchantToken("MARKETPLACE-5"),
+            "MARKETPLACE-5",
+            "SELLER-5-1",
+            "ORDER-BO5-$run"
+        )
+        paymentOf1 = E2eSupport.authorizedPayment(
+            E2eSupport.merchantToken("MARKETPLACE-1"),
+            "MARKETPLACE-1",
+            "SELLER-1-1",
+            "ORDER-BO1-$run"
+        )
     }
 
     // person tokens last minutes: get a fresh one per test

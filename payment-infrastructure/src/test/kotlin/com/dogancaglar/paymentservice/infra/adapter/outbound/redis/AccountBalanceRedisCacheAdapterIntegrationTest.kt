@@ -1,6 +1,8 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.redis
 
-import org.junit.jupiter.api.Assertions.*
+import io.opentelemetry.api.OpenTelemetry
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -47,7 +49,7 @@ class AccountBalanceRedisCacheAdapterIntegrationTest {
             return AccountBalanceRedisCacheAdapter(
                 redisTemplate,
                 deltaTtlSeconds = 60,
-                openTelemetry = io.opentelemetry.api.OpenTelemetry.noop()
+                openTelemetry = OpenTelemetry.noop()
             ) // 60 seconds TTL for testing
         }
     }

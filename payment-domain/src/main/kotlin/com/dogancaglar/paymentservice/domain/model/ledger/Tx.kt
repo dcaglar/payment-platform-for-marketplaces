@@ -1,6 +1,9 @@
 package com.dogancaglar.paymentservice.domain.model.ledger
 
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
+import com.dogancaglar.paymentservice.domain.model.common.require
+import com.dogancaglar.paymentservice.domain.model.payment.Payment
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import com.dogancaglar.paymentservice.domain.model.vo.TxId
@@ -65,8 +68,10 @@ sealed class Tx {
         fun progressReconciliation(newSettleStatus: SettleStatus): CaptureTx {
             // Invariant Check: Prevent double-clearing or regression mutations
             require(this.settleStatus == SettleStatus.UNMATCHED) {
-                "Ledger Security Invariant Violation: CaptureTx [${this.txId.value}] cannot be transitioned " +
-                    "to $newSettleStatus because it has already cleared out of UNMATCHED (Current status: ${this.settleStatus})"
+                PaymentDomainException.InvalidStateTransitionException(
+                    "CaptureTx [${this.txId.value}] cannot be transitioned to $newSettleStatus: it has already " +
+                        "cleared out of UNMATCHED (current status: ${this.settleStatus})"
+                )
             }
 
             return this.copy(settleStatus = newSettleStatus)
@@ -114,7 +119,8 @@ sealed class Tx {
         override val paymentIntentId: PaymentIntentId,
         val captureTxId: TxId,
         val acquirerBatchReference: String,
-        val grossAmount: Amount, // what the PSP settled (the fee and net cash are booked in the settlement journal entry)
+        // what the PSP settled (the fee and net cash are booked in the settlement journal entry)
+        val grossAmount: Amount,
         override val amount: Amount, // Original expected capture volume
         val settleStatus: SettleStatus, // 🟢 Explicit, immutable domain property
         override val status: TxStatus = TxStatus.SUCCESS,
@@ -144,91 +150,75 @@ sealed class Tx {
     // -------------------------------------------------------------------------
     companion object {
 
-        fun createAuthTx(
-            txId: TxId,
-            paymentId: PaymentId,
-            paymentIntentId: PaymentIntentId,
-            acquirerReference: String,
-            amount: Amount,
-            status: TxStatus = TxStatus.SUCCESS
-        ): AuthorizationTx = AuthorizationTx(
+        /** The authorization of [payment]'s total amount; authorized, so SUCCESS. */
+        fun createAuthTx(txId: TxId, payment: Payment, acquirerReference: String): AuthorizationTx = AuthorizationTx(
             txId = txId,
-            paymentId = paymentId,
-            paymentIntentId = paymentIntentId,
+            paymentId = payment.paymentId,
+            paymentIntentId = payment.paymentIntentId,
             acquirerReference = acquirerReference,
-            amount = amount,
-            status = status
+            amount = payment.totalAmount,
+            status = TxStatus.SUCCESS
         )
 
+        /** A capture of [payment], sent to the PSP and not confirmed yet: PENDING. */
         fun createCaptureTx(
             txId: TxId,
-            paymentId: PaymentId,
-            paymentIntentId: PaymentIntentId,
+            payment: Payment,
             authorizationTxId: TxId,
             acquirerReference: String,
-            amount: Amount,
-            status: TxStatus = TxStatus.PENDING
+            amount: Amount
         ): CaptureTx = CaptureTx(
             txId = txId,
-            paymentId = paymentId,
-            paymentIntentId = paymentIntentId,
+            paymentId = payment.paymentId,
+            paymentIntentId = payment.paymentIntentId,
             authorizationTxId = authorizationTxId,
             acquirerReference = acquirerReference,
             amount = amount,
-            status = status
+            status = TxStatus.PENDING
         )
 
-        fun createPspFeeTx(
-            txId: TxId,
-            paymentId: PaymentId,
-            paymentIntentId: PaymentIntentId,
-            parentTxId: TxId,
-            amount: Amount,
-            status: TxStatus = TxStatus.SUCCESS
-        ): PspFeeTx = PspFeeTx(
+        /** The PSP's fee on [parentTx]; the payment and the intent are the parent's. */
+        fun createPspFeeTx(txId: TxId, parentTx: Tx, amount: Amount): PspFeeTx = PspFeeTx(
             txId = txId,
-            paymentId = paymentId,
-            paymentIntentId = paymentIntentId,
-            parentTxId = parentTxId,
+            paymentId = parentTx.paymentId,
+            paymentIntentId = parentTx.paymentIntentId,
+            parentTxId = parentTx.txId,
             amount = amount,
-            status = status
+            status = TxStatus.SUCCESS
         )
 
-        fun createRefundTx(
-            txId: TxId,
-            paymentId: PaymentId,
-            paymentIntentId: PaymentIntentId,
-            captureTxId: TxId,
-            acquirerReference: String,
-            amount: Amount,
-            status: TxStatus = TxStatus.PENDING
-        ): RefundTx = RefundTx(
-            txId = txId,
-            paymentId = paymentId,
-            paymentIntentId = paymentIntentId,
-            captureTxId = captureTxId,
-            acquirerReference = acquirerReference,
-            amount = amount,
-            status = status
-        )
+        /** A refund of [captureTx], not confirmed yet: PENDING. The payment and the intent are the capture's. */
+        fun createRefundTx(txId: TxId, captureTx: CaptureTx, acquirerReference: String, amount: Amount): RefundTx =
+            RefundTx(
+                txId = txId,
+                paymentId = captureTx.paymentId,
+                paymentIntentId = captureTx.paymentIntentId,
+                captureTxId = captureTx.txId,
+                acquirerReference = acquirerReference,
+                amount = amount,
+                status = TxStatus.PENDING
+            )
 
+        /** Settles [captureTx]: the payment, the intent and the expected amount are the capture's. */
         fun createSettleTx(
             txId: TxId,
-            paymentId: PaymentId,
-            paymentIntentId: PaymentIntentId,
-            captureTxId: TxId,
+            captureTx: CaptureTx,
             acquirerBatchReference: String,
-            grossAmount: Amount,
-            originalCaptureAmount: Amount
+            grossAmount: Amount
         ): SettleTx {
+            val originalCaptureAmount = captureTx.amount
             // 🟢 The domain logic stays encapsulated inside the domain module factory boundary
-            val derivedStatus = if (grossAmount == originalCaptureAmount) SettleStatus.MATCHED else SettleStatus.DISCREPANCY
+            val derivedStatus = if (grossAmount == originalCaptureAmount) {
+                SettleStatus.MATCHED
+            } else {
+                SettleStatus.DISCREPANCY
+            }
 
             return SettleTx(
                 txId = txId,
-                paymentId = paymentId,
-                paymentIntentId = paymentIntentId,
-                captureTxId = captureTxId,
+                paymentId = captureTx.paymentId,
+                paymentIntentId = captureTx.paymentIntentId,
+                captureTxId = captureTx.txId,
                 acquirerBatchReference = acquirerBatchReference,
                 grossAmount = grossAmount,
                 amount = originalCaptureAmount,
@@ -236,22 +226,21 @@ sealed class Tx {
             )
         }
 
+        /** A payout of [payment]'s money, not confirmed yet: PENDING. */
         fun createPayoutTx(
             txId: TxId,
-            paymentId: PaymentId,
-            paymentIntentId: PaymentIntentId,
+            payment: Payment,
             merchantEntityId: String,
             payoutBatchReference: String,
-            amount: Amount,
-            status: TxStatus = TxStatus.PENDING
+            amount: Amount
         ): PayoutTx = PayoutTx(
             txId = txId,
-            paymentId = paymentId,
-            paymentIntentId = paymentIntentId,
+            paymentId = payment.paymentId,
+            paymentIntentId = payment.paymentIntentId,
             merchantEntityId = merchantEntityId,
             payoutBatchReference = payoutBatchReference,
             amount = amount,
-            status = status
+            status = TxStatus.PENDING
         )
     }
 }

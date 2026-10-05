@@ -99,7 +99,8 @@ class MerchantApiE2EIntegrationTest {
         val splits = mutableListOf<String>()
         for (split in detail.body!!.get("splits")) {
             splits.add(
-                split.get("accountType").asText() + "|" + split.get("account").asText() + "|" + split.get("amount").get("quantity").asLong()
+                split.get("accountType").asText() + "|" + split.get("account").asText() + "|" +
+                    split.get("amount").get("quantity").asLong()
             )
         }
         assertThat(splits).containsExactlyInAnyOrder(

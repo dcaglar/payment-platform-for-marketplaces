@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.domain.model.ledger
 
+import com.dogancaglar.paymentservice.domain.exception.LedgerDomainException
 import com.dogancaglar.paymentservice.domain.model.account.AccountStatus
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import kotlin.test.Test
@@ -47,35 +48,35 @@ class LedgerAccountTest {
 
     @Test
     fun `platform type must belong to GLOBAL`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<LedgerDomainException.InvariantViolationException> {
             LedgerAccount.createNew(LedgerAccountType.PLATFORM_CASH, "MARKETPLACE-5", null, eur)
         }
     }
 
     @Test
     fun `merchant type cannot belong to GLOBAL`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<LedgerDomainException.InvariantViolationException> {
             LedgerAccount.createNew(LedgerAccountType.AUTH_RECEIVABLE, "GLOBAL", null, eur)
         }
     }
 
     @Test
     fun `merchant type cannot have a seller`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<LedgerDomainException.InvariantViolationException> {
             LedgerAccount.createNew(LedgerAccountType.MERCHANT_COMMISSION_PAYABLE, "MARKETPLACE-5", "SELLER-5-1", eur)
         }
     }
 
     @Test
     fun `seller type needs a seller`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<LedgerDomainException.InvariantViolationException> {
             LedgerAccount.createNew(LedgerAccountType.SELLER_PAYABLE, "MARKETPLACE-5", null, eur)
         }
     }
 
     @Test
     fun `owner code cannot contain the code separator`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<LedgerDomainException.InvariantViolationException> {
             LedgerAccount.createNew(LedgerAccountType.CAPTURE_SUSPENSE, "MARKET.PLACE", null, eur)
         }
     }
@@ -125,14 +126,14 @@ class LedgerAccountTest {
 
     @Test
     fun `fromCode rejects a code of another type`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<LedgerDomainException.InvariantViolationException> {
             LedgerAccount.fromCode(LedgerAccountType.SELLER_PAYABLE, "CAPTURE_SUSPENSE.MARKETPLACE-5.EUR")
         }
     }
 
     @Test
     fun `fromCode rejects a code with too few parts`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<LedgerDomainException.InvariantViolationException> {
             LedgerAccount.fromCode(LedgerAccountType.PLATFORM_CASH, "PLATFORM_CASH.EUR")
         }
     }

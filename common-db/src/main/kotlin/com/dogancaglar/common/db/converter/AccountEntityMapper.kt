@@ -15,7 +15,19 @@ import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccount
 object AccountEntityMapper {
 
     fun toEntity(platform: PlatformAccount): AccountEntity =
-        AccountEntity(platform.accountCode, "PLATFORM", platform.status.name, null, null, null, null, null, null, null, null)
+        AccountEntity(
+            platform.accountCode,
+            "PLATFORM",
+            platform.status.name,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+        )
 
     /** [profileJson] is the merchant's legal name, address and industry, already serialized by the adapter. */
     fun toEntity(merchant: MerchantAccount, profileJson: String): AccountEntity =
@@ -33,7 +45,10 @@ object AccountEntityMapper {
             profile = profileJson
         )
 
-    /** A MERCHANT row back to the domain. [legalName], [address] and [industry] come from its profile JSON, read by the adapter. */
+    /**
+     * A MERCHANT row back to the domain. [legalName], [address] and [industry] come from its profile JSON, read by the
+     * adapter.
+     */
     fun toMerchant(entity: AccountEntity, legalName: String, address: Address, industry: String): MerchantAccount {
         val currency = Currency(entity.currency!!)
         return MerchantAccount.rehydrate(
@@ -50,7 +65,19 @@ object AccountEntityMapper {
     }
 
     fun toEntity(seller: SellerAccount): AccountEntity =
-        AccountEntity(seller.accountCode, "SELLER", seller.status.name, seller.masterAccountCode, null, null, null, null, null, null, null)
+        AccountEntity(
+            seller.accountCode,
+            "SELLER",
+            seller.status.name,
+            seller.masterAccountCode,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+        )
 
     /** A ledger account hangs under its owner row: the seller for seller accounts, otherwise the merchant or GLOBAL. */
     fun toEntity(ledgerAccount: LedgerAccount): AccountEntity {

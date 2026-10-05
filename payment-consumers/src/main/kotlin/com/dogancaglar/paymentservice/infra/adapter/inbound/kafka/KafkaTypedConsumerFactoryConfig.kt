@@ -3,11 +3,12 @@ package com.dogancaglar.paymentservice.infra.adapter.inbound.kafka
 
 import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.EventEnvelope
-import com.dogancaglar.common.kafka.metadata.CONSUMER_GROUPS
+import com.dogancaglar.common.kafka.metadata.ConsumerGroups
 import com.dogancaglar.common.kafka.metadata.Topics
 import com.dogancaglar.common.kafka.serde.EventEnvelopeKafkaSerializer
 import com.dogancaglar.common.logging.GenericLogFields
 import com.dogancaglar.common.time.Utc
+import com.dogancaglar.paymentservice.domain.exception.NonRetryableException
 import io.micrometer.observation.ObservationRegistry
 import org.apache.kafka.clients.consumer.CommitFailedException
 import org.apache.kafka.clients.consumer.Consumer
@@ -20,6 +21,7 @@ import org.apache.kafka.common.errors.SerializationException
 import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.serialization.ByteArraySerializer
 import org.apache.kafka.common.serialization.StringSerializer
+import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
@@ -34,7 +36,10 @@ import org.springframework.dao.DuplicateKeyException
 import org.springframework.dao.NonTransientDataAccessException
 import org.springframework.dao.TransientDataAccessException
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory
-import org.springframework.kafka.core.*
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory
+import org.springframework.kafka.core.DefaultKafkaProducerFactory
+import org.springframework.kafka.core.KafkaTemplate
+import org.springframework.kafka.core.ProducerFactory
 import org.springframework.kafka.listener.ConsumerRecordRecoverer
 import org.springframework.kafka.listener.DefaultErrorHandler
 import org.springframework.kafka.listener.RecordInterceptor
@@ -58,7 +63,16 @@ class KafkaTypedConsumerFactoryConfig(
     @Value("\${app.kafka.concurrency.capture-commands:3}") private val captureCommandsConcurrency: Int,
     @Value("\${app.kafka.concurrency.capture-submitted:3}") private val captureSubmittedConcurrency: Int
 ) {
+    private val logger = LoggerFactory.getLogger(javaClass)
+
     companion object {
+        const val MAX_ERROR_MESSAGE_CHARS = 8_000 // DLQ header caps: no jumbo headers
+        const val MAX_ERROR_STACKTRACE_CHARS = 16_000
+        const val MAX_RETRIES = 5
+        const val RETRY_INITIAL_INTERVAL_MS = 2_000L
+        const val RETRY_MAX_INTERVAL_MS = 30_000L
+        const val POLL_TIMEOUT_MS = 1000L
+        const val IDLE_BETWEEN_POLLS_MS = 250L
         private const val HDR_VALUE_BYTES = "springDeserializerExceptionValue"
     }
 
@@ -92,6 +106,7 @@ class KafkaTypedConsumerFactoryConfig(
     }
 
     @Bean
+    @Suppress("LongMethod") // the error handler and its DLQ recoverer in one place
     fun errorHandler(
         @Qualifier("dlqKafkaTemplate") dlqTemplate: KafkaTemplate<String, ByteArray>,
         kafkaExponentialBackOff: ExponentialBackOffWithMaxRetries
@@ -99,6 +114,20 @@ class KafkaTypedConsumerFactoryConfig(
         val recoverer = ConsumerRecordRecoverer { rec, ex ->
             val src = rec.topic()
             val target = if (src.endsWith(".DLQ")) src else Topics.dlqOf(src)
+            // the one log line per failed event (consumers don't log and rethrow): which event, which payment, why
+            val envelope = rec.value() as? EventEnvelope<*>
+            logger.error(
+                "Event failed for good, sent to {}: eventType={}, eventId={}, aggregateId={}, " +
+                    "topic={}, partition={}, offset={}",
+                target,
+                envelope?.eventType,
+                envelope?.eventId,
+                envelope?.aggregateId,
+                src,
+                rec.partition(),
+                rec.offset(),
+                ex
+            )
             val key: String? = rec.key()?.toString()
 
             // Prefer original bytes captured by ErrorHandlingDeserializer
@@ -115,10 +144,10 @@ class KafkaTypedConsumerFactoryConfig(
                     "x-error-message",
                     (
                         (ex?.message ?: "")
-                            .take(8_000)
+                            .take(MAX_ERROR_MESSAGE_CHARS)
                         ).toByteArray()
                 ) // cap to avoid jumbo headers
-                add("x-error-stacktrace", stackTraceString(ex, 16_000).toByteArray())
+                add("x-error-stacktrace", stackTraceString(ex, MAX_ERROR_STACKTRACE_CHARS).toByteArray())
                 add("x-recovered-at", Utc.nowInstant().toString().toByteArray())
                 add(
                     "x-consumer-group",
@@ -165,6 +194,8 @@ class KafkaTypedConsumerFactoryConfig(
                 DuplicateKeyException::class.java,
                 DataIntegrityViolationException::class.java,
                 NonTransientDataAccessException::class.java,
+                // ours: every NonRetryableException (invalid request, invariant, transition, ledger, PSP refusal)
+                NonRetryableException::class.java,
             )
         }
     }
@@ -181,12 +212,13 @@ class KafkaTypedConsumerFactoryConfig(
 
     @Bean
     fun kafkaExponentialBackOff(): ExponentialBackOffWithMaxRetries =
-        ExponentialBackOffWithMaxRetries(5).apply {
-            initialInterval = 2_000L
+        ExponentialBackOffWithMaxRetries(MAX_RETRIES).apply {
+            initialInterval = RETRY_INITIAL_INTERVAL_MS
             multiplier = 2.0
-            maxInterval = 30_000L
+            maxInterval = RETRY_MAX_INTERVAL_MS
         }
 
+    @Suppress("LongParameterList") // one argument per consumer-group setting
     private fun <T : Event> createFactory(
         clientId: String,
         concurrency: Int,
@@ -203,10 +235,10 @@ class KafkaTypedConsumerFactoryConfig(
             consumerFactory.updateConfigs(
                 mapOf(CLIENT_ID_CONFIG to clientId)
             )
-            containerProperties.pollTimeout = 1000 // block up to 1s waiting for data
+            containerProperties.pollTimeout = POLL_TIMEOUT_MS // block up to 1s waiting for data
             containerProperties.isMicrometerEnabled = false
             containerProperties.isObservationEnabled = false
-            containerProperties.idleBetweenPolls = 250 // nap 250ms after an empty poll
+            containerProperties.idleBetweenPolls = IDLE_BETWEEN_POLLS_MS // nap 250ms after an empty poll
             @Suppress("UNCHECKED_CAST")
             setRecordInterceptor(interceptor as RecordInterceptor<String, EventEnvelope<T>>)
             setCommonErrorHandler(errorHandler)
@@ -221,7 +253,7 @@ class KafkaTypedConsumerFactoryConfig(
             }
         }
 
-    @Bean(CONSUMER_GROUPS.PSP_RESULT_CONSUMER + "-factory")
+    @Bean(ConsumerGroups.PSP_RESULT_CONSUMER + "-factory")
     fun pspResultFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -238,7 +270,7 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
-    @Bean(CONSUMER_GROUPS.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR + "-factory")
+    @Bean(ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR + "-factory")
     fun marketPlaceSplitConsumerFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -256,7 +288,7 @@ class KafkaTypedConsumerFactoryConfig(
     }
 
     @Profile("test", "local", "azure")
-    @Bean(CONSUMER_GROUPS.SETTLEMENT_RECORD_SIMULATOR + "-factory")
+    @Bean(ConsumerGroups.SETTLEMENT_RECORD_SIMULATOR + "-factory")
     fun settlementSimulatorFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -264,7 +296,7 @@ class KafkaTypedConsumerFactoryConfig(
         errorHandler: DefaultErrorHandler
     ): ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<Event>> {
         return createFactory(
-            clientId = CONSUMER_GROUPS.SETTLEMENT_RECORD_SIMULATOR,
+            clientId = ConsumerGroups.SETTLEMENT_RECORD_SIMULATOR,
             concurrency = 1,
             interceptor = interceptor,
             consumerFactory = customFactory,
@@ -273,7 +305,7 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
-    @Bean(CONSUMER_GROUPS.ACCOUNT_BALANCE_CONSUMER + "-factory")
+    @Bean(ConsumerGroups.ACCOUNT_BALANCE_CONSUMER + "-factory")
     fun journalEntriesRecordedFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -291,7 +323,7 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
-    @Bean(CONSUMER_GROUPS.CAPTURE_COMMAND_EXECUTOR + "-factory")
+    @Bean(ConsumerGroups.CAPTURE_COMMAND_EXECUTOR + "-factory")
     fun captureCommandsFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -308,7 +340,7 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
-    @Bean(CONSUMER_GROUPS.CAPTURE_SUBMITTED_CONSUMER + "-factory")
+    @Bean(ConsumerGroups.CAPTURE_SUBMITTED_CONSUMER + "-factory")
     fun captureSubmittedAcksFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -325,7 +357,7 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
-    @Bean(CONSUMER_GROUPS.TRANSACTION_CONSUMER + "-factory")
+    @Bean(ConsumerGroups.TRANSACTION_CONSUMER + "-factory")
     fun transactionConsumerFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")
@@ -342,7 +374,7 @@ class KafkaTypedConsumerFactoryConfig(
         )
     }
 
-    @Bean(CONSUMER_GROUPS.ACCOUNT_CREATION_COMMAND_EXECUTOR + "-factory")
+    @Bean(ConsumerGroups.ACCOUNT_CREATION_COMMAND_EXECUTOR + "-factory")
     fun accountCreationFactory(
         interceptor: RecordInterceptor<String, EventEnvelope<*>>,
         @Qualifier("custom-kafka-consumer-factory")

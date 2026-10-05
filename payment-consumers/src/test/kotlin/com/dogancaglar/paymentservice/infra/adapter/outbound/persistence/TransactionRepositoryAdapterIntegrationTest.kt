@@ -134,14 +134,18 @@ class TransactionRepositoryAdapterIntegrationTest {
 
     @Test
     fun `marking a transaction that was never saved fails, so the event is retried`() {
-        assertThatThrownBy { repository.markCaptured(
-            paymentId,
-            capturedAt
-        ) }.isInstanceOf(IllegalStateException::class.java)
-        assertThatThrownBy { repository.markSettled(
-            paymentId,
-            settledAt
-        ) }.isInstanceOf(IllegalStateException::class.java)
+        assertThatThrownBy {
+            repository.markCaptured(
+                paymentId,
+                capturedAt
+            )
+        }.isInstanceOf(IllegalStateException::class.java)
+        assertThatThrownBy {
+            repository.markSettled(
+                paymentId,
+                settledAt
+            )
+        }.isInstanceOf(IllegalStateException::class.java)
         assertThat(rows("SELECT payment_id::text FROM transactions")).isEmpty()
     }
 
@@ -200,12 +204,14 @@ class TransactionRepositoryAdapterIntegrationTest {
     }
 
     @Test
-    fun `the card brand and last 4 are stored and read back, and the type filter separates direct sales from marketplace`() {
+    fun `card brand and last 4 are stored and read back, the type filter separates direct sales from marketplace`() {
         val marketplacePaidByVisa = Transaction(
             paymentId = PaymentId(3001L), paymentIntentId = PaymentIntentId(3101L), publicPaymentIntentId = "pi_3001",
-            merchantAccount = "MARKETPLACE-5", buyerId = BuyerId(
+            merchantAccount = "MARKETPLACE-5",
+            buyerId = BuyerId(
                 "BUYER-1"
-            ), orderId = OrderId("ORDER-3001"), pspReference = "psp_3001",
+            ),
+            orderId = OrderId("ORDER-3001"), pspReference = "psp_3001",
             processingModel = ProcessingModel.MARKETPLACE, totalAmount = Amount.of(3000, Currency("EUR")),
             splits = listOf(
                 PaymentSplit.of(LedgerAccountType.SELLER_PAYABLE, "SELLER-5-1", Amount.of(3000, Currency("EUR")))
@@ -215,9 +221,11 @@ class TransactionRepositoryAdapterIntegrationTest {
         )
         val directSaleWithoutCard = Transaction(
             paymentId = PaymentId(3002L), paymentIntentId = PaymentIntentId(3102L), publicPaymentIntentId = "pi_3002",
-            merchantAccount = "MARKETPLACE-5", buyerId = BuyerId(
+            merchantAccount = "MARKETPLACE-5",
+            buyerId = BuyerId(
                 "BUYER-2"
-            ), orderId = OrderId("ORDER-3002"), pspReference = "psp_3002",
+            ),
+            orderId = OrderId("ORDER-3002"), pspReference = "psp_3002",
             processingModel = ProcessingModel.DIRECT_MERCHANT, totalAmount = Amount.of(5000, Currency("EUR")),
             splits = emptyList(),
             authorizedAt = Instant.parse("2026-10-02T11:01:00Z"),
@@ -270,17 +278,21 @@ class TransactionRepositoryAdapterIntegrationTest {
     private fun assertStored(captured: String, settled: String) {
         assertThat(
             rows(
-                "SELECT payment_id || '|' || public_payment_intent_id || '|' || merchant_account || '|' || buyer_id || '|' || " +
-                    "order_id || '|' || psp_reference || '|' || processing_model || '|' || total_amount || '|' || currency || '|' || " +
-                    "to_char(authorized_at, 'YYYY-MM-DD HH24:MI:SS') || '|' || to_char(captured_at, 'YYYY-MM-DD HH24:MI:SS') || '|' || " +
+                "SELECT payment_id || '|' || public_payment_intent_id || '|' || merchant_account || '|' || " +
+                    "buyer_id || '|' || order_id || '|' || psp_reference || '|' || processing_model || '|' || " +
+                    "total_amount || '|' || currency || '|' || " +
+                    "to_char(authorized_at, 'YYYY-MM-DD HH24:MI:SS') || '|' || " +
+                    "to_char(captured_at, 'YYYY-MM-DD HH24:MI:SS') || '|' || " +
                     "to_char(settled_at, 'YYYY-MM-DD HH24:MI:SS') FROM transactions"
             )
         ).containsExactly(
-            "1001|pi_AzaXVnPCAAA|MARKETPLACE-5|BUYER-1450|ORDER-1450|psp_ref_1|MARKETPLACE|3000|EUR|2026-10-02 10:00:00|$captured|$settled"
+            "1001|pi_AzaXVnPCAAA|MARKETPLACE-5|BUYER-1450|ORDER-1450|psp_ref_1|MARKETPLACE|3000|EUR|2026-10-02 " +
+                "10:00:00|$captured|$settled"
         )
         assertThat(
             rows(
-                "SELECT line_no || '|' || account_type || '|' || account || '|' || amount FROM transaction_splits ORDER BY line_no"
+                "SELECT line_no || '|' || account_type || '|' || account || '|' || amount FROM transaction_splits " +
+                    "ORDER BY line_no"
             )
         )
             .containsExactly(

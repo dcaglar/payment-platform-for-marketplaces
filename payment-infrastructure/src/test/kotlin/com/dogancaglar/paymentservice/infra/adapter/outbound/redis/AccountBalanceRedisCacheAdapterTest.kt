@@ -1,7 +1,11 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.redis
 
-import io.mockk.*
-import org.junit.jupiter.api.Assertions.*
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import io.opentelemetry.api.OpenTelemetry
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.data.redis.connection.RedisConnection
@@ -42,7 +46,7 @@ class AccountBalanceRedisCacheAdapterTest {
         every { redisTemplate.opsForSet() } returns setOperations
         every { redisTemplate.expire(any<String>(), any<Long>(), any<TimeUnit>()) } returns true
 
-        adapter = AccountBalanceRedisCacheAdapter(redisTemplate, ttlSeconds, io.opentelemetry.api.OpenTelemetry.noop())
+        adapter = AccountBalanceRedisCacheAdapter(redisTemplate, ttlSeconds, OpenTelemetry.noop())
     }
 
     @Test

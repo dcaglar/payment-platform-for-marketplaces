@@ -11,7 +11,9 @@ import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-/** One rule of BalanceService: a balance has one currency and one total, so two currencies are refused, not added up. */
+/**
+ * One rule of BalanceService: a balance has one currency and one total, so two currencies are refused, not added up.
+ */
 class BalanceServiceTest {
 
     @Test

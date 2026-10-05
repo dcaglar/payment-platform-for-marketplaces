@@ -15,7 +15,8 @@ import java.util.UUID
 
 /**
  * Finance reads a real payment's txs and journal entries through the API (/api/v1/txs/merchants/{merchantAccount}/…).
- * The amounts are the ones PaymentFlowE2EIntegrationTest verifies in the database (3000 = 1320 + 180 + 1320 + 180: 12% commission).
+ * The amounts are the ones PaymentFlowE2EIntegrationTest verifies in the database (3000 = 1320 + 180 + 1320 + 180: 12%
+ * commission).
  */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -78,7 +79,8 @@ class FinanceTxE2EIntegrationTest {
             paymentId = items.get(0).get("paymentId").asText()
         }
 
-        // the payment: its txs and all its journal entries (the allocation runs after the capture: wait for all of them)
+        // the payment: its txs and all its journal entries (the allocation runs after the capture: wait for all of
+        // them)
         val paymentUrl = "$api/txs/merchants/MARKETPLACE-5/payments/$paymentId"
         await().atMost(settlement).pollInterval(poll).untilAsserted {
             val body = E2eSupport.getJson(paymentUrl, E2eSupport.userToken("finance-ops", "finance123")).body!!
@@ -109,7 +111,8 @@ class FinanceTxE2EIntegrationTest {
             }
         }
         assertThat(txTypes).containsExactly("AUTHORIZATION", "CAPTURE", "SETTLEMENT")
-        // every posting, balanced per entry: e.g. each seller 1320, our fee 200 from the commission, the authorization hold
+        // every posting, balanced per entry: e.g. each seller 1320, our fee 200 from the commission, the authorization
+        // hold
         val allocationLines = mutableListOf<String>()
         for (entry in read.body!!.get("journalEntries")) {
             assertThat(
@@ -139,7 +142,8 @@ class FinanceTxE2EIntegrationTest {
         val captureLines = mutableListOf<String>()
         for (posting in captureEntry.get("postings")) {
             captureLines.add(
-                posting.get("accountType").asText() + "|" + posting.get("direction").asText() + "|" + posting.get("amount").get("quantity").asLong()
+                posting.get("accountType").asText() + "|" + posting.get("direction").asText() + "|" +
+                    posting.get("amount").get("quantity").asLong()
             )
         }
         assertThat(captureLines).containsExactlyInAnyOrder(

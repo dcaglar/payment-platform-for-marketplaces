@@ -9,7 +9,7 @@ class RedisIdGeneratorPortAdapter(
 
     override fun nextId(namespace: String): Long {
         return redis.opsForValue().increment(namespace)
-            ?: throw IllegalStateException("Redis ID generation failed for namespace: $namespace")
+            ?: error("Redis ID generation failed for namespace: $namespace")
     }
 
     // Optional: for recovery / fallback

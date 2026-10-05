@@ -1,13 +1,17 @@
 package com.dogancaglar.paymentservice.domain.model.payment
 
 import com.dogancaglar.common.time.Utc
+import com.dogancaglar.paymentservice.domain.exception.OutboxEventDomainException
+import com.dogancaglar.paymentservice.domain.model.common.require
 import java.time.LocalDateTime
 
 /**
  * Represents a durable outbox event entry.
  * Created atomically with domain changes to ensure reliable async publication.
  */
-class OutboxEvent private constructor(
+class OutboxEvent
+@Suppress("LongParameterList")
+private constructor( // the object's own fields
     val oeid: Long,
     val partitionKey: String,
     val eventType: String,
@@ -24,14 +28,18 @@ class OutboxEvent private constructor(
     /** Domain-safe transitions */
     fun markAsProcessing(): OutboxEvent {
         require(status == Status.NEW) {
-            "Invalid transition from $status to ${Status.PROCESSING}"
+            OutboxEventDomainException.InvalidStateTransitionException(
+                "Invalid transition from $status to ${Status.PROCESSING}"
+            )
         }
         return copy(status = Status.PROCESSING)
     }
 
     fun markAsSent(): OutboxEvent {
         require(status == Status.NEW || status == Status.PROCESSING) {
-            "Invalid transition from $status to ${Status.SENT}"
+            OutboxEventDomainException.InvalidStateTransitionException(
+                "Invalid transition from $status to ${Status.SENT}"
+            )
         }
         return copy(status = Status.SENT)
     }
@@ -57,12 +65,14 @@ class OutboxEvent private constructor(
     enum class Status { NEW, PROCESSING, SENT }
 
     override fun toString(): String {
-        return "OutboxEvent(oeid=$oeid, eventType='$eventType', aggregateId='$aggregateId', '$aggregateId' payload='$payload', status=$status, createdAt=$createdAt, updatedAt=$updatedAt)"
+        return "OutboxEvent(oeid=$oeid, eventType='$eventType', aggregateId='$aggregateId', '$aggregateId' " +
+            "payload='$payload', status=$status, createdAt=$createdAt, updatedAt=$updatedAt)"
     }
 
     companion object {
 
         /** 🔹 Create brand new event for persistence */
+        @Suppress("LongParameterList") // the object's own fields
         fun createNew(
             oeid: Long,
             partitionKey: String,
@@ -88,6 +98,7 @@ class OutboxEvent private constructor(
         }
 
         /** 🔹 Rehydrate from persistence row */
+        @Suppress("LongParameterList") // the object's own fields
         fun rehydrate(
             oeid: Long,
             partitionKey: String,

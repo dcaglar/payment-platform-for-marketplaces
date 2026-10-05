@@ -48,11 +48,11 @@ class PaymentServiceThreadPoolConfig(private val openTelemetry: OpenTelemetry) {
     @Bean("createPaymentIntentExecutor")
     fun createPaymentIntentExecutor(): ThreadPoolTaskExecutor {
         val executor = ThreadPoolTaskExecutor()
-        executor.corePoolSize = 250
-        executor.maxPoolSize = 250
-        executor.queueCapacity = 50
+        executor.corePoolSize = CREATE_INTENT_POOL_SIZE
+        executor.maxPoolSize = CREATE_INTENT_POOL_SIZE
+        executor.queueCapacity = CREATE_INTENT_QUEUE_CAPACITY
         executor.setThreadNamePrefix("po-psp-")
-        executor.setRejectedExecutionHandler(java.util.concurrent.ThreadPoolExecutor.AbortPolicy())
+        executor.setRejectedExecutionHandler(ThreadPoolExecutor.AbortPolicy())
         executor.setTaskDecorator { runnable ->
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
@@ -67,11 +67,11 @@ class PaymentServiceThreadPoolConfig(private val openTelemetry: OpenTelemetry) {
     @Bean("authorizePaymentIntentExecutor")
     fun authorizePaymentIntentExecutor(): ThreadPoolTaskExecutor {
         val executor = ThreadPoolTaskExecutor()
-        executor.corePoolSize = 80
-        executor.maxPoolSize = 200
-        executor.queueCapacity = 50
+        executor.corePoolSize = AUTHORIZE_CORE_POOL_SIZE
+        executor.maxPoolSize = AUTHORIZE_MAX_POOL_SIZE
+        executor.queueCapacity = AUTHORIZE_QUEUE_CAPACITY
         executor.setThreadNamePrefix("po-psp-")
-        executor.setRejectedExecutionHandler(java.util.concurrent.ThreadPoolExecutor.AbortPolicy())
+        executor.setRejectedExecutionHandler(ThreadPoolExecutor.AbortPolicy())
         executor.setTaskDecorator { runnable ->
             val currentContext = Context.current()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
@@ -99,11 +99,11 @@ class PaymentServiceThreadPoolConfig(private val openTelemetry: OpenTelemetry) {
     @Bean("resilientExecutor")
     fun resilientExecutor(): ThreadPoolTaskExecutor {
         val executor = ThreadPoolTaskExecutor()
-        executor.corePoolSize = 20
-        executor.maxPoolSize = 20
-        executor.queueCapacity = 500
+        executor.corePoolSize = RESILIENT_POOL_SIZE
+        executor.maxPoolSize = RESILIENT_POOL_SIZE
+        executor.queueCapacity = RESILIENT_QUEUE_CAPACITY
         executor.setThreadNamePrefix("resilient-callback-")
-        executor.setRejectedExecutionHandler(java.util.concurrent.ThreadPoolExecutor.AbortPolicy())
+        executor.setRejectedExecutionHandler(ThreadPoolExecutor.AbortPolicy())
         executor.setTaskDecorator { runnable ->
             val currentContext = Context.current()
 
@@ -157,5 +157,15 @@ class PaymentServiceThreadPoolConfig(private val openTelemetry: OpenTelemetry) {
                     it.record(executor.threadPoolExecutor.queue.size.toLong(), attributes)
                 }
             }
+    }
+
+    private companion object {
+        const val CREATE_INTENT_POOL_SIZE = 250
+        const val CREATE_INTENT_QUEUE_CAPACITY = 50
+        const val AUTHORIZE_CORE_POOL_SIZE = 80
+        const val AUTHORIZE_MAX_POOL_SIZE = 200
+        const val AUTHORIZE_QUEUE_CAPACITY = 50
+        const val RESILIENT_POOL_SIZE = 20
+        const val RESILIENT_QUEUE_CAPACITY = 500
     }
 }

@@ -52,7 +52,7 @@ It declares that this module is:
         <java.version>21</java.version>
         <!-- when detekt runs; the no-sources profile turns it off for modules without Kotlin -->
         <detekt.phase>verify</detekt.phase>
-        <!-- each module's list of ignored findings; -Ddetekt.baselineFile= (empty) shows every finding -->
+        <!-- each module's findings still to fix (tolerated for now); -Ddetekt.baselineFile= (empty) shows every finding -->
         <detekt.baselineFile>${project.basedir}/detekt-baseline.xml</detekt.baselineFile>
         <kotlin.version>2.1.0</kotlin.version>
         <postgresql.version>42.7.3</postgresql.version>
@@ -290,10 +290,9 @@ Kotlin dependencies (keep versions here for consistent management) -->
                 </executions>
             </plugin>
             <!-- 🔍 CODE QUALITY: detekt checks every module's Kotlin (src/main + src/test) in `verify`.
-                 Rules: detekt's defaults + config/detekt/detekt.yml. Findings that existed when detekt was
-                 introduced are listed per module in detekt-baseline.xml and ignored; only new findings fail
-                 the build. Fix an old one, then regenerate that module's baseline:
-                 mvn -pl <module> detekt:create-baseline -->
+                 Rules: detekt's defaults + config/detekt/detekt.yml. Each module's detekt-baseline.xml lists the
+                 findings still to fix in its code (tolerated for now, being cleaned up); any finding not in it
+                 fails the build (detekt default maxIssues: 0). How to work through it: docs/fixing-detekt-baseline.md -->
             <plugin>
                 <groupId>com.github.ozsie</groupId>
                 <artifactId>detekt-maven-plugin</artifactId>

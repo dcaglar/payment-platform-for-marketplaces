@@ -2,6 +2,7 @@ package com.dogancaglar.paymentservice.application.dto
 
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit
 
 /**
@@ -29,6 +30,7 @@ data class PaymentSplitDto(
     val currency: String
 ) {
     companion object {
+        private const val CURRENCY_CODE_LENGTH = 3
         fun of(
             accountType: String,
             account: String,
@@ -37,7 +39,7 @@ data class PaymentSplitDto(
         ): PaymentSplitDto {
             require(account.isNotBlank()) { "account must not be blank" }
             require(amountValue > 0) { "Amount value must be positive" }
-            require(currency.isNotBlank() && currency.length == 3) {
+            require(currency.isNotBlank() && currency.length == CURRENCY_CODE_LENGTH) {
                 "Currency must be a valid 3-letter ISO code"
             }
             return PaymentSplitDto(accountType, account, amountValue, currency)
@@ -69,7 +71,7 @@ data class PaymentSplitDto(
         }
         // An unknown type must fail. It must never silently become a seller split.
         val mappedAccountType = try {
-            com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType.valueOf(accountTypeName)
+            LedgerAccountType.valueOf(accountTypeName)
         } catch (e: IllegalArgumentException) {
             throw IllegalArgumentException("Unknown split accountType: '$accountType'", e)
         }

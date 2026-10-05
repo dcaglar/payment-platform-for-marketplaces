@@ -1,4 +1,4 @@
-package com.dogancaglar.port.out.web.dto
+package com.dogancaglar.paymentservice.adapter.inbound.rest.dto
 
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
@@ -37,8 +37,8 @@ data class CreateAccountRequestDTO(
 
     @field:NotNull
     @field:Min(0)
-    //todo explain me what is thos
-    @field:Max(10_000)
+    // todo explain me what is thos
+    @field:Max(MAX_FEE_BASIS_POINTS)
     val platformFeeBps: Int,
 
     val isAutoCaptured: Boolean = true,
@@ -62,4 +62,7 @@ data class AddressDTO(
 )
 
 /** Letters, digits, '-' and '_'; no '.', which separates the parts of a ledger account code. */
+/** 100% in basis points: the platform fee percentage can't be more. */
+const val MAX_FEE_BASIS_POINTS = 10_000L
+
 const val ACCOUNT_CODE = "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"

@@ -12,6 +12,7 @@ import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 
 object PaymentTestHelper {
 
+    @Suppress("LongParameterList") // test helper: a default for each field
     fun createPaymentIntent(
         paymentIntentId: Long = 100L,
         buyerId: String = "buyer-123",

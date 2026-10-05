@@ -7,8 +7,10 @@ import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import java.util.concurrent.CompletableFuture
 
 /**
- * Port for Payment Service Provider (PSP) operations.
- * Implementations can be real or simulated.
+ * Captures and refunds at the PSP (real or simulated). A call that gives no normal answer fails with
+ * PspTransientException, PspUnknownException or PspPermanentException
+ * ([com.dogancaglar.paymentservice.domain.exception.ExternalPspException], naming the operation and the payment),
+ * never with the PSP's own exceptions. Callers catch those classes.
  */
 interface PspCaptureGatewayPort {
 

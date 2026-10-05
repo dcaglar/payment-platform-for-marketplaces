@@ -35,7 +35,7 @@ class BalanceAmountsE2EIntegrationTest {
     }
 
     @Test
-    fun `a marketplace payment of 3000 gives each seller its part and the merchant its commission minus the platform fee`() {
+    fun `a 3000 marketplace payment gives each seller its part and the merchant its commission minus platform fee`() {
         E2eSupport.resetState()
         val merchant5Backend = E2eSupport.merchantToken("MARKETPLACE-5")
         val orderId = "ORDER-BALANCE-MP-${UUID.randomUUID().toString().take(8)}"

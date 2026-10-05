@@ -32,7 +32,8 @@ class SecurityConfig {
                 requests
                     // health, liveness, readiness, metrics
                     .requestMatchers("/actuator/**").permitAll()
-                    // the permission per URL; who may call each endpoint (merchant claim or staff) is in its @PreAuthorize.
+                    // the permission per URL; who may call each endpoint (merchant claim or staff) is in its
+                    // @PreAuthorize.
                     // See new-backoffice.md, "Security".
                     .requestMatchers(HttpMethod.GET, "/api/v1/balances/**").hasAuthority("balance:read")
                     .requestMatchers(HttpMethod.GET, "/api/v1/transactions/**").hasAuthority("transaction:read")
@@ -48,7 +49,9 @@ class SecurityConfig {
                         response.status = HttpStatus.UNAUTHORIZED.value()
                         response.contentType = "application/json"
                         response.writer.write(
-                            """{"timestamp":"${Utc.nowInstant()}","status":401,"error":"Unauthorized","message":"Authentication required. Please provide a valid JWT token.","path":"${request.requestURI}"}"""
+                            """{"timestamp":"${Utc.nowInstant()}","status":401,"error":"Unauthorized",""" +
+                                """"message":"Authentication required. Please provide a valid JWT token.",""" +
+                                """"path":"${request.requestURI}"}"""
                         )
                     }
                     // valid JWT, but not allowed
@@ -56,7 +59,9 @@ class SecurityConfig {
                         response.status = HttpStatus.FORBIDDEN.value()
                         response.contentType = "application/json"
                         response.writer.write(
-                            """{"timestamp":"${Utc.nowInstant()}","status":403,"error":"Forbidden","message":"Access denied. You do not have the required permissions.","path":"${request.requestURI}"}"""
+                            """{"timestamp":"${Utc.nowInstant()}","status":403,"error":"Forbidden",""" +
+                                """"message":"Access denied. You do not have the required permissions.",""" +
+                                """"path":"${request.requestURI}"}"""
                         )
                     }
             }

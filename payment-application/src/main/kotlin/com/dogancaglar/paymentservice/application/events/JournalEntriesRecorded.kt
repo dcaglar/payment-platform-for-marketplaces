@@ -26,6 +26,7 @@ data class JournalEntriesRecorded(
         /**
          * Factory for use by RecordLedgerEntriesService.
          */
+        @Suppress("LongParameterList") // one argument per event field
         fun from(
             cmd: PaymentBaseEvent,
             batchId: String,

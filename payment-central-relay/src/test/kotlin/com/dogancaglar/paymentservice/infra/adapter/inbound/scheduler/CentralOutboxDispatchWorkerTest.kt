@@ -10,6 +10,7 @@ import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.dao.DataAccessResourceFailureException
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import java.util.concurrent.CompletableFuture
 
@@ -110,12 +111,12 @@ class CentralOutboxDispatchWorkerTest {
     }
 
     @Test
-    fun `unclaim throwing should be swallowed - relies on reclaimer`() {
+    fun `a database failure on unclaim is left to the reclaimer`() {
         val e = event(10, "agg-X")
         every { port.findEligible(any(), any(), any()) } returns listOf(e)
         every { kafkaHelper.processEntryAsync(e) } returns
             CompletableFuture.failedFuture<Any>(RuntimeException("publish failed"))
-        every { port.unclaimSpecific(any(), any(), any()) } throws RuntimeException("db down too")
+        every { port.unclaimSpecific(any(), any(), any()) } throws DataAccessResourceFailureException("db down too")
 
         assertDoesNotThrow { worker.centralOutboxRelayBatchWorker() }
     }

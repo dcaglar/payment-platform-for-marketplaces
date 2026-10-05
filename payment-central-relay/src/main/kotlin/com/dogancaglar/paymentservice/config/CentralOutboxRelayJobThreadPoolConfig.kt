@@ -23,9 +23,9 @@ val scheduler = ThreadPoolTaskScheduler()
     @Bean("resilientExecutor")
     fun resilientExecutor(): ThreadPoolTaskExecutor {
         val resilientExecutor = ThreadPoolTaskExecutor()
-        resilientExecutor.corePoolSize = 32
-        resilientExecutor.maxPoolSize = 32
-        resilientExecutor.queueCapacity = 500
+        resilientExecutor.corePoolSize = RESILIENT_POOL_SIZE
+        resilientExecutor.maxPoolSize = RESILIENT_POOL_SIZE
+        resilientExecutor.queueCapacity = RESILIENT_QUEUE_CAPACITY
         resilientExecutor.setThreadNamePrefix("resilient-callback-")
         resilientExecutor.setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
 
@@ -61,5 +61,10 @@ val scheduler = ThreadPoolTaskScheduler()
             Runnable { currentContext.makeCurrent().use { runnable.run() } }
         }
         return retryPoolTaskScheduler
+    }
+
+    private companion object {
+        const val RESILIENT_POOL_SIZE = 32
+        const val RESILIENT_QUEUE_CAPACITY = 500
     }
 }

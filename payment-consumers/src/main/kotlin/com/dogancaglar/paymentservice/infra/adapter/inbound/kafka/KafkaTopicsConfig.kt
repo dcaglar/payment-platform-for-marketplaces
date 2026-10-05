@@ -1,7 +1,9 @@
 package com.dogancaglar.paymentservice.infra.adapter.inbound.kafka
 
 import com.dogancaglar.common.kafka.metadata.Topics
+import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.NewTopic
+import org.springframework.boot.autoconfigure.kafka.KafkaProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -56,13 +58,14 @@ class TopicAdminConfig(
 
     /** Explicit KafkaAdmin definition to guarantee topic creation even if spring.kafka.bootstrap-servers isn't set */
     @Bean
-    fun kafkaAdmin(bootKafkaProps: org.springframework.boot.autoconfigure.kafka.KafkaProperties): KafkaAdmin {
+    fun kafkaAdmin(bootKafkaProps: KafkaProperties): KafkaAdmin {
         val logger = org.slf4j.LoggerFactory.getLogger(TopicAdminConfig::class.java)
         logger.info(
-            "🛠️ TopicAdminConfig: Explicitly initializing KafkaAdmin bean to force auto-creation of topics on broker startup!"
+            "🛠️ TopicAdminConfig: Explicitly initializing KafkaAdmin bean to force auto-creation of topics " +
+                "on broker startup!"
         )
         val configs = java.util.HashMap<String, Any>()
-        configs[org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = bootKafkaProps.bootstrapServers.joinToString(",")
+        configs[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = bootKafkaProps.bootstrapServers.joinToString(",")
         return KafkaAdmin(configs).apply {
             setAutoCreate(true)
             setFatalIfBrokerNotAvailable(false)

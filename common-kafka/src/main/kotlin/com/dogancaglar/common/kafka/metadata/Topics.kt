@@ -32,7 +32,7 @@ object Topics {
     )
 }
 
-object CONSUMER_GROUPS {
+object ConsumerGroups {
     const val PSP_RESULT_CONSUMER = "payment.psp.result.consumer"
     const val CAPTURE_COMMAND_EXECUTOR = "capture.psp.command.executor"
     const val CAPTURE_SUBMITTED_CONSUMER = "capture.psp.submitted.ack.consumer"
@@ -44,7 +44,7 @@ object CONSUMER_GROUPS {
 
     /*
     const val PSP_RESULT_CONSUMER = "payment-core.psp-result-consumer"
-    const val CAPT================================        URE_PSP_PERFORMED_CONSUMER = "payment-core.capture-psp-performed-consumer"
+    const val CAPTURE_PSP_PERFORMED_CONSUMER = "payment-core.capture-psp-performed-consumer"
 
     // Gateway Worker consumers
     const val CAPTURE_COMMAND_EXECUTOR = "gateway-workers.capture-command-executor"

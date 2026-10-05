@@ -55,7 +55,8 @@ enum class LedgerAccountType(
      * 1. The Raw Ingestion Landing Lane (Transient Clearing Pad)
      * Tracks the initial, unassigned gross captured volume received from the PSP webhook on Day 1.
      * This acts strictly as a temporary suspense pool and must ALWAYS be drained down to exactly €0
-     * by downstream async internal transfer commands (either via multi-party seller splits or a 100% direct revenue reclassification).
+     * by downstream async internal transfer commands (either via multi-party seller splits or a 100% direct revenue
+     * reclassification).
      */
     CAPTURE_SUSPENSE(NormalBalance.CREDIT, AccountCategory.LIABILITY, AccountOwner.MERCHANT),
 
@@ -79,7 +80,8 @@ enum class LedgerAccountType(
      * 4. The Finalized Sub-Seller Revenue Folder (Vendor Balance)
      * Tracks the finalized, net revenue payable balance belonging to a specific third-party sub-seller
      * onboarded under the marketplace operator's master ecosystem.
-     * Multiple accounts of this type can exist under the same master_account_id, isolated by their unique sub-seller entity IDs.
+     * Multiple accounts of this type can exist under the same master_account_id, isolated by their unique sub-seller
+     * entity IDs.
      */
     SELLER_PAYABLE(NormalBalance.CREDIT, AccountCategory.LIABILITY, AccountOwner.SELLER),
     PLATFORM_FEE_RESERVE(

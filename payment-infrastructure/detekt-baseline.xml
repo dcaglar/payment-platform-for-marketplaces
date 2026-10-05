@@ -1,23 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>FunctionOnlyReturningConstant:RedisMetrics.kt$RedisMetrics$fun delayedStatusCheckExecution()</ID>
-    <ID>FunctionOnlyReturningConstant:RedisMetrics.kt$RedisMetrics$fun statusCheckBufferSize()</ID>
-    <ID>MagicNumber:SnowflakeIdGeneratorAdapter.kt$SnowflakeIdGeneratorAdapter$32</ID>
-    <ID>NoConsecutiveBlankLines:FakeSnowflakeCore.kt$ </ID>
-    <ID>SwallowedException:CaptureRetryRedisCache.kt$CaptureRetryRedisCache$e: Exception</ID>
-    <ID>SwallowedException:ResilientExecutionAdapter.kt$ResilientExecutionAdapter$e: TimeoutException</ID>
-    <ID>SwallowedException:SnowflakeIdGeneratorAdapter.kt$SnowflakeIdGeneratorAdapter$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:CaptureRetryQueueAdapter.kt$CaptureRetryQueueAdapter$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:CaptureRetryRedisCache.kt$CaptureRetryRedisCache$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:ResilientExecutionAdapter.kt$ResilientExecutionAdapter$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:SnowflakeIdGeneratorAdapter.kt$SnowflakeIdGeneratorAdapter$e: Exception</ID>
-    <ID>TooManyFunctions:CaptureRetryRedisCache.kt$CaptureRetryRedisCache</ID>
-    <ID>UseCheckOrError:RedisIdGeneratorPortAdapter.kt$RedisIdGeneratorPortAdapter$throw IllegalStateException("Redis ID generation failed for namespace: $namespace")</ID>
-    <ID>WildcardImport:AccountBalanceRedisCacheAdapterIntegrationTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
-    <ID>WildcardImport:AccountBalanceRedisCacheAdapterTest.kt$import io.mockk.*</ID>
-    <ID>WildcardImport:AccountBalanceRedisCacheAdapterTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
-    <ID>WildcardImport:SnowflakeIdGeneratorAdapterTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

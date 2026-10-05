@@ -30,7 +30,7 @@ import java.util.concurrent.ExecutionException
 
 /**
  * A PSP slower than our read timeout must always come back as "outcome unknown" (PspUnknownException),
- * so the payment goes back to CREATED and can be authorized again. Our read timeout fires two ways that race
+ * so the payment stays PENDING_AUTH (the PSP may have authorized it). Our read timeout fires two ways that race
  * (the JDK's timeout and Spring's cancel); each must be translated, so the call is repeated many times.
  */
 @Tag("integration")
@@ -105,7 +105,8 @@ class HttpPspAuthorizationGatewayAdapterIntegrationTest {
                 .willReturn(
                     aResponse().withStatus(200).withHeader("Content-Type", "application/json")
                         .withBody(
-                            """{"id":"psp_mastercard","status":"AUTHORIZED","card":{"brand":"mastercard","last4":"4444"}}"""
+                            """{"id":"psp_mastercard","status":"AUTHORIZED",""" +
+                                """"card":{"brand":"mastercard","last4":"4444"}}"""
                         )
                 )
         )
@@ -128,38 +129,47 @@ class HttpPspAuthorizationGatewayAdapterIntegrationTest {
         val visaIntent = PaymentIntent.rehydrate(
             paymentIntentId = PaymentIntentId(
                 101
-            ), pspReference = "psp_visa", buyerId = BuyerId("BUYER-1"), orderId = OrderId("ORDER-101"),
+            ),
+            pspReference = "psp_visa", buyerId = BuyerId("BUYER-1"), orderId = OrderId("ORDER-101"),
             totalAmount = Amount.of(
                 5000,
                 Currency("EUR")
-            ), merchantAccount = "MARKETPLACE-5", processingModel = ProcessingModel.DIRECT_MERCHANT,
+            ),
+            merchantAccount = "MARKETPLACE-5", processingModel = ProcessingModel.DIRECT_MERCHANT,
             splitsDelegate = lazyOf(
                 emptyList()
-            ), status = PaymentIntentStatus.PENDING_AUTH, createdAt = now, updatedAt = now
+            ),
+            status = PaymentIntentStatus.PENDING_AUTH, createdAt = now, updatedAt = now
         )
         val mastercardIntent = PaymentIntent.rehydrate(
             paymentIntentId = PaymentIntentId(
                 102
-            ), pspReference = "psp_mastercard", buyerId = BuyerId("BUYER-1"), orderId = OrderId("ORDER-102"),
+            ),
+            pspReference = "psp_mastercard", buyerId = BuyerId("BUYER-1"), orderId = OrderId("ORDER-102"),
             totalAmount = Amount.of(
                 5000,
                 Currency("EUR")
-            ), merchantAccount = "MARKETPLACE-5", processingModel = ProcessingModel.DIRECT_MERCHANT,
+            ),
+            merchantAccount = "MARKETPLACE-5", processingModel = ProcessingModel.DIRECT_MERCHANT,
             splitsDelegate = lazyOf(
                 emptyList()
-            ), status = PaymentIntentStatus.PENDING_AUTH, createdAt = now, updatedAt = now
+            ),
+            status = PaymentIntentStatus.PENDING_AUTH, createdAt = now, updatedAt = now
         )
         val noCardIntent = PaymentIntent.rehydrate(
             paymentIntentId = PaymentIntentId(
                 103
-            ), pspReference = "psp_no_card", buyerId = BuyerId("BUYER-1"), orderId = OrderId("ORDER-103"),
+            ),
+            pspReference = "psp_no_card", buyerId = BuyerId("BUYER-1"), orderId = OrderId("ORDER-103"),
             totalAmount = Amount.of(
                 5000,
                 Currency("EUR")
-            ), merchantAccount = "MARKETPLACE-5", processingModel = ProcessingModel.DIRECT_MERCHANT,
+            ),
+            merchantAccount = "MARKETPLACE-5", processingModel = ProcessingModel.DIRECT_MERCHANT,
             splitsDelegate = lazyOf(
                 emptyList()
-            ), status = PaymentIntentStatus.PENDING_AUTH, createdAt = now, updatedAt = now
+            ),
+            status = PaymentIntentStatus.PENDING_AUTH, createdAt = now, updatedAt = now
         )
 
         val visa = fastAdapter.authorizePaymentIntent(visaIntent, PaymentMethod.CardToken("pm_card_visa", null)).get()

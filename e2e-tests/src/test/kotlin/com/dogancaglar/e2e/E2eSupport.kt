@@ -9,6 +9,9 @@ import liquibase.Liquibase
 import liquibase.database.DatabaseFactory
 import liquibase.database.jvm.JdbcConnection
 import liquibase.resource.DirectoryResourceAccessor
+import org.apache.kafka.clients.admin.Admin
+import org.apache.kafka.clients.admin.OffsetSpec
+import org.apache.kafka.common.TopicPartition
 import java.net.HttpURLConnection.HTTP_CREATED
 import java.net.HttpURLConnection.HTTP_OK
 import java.net.URI
@@ -86,6 +89,7 @@ object E2eSupport {
     // JDBC query helpers
     // ---------------------------------------------------------------------
 
+    @Suppress("NestedBlockDepth") // JDBC use { use { use { } } } chain
     fun <T> query(jdbcUrl: String, user: String, pass: String, sql: String, map: (ResultSet) -> T): List<T> =
         DriverManager.getConnection(jdbcUrl, user, pass).use { conn ->
             conn.createStatement().use { st ->
@@ -107,7 +111,9 @@ object E2eSupport {
     // HTTP + Keycloak
     // ---------------------------------------------------------------------
 
-    /** A merchant backend's token: client credentials of merchant-api-<merchant> (bundle MERCHANT, claim merchant_id). */
+    /**
+     * A merchant backend's token: client credentials of merchant-api-<merchant> (bundle MERCHANT, claim merchant_id).
+     */
     fun merchantToken(merchant: String): String {
         val client = "merchant-api-$merchant"
         return token(
@@ -156,7 +162,8 @@ object E2eSupport {
 
     /** Keycloak admin token (master realm), for setting up the test realm. */
     fun adminToken(keycloakBaseUrl: String, username: String, password: String): String {
-        val form = "grant_type=password&client_id=admin-cli&username=${URLEncoder.encode(username, StandardCharsets.UTF_8)}" +
+        val form = "grant_type=password&client_id=admin-cli" +
+            "&username=${URLEncoder.encode(username, StandardCharsets.UTF_8)}" +
             "&password=${URLEncoder.encode(password, StandardCharsets.UTF_8)}"
         val req = HttpRequest.newBuilder()
             .uri(URI.create("$keycloakBaseUrl/realms/master/protocol/openid-connect/token"))
@@ -288,7 +295,8 @@ object E2eSupport {
                 break
             }
             check(System.currentTimeMillis() < deadline) {
-                "platform never became quiet: edge unsent=$edgeUnsent, central unsent=$centralUnsent, postings still changing"
+                "platform never became quiet: edge unsent=$edgeUnsent, central unsent=$centralUnsent, postings still " +
+                    "changing"
             }
             Thread.sleep(500)
         }
@@ -320,12 +328,12 @@ object E2eSupport {
     fun topicRecordCount(bootstrapServers: String, topic: String): Long {
         val props = java.util.Properties()
         props["bootstrap.servers"] = bootstrapServers
-        org.apache.kafka.clients.admin.Admin.create(props).use { admin ->
+        Admin.create(props).use { admin ->
             val description = admin.describeTopics(listOf(topic)).allTopicNames().get().getValue(topic)
-            val request = HashMap<org.apache.kafka.common.TopicPartition, org.apache.kafka.clients.admin.OffsetSpec>()
+            val request = HashMap<TopicPartition, OffsetSpec>()
             for (partition in description.partitions()) {
-                request[org.apache.kafka.common.TopicPartition(topic, partition.partition())] =
-                    org.apache.kafka.clients.admin.OffsetSpec.latest()
+                request[TopicPartition(topic, partition.partition())] =
+                    OffsetSpec.latest()
             }
             var total = 0L
             for (offset in admin.listOffsets(request).all().get().values) {

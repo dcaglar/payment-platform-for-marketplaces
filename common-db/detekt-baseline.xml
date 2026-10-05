@@ -1,18 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:PaymentTxEntityMapper.kt$PaymentTxEntityMapper$fun toDomain(entity: PaymentTxEntity): Tx</ID>
-    <ID>LongMethod:PaymentTxEntityMapper.kt$PaymentTxEntityMapper$fun toEntity(domain: Tx): PaymentTxEntity</ID>
-    <ID>MagicNumber:AbstractOutboxPartitionCreator.kt$AbstractOutboxPartitionCreator$30</ID>
-    <ID>MagicNumber:AbstractOutboxPartitionCreator.kt$AbstractOutboxPartitionCreator$30L</ID>
-    <ID>MaxLineLength:AccountEntityMapper.kt$AccountEntityMapper$/** A MERCHANT row back to the domain. [legalName], [address] and [industry] come from its profile JSON, read by the adapter. */</ID>
-    <ID>MaxLineLength:AccountEntityMapper.kt$AccountEntityMapper$AccountEntity(platform.accountCode, "PLATFORM", platform.status.name, null, null, null, null, null, null, null, null)</ID>
-    <ID>MaxLineLength:AccountEntityMapper.kt$AccountEntityMapper$AccountEntity(seller.accountCode, "SELLER", seller.status.name, seller.masterAccountCode, null, null, null, null, null, null, null)</ID>
-    <ID>MaxLineLength:PaymentEntityMapper.kt$PaymentEntityMapper$fun</ID>
-    <ID>TooGenericExceptionCaught:AbstractOutboxPartitionCreator.kt$AbstractOutboxPartitionCreator$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:AbstractOutboxPartitionCreator.kt$AbstractOutboxPartitionCreator$ex: Exception</ID>
-    <ID>UseCheckOrError:PaymentTxEntityMapper.kt$PaymentTxEntityMapper$throw IllegalStateException( "Unknown Tx type ${entity.txType} for txId={entity.txId}." )</ID>
-    <ID>VariableNaming:AbstractOutboxPartitionCreator.kt$AbstractOutboxPartitionCreator$protected val PARTITION_SIZE_MIN = 30L</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

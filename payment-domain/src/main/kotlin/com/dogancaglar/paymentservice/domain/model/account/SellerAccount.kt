@@ -1,5 +1,7 @@
 package com.dogancaglar.paymentservice.domain.model.account
 
+import com.dogancaglar.paymentservice.domain.exception.AccountDomainException
+import com.dogancaglar.paymentservice.domain.model.common.require
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountOwner
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccount
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
@@ -14,7 +16,9 @@ data class SellerAccount private constructor(
     /** One ledger account per seller-level type, in its merchant's currency. */
     fun ledgerAccounts(merchant: MerchantAccount): List<LedgerAccount> {
         require(merchant.accountCode == masterAccountCode) {
-            "Seller $accountCode belongs to $masterAccountCode, not to ${merchant.accountCode}"
+            AccountDomainException.InvariantViolationException(
+                "Seller $accountCode belongs to $masterAccountCode, not to ${merchant.accountCode}"
+            )
         }
         val accounts = mutableListOf<LedgerAccount>()
         for (type in LedgerAccountType.entries) {
@@ -31,11 +35,21 @@ data class SellerAccount private constructor(
             masterAccountCode: String,
             status: AccountStatus = AccountStatus.ACTIVE
         ): SellerAccount {
-            require(AccountCodes.isValidOwnerCode(accountCode)) { "Invalid seller account code: '$accountCode'" }
+            require(AccountCodes.isValidOwnerCode(accountCode)) {
+                AccountDomainException.InvariantViolationException("Invalid seller account code: '$accountCode'")
+            }
             require(
                 AccountCodes.isValidOwnerCode(masterAccountCode)
-            ) { "Invalid merchant account code: '$masterAccountCode'" }
-            require(accountCode != masterAccountCode) { "A seller cannot have its merchant's code: $accountCode" }
+            ) {
+                AccountDomainException.InvariantViolationException(
+                    "Invalid merchant account code: '$masterAccountCode'"
+                )
+            }
+            require(accountCode != masterAccountCode) {
+                AccountDomainException.InvariantViolationException(
+                    "A seller cannot have its merchant's code: $accountCode"
+                )
+            }
             return SellerAccount(accountCode, status, masterAccountCode)
         }
 

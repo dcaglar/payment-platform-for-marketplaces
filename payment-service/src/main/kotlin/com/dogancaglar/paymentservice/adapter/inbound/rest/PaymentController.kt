@@ -46,7 +46,8 @@ class PaymentController(
      * @return ResponseEntity with 201,202,200 Created status and PaymentResponseDTO
      */
     @PostMapping("/payments")
-    // permission, and the body's merchantAccount must be the token's merchant_id (403 otherwise, before anything is stored)
+    // permission, and the body's merchantAccount must be the token's merchant_id (403 otherwise, before anything is
+    // stored)
     @PreAuthorize("hasAuthority('payment:write') and #request.merchantAccount == principal.claims['merchant_id']")
     fun createPayment(
         @RequestHeader("Idempotency-Key") @ValidUuidV7 idempotencyKey: String,
@@ -105,6 +106,7 @@ class PaymentController(
 
     @PostMapping("/payments/{paymentIntentId}/authorize")
     @PreAuthorize("hasAuthority('payment:write')")
+    @Suppress("ReturnCount") // guard clauses
     fun authorizePayment(
         @PathVariable("paymentIntentId") publicPaymentIntentId: String,
         @Valid @RequestBody request: AuthorizationRequestDTO,
