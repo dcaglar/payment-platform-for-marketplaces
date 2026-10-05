@@ -1,6 +1,7 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
 import com.dogancaglar.common.db.converter.PaymentIntentEntityMapper
+import com.dogancaglar.common.db.entity.PaymentIntentEntity
 import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit
@@ -51,7 +52,7 @@ class PaymentIntentOutboundAdapter(
         return toDomain(entity)
     }
 
-    private fun toDomain(entity: com.dogancaglar.common.db.entity.PaymentIntentEntity): PaymentIntent {
+    private fun toDomain(entity: PaymentIntentEntity): PaymentIntent {
         val splitsDelegate = lazy {
             if (entity.splitsJson.isNotBlank()) {
                 objectMapper.readValue(entity.splitsJson, splitsTypeRef)

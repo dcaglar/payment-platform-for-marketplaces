@@ -1,7 +1,10 @@
 package com.dogancaglar.paymentservice.domain.model.account
 
+import com.dogancaglar.paymentservice.domain.exception.AccountDomainException
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
+import com.dogancaglar.paymentservice.domain.model.common.require
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountOwner
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccount
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
@@ -37,6 +40,7 @@ data class MerchantAccount private constructor(
     }
 
     companion object {
+        @Suppress("LongParameterList") // the object's own fields
         fun createNew(
             accountCode: String,
             legalName: String,
@@ -48,16 +52,36 @@ data class MerchantAccount private constructor(
             isAutoSettled: Boolean = false,
             status: AccountStatus = AccountStatus.ACTIVE
         ): MerchantAccount {
-            require(AccountCodes.isValidOwnerCode(accountCode)) { "Invalid merchant account code: '$accountCode'" }
-            require(legalName.isNotBlank()) { "Merchant legal name must not be blank" }
-            require(industry.isNotBlank()) { "Merchant industry must not be blank" }
-            require(platformFee.fixed.currency == currency) {
-                "Platform fee currency ${platformFee.fixed.currency.currencyCode} must be the merchant currency ${currency.currencyCode}"
+            require(AccountCodes.isValidOwnerCode(accountCode)) {
+                AccountDomainException.InvariantViolationException("Invalid merchant account code: '$accountCode'")
             }
-            return MerchantAccount(accountCode, status, legalName, address, industry, currency, isAutoCaptured, isAutoSettled, platformFee)
+            require(legalName.isNotBlank()) {
+                AccountDomainException.InvariantViolationException("Merchant legal name must not be blank")
+            }
+            require(industry.isNotBlank()) {
+                AccountDomainException.InvariantViolationException("Merchant industry must not be blank")
+            }
+            require(platformFee.fixed.currency == currency) {
+                AccountDomainException.InvariantViolationException(
+                    "Platform fee currency ${platformFee.fixed.currency.currencyCode} must be the merchant currency " +
+                        "${currency.currencyCode}"
+                )
+            }
+            return MerchantAccount(
+                accountCode,
+                status,
+                legalName,
+                address,
+                industry,
+                currency,
+                isAutoCaptured,
+                isAutoSettled,
+                platformFee
+            )
         }
 
         /** Rebuilds from persisted state. Trusts the stored data. */
+        @Suppress("LongParameterList") // the object's own fields
         fun rehydrate(
             accountCode: String,
             status: AccountStatus,
@@ -69,7 +93,17 @@ data class MerchantAccount private constructor(
             isAutoSettled: Boolean,
             platformFee: PlatformFee
         ): MerchantAccount =
-            MerchantAccount(accountCode, status, legalName, address, industry, currency, isAutoCaptured, isAutoSettled, platformFee)
+            MerchantAccount(
+                accountCode,
+                status,
+                legalName,
+                address,
+                industry,
+                currency,
+                isAutoCaptured,
+                isAutoSettled,
+                platformFee
+            )
     }
 }
 
@@ -82,12 +116,20 @@ data class Address private constructor(
 ) {
     companion object {
         fun of(line1: String, line2: String?, city: String, postalCode: String, country: String): Address {
-            require(line1.isNotBlank()) { "Address line1 must not be blank" }
-            require(city.isNotBlank()) { "Address city must not be blank" }
-            require(postalCode.isNotBlank()) { "Address postal code must not be blank" }
-            require(
-                country.matches(Regex("^[A-Z]{2}$"))
-            ) { "Address country must be an ISO 3166-1 alpha-2 code, was '$country'" }
+            require(line1.isNotBlank()) {
+                AccountDomainException.InvariantViolationException("Address line1 must not be blank")
+            }
+            require(city.isNotBlank()) {
+                AccountDomainException.InvariantViolationException("Address city must not be blank")
+            }
+            require(postalCode.isNotBlank()) {
+                AccountDomainException.InvariantViolationException("Address postal code must not be blank")
+            }
+            require(country.matches(Regex("^[A-Z]{2}$"))) {
+                AccountDomainException.InvariantViolationException(
+                    "Address country must be an ISO 3166-1 alpha-2 code, was '$country'"
+                )
+            }
             return Address(line1, line2, city, postalCode, country)
         }
     }
@@ -105,9 +147,12 @@ data class PlatformFee private constructor(
      */
     fun feeFor(amount: Amount): Amount {
         require(amount.currency == fixed.currency) {
-            "Payment currency ${amount.currency.currencyCode} differs from the platform fee currency ${fixed.currency.currencyCode}"
+            PaymentDomainException.CurrencyMismatchException(
+                "Payment currency ${amount.currency.currencyCode} differs from the platform fee currency " +
+                    "${fixed.currency.currencyCode}"
+            )
         }
-        val cents = fixed.quantity + amount.quantity * basisPoints / 10_000
+        val cents = fixed.quantity + amount.quantity * basisPoints / BASIS_POINTS_PER_WHOLE
         if (cents == 0L) {
             return Amount.zero(amount.currency)
         }
@@ -115,10 +160,15 @@ data class PlatformFee private constructor(
     }
 
     companion object {
+        /** 100% in basis points. */
+        const val BASIS_POINTS_PER_WHOLE = 10_000
+
         fun of(fixed: Amount, basisPoints: Int): PlatformFee {
-            require(
-                basisPoints in 0..10_000
-            ) { "Platform fee basis points must be between 0 and 10000, was $basisPoints" }
+            require(basisPoints in 0..BASIS_POINTS_PER_WHOLE) {
+                AccountDomainException.InvariantViolationException(
+                    "Platform fee basis points must be between 0 and 10000, was $basisPoints"
+                )
+            }
             return PlatformFee(fixed, basisPoints)
         }
     }

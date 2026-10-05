@@ -346,7 +346,12 @@ class PaymentTxMapperIntegrationTest {
         )
     }
 
-    private fun capture(status: String, settleStatus: String, acquirerBatchRef: String?, settledAmountValue: Long?): PaymentTxEntity {
+    private fun capture(
+        status: String,
+        settleStatus: String,
+        acquirerBatchRef: String?,
+        settledAmountValue: Long?
+    ): PaymentTxEntity {
         return PaymentTxEntity(
             txId = captureTxId,
             txType = "CAPTURE",
@@ -379,7 +384,7 @@ class PaymentTxMapperIntegrationTest {
         try {
             future.get(700, TimeUnit.MILLISECONDS)
             return false
-        } catch (e: TimeoutException) {
+        } catch (@Suppress("SwallowedException") e: TimeoutException) { // the timeout IS the answer
             return true
         }
     }

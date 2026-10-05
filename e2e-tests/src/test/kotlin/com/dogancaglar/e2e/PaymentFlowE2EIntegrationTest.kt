@@ -77,7 +77,8 @@ class PaymentFlowE2EIntegrationTest {
         await().atMost(forwarding).pollInterval(poll).untilAsserted {
             assertThat(
                 edgeCount(
-                    "SELECT count(*) FROM outbox_event WHERE event_type='payment_authorized' AND aggregate_id='$publicId'"
+                    "SELECT count(*) FROM outbox_event WHERE event_type='payment_authorized' AND " +
+                        "aggregate_id='$publicId'"
                 )
             )
                 .isGreaterThanOrEqualTo(1L)
@@ -89,7 +90,8 @@ class PaymentFlowE2EIntegrationTest {
         await().atMost(forwarding).pollInterval(poll).untilAsserted {
             assertThat(
                 edgeScalar(
-                    "SELECT status FROM outbox_event WHERE event_type='payment_authorized' AND aggregate_id='$publicId' LIMIT 1"
+                    "SELECT status FROM outbox_event WHERE event_type='payment_authorized' AND " +
+                        "aggregate_id='$publicId' LIMIT 1"
                 )
             )
                 .isEqualTo("SENT")
@@ -137,7 +139,8 @@ class PaymentFlowE2EIntegrationTest {
                 .isEqualTo("SUCCESS")
             assertThat(
                 centralCount(
-                    "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='AUTHORIZATION'"
+                    "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND " +
+                        "journal_type='AUTHORIZATION'"
                 )
             )
                 .isEqualTo(1L)
@@ -152,7 +155,8 @@ class PaymentFlowE2EIntegrationTest {
                 .isIn("SENT_FOR_SETTLE", "CAPTURED", "SETTLED") // may race past by poll time
             assertThat(
                 centralCount(
-                    "SELECT count(*) FROM outbox_event WHERE event_type='capture_submitted' AND status='SENT' AND aggregate_id='$publicId'"
+                    "SELECT count(*) FROM outbox_event WHERE event_type='capture_submitted' AND status='SENT' AND " +
+                        "aggregate_id='$publicId'"
                 )
             )
                 .isGreaterThanOrEqualTo(1L)
@@ -166,7 +170,8 @@ class PaymentFlowE2EIntegrationTest {
                 .isEqualTo("3000")
             assertThat(
                 centralCount(
-                    "SELECT count(*) FROM payment_tx WHERE payment_id=$paymentIdSub AND tx_type='CAPTURE' AND status='SUCCESS'"
+                    "SELECT count(*) FROM payment_tx WHERE payment_id=$paymentIdSub AND tx_type='CAPTURE' AND " +
+                        "status='SUCCESS'"
                 )
             )
                 .isEqualTo(1L)
@@ -187,39 +192,45 @@ class PaymentFlowE2EIntegrationTest {
         await().atMost(settlement).pollInterval(poll).untilAsserted {
             assertThat(
                 centralCount(
-                    "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='INTERNAL_TRANSFER'"
+                    "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND " +
+                        "journal_type='INTERNAL_TRANSFER'"
                 )
             )
                 .isGreaterThanOrEqualTo(2L)
             assertThat(
                 centralCount(
-                    "SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND target_account='$seller1'"
+                    "SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND " +
+                        "target_account='$seller1'"
                 )
             )
                 .isEqualTo(1L)
             assertThat(
                 centralCount(
-                    "SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND target_account='$seller2'"
+                    "SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND " +
+                        "target_account='$seller2'"
                 )
             )
                 .isEqualTo(1L)
             // both Commission splits land on the operator's commission account (not the merchant id)
             assertThat(
                 centralCount(
-                    "SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND source_account='$suspense' AND target_account='$commission'"
+                    "SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND " +
+                        "source_account='$suspense' AND target_account='$commission'"
                 )
             )
                 .isEqualTo(2L)
             // the platform fee is taken from that same commission account into the fee reserve
             assertThat(
                 centralCount(
-                    "SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND source_account='$commission' AND target_account='$feeReserve'"
+                    "SELECT count(*) FROM transfers WHERE payment_id=$paymentIdSub AND status='TRANSFERRED' AND " +
+                        "source_account='$commission' AND target_account='$feeReserve'"
                 )
             )
                 .isEqualTo(1L)
             assertThat(
                 centralCount(
-                    "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type='COMMISSION_FEE'"
+                    "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND " +
+                        "journal_type='COMMISSION_FEE'"
                 )
             )
                 .isEqualTo(1L)
@@ -241,7 +252,8 @@ class PaymentFlowE2EIntegrationTest {
         await().atMost(settlement).pollInterval(poll).untilAsserted {
             assertThat(
                 centralCount(
-                    "SELECT count(*) FROM payment_tx WHERE payment_id=$paymentIdSub AND tx_type='SETTLEMENT' AND settle_status='MATCHED'"
+                    "SELECT count(*) FROM payment_tx WHERE payment_id=$paymentIdSub AND tx_type='SETTLEMENT' AND " +
+                        "settle_status='MATCHED'"
                 )
             )
                 .isGreaterThanOrEqualTo(1L)
@@ -251,7 +263,8 @@ class PaymentFlowE2EIntegrationTest {
                 )
             )
                 .isEqualTo(1L)
-            // the PSP pays: 2930 reaches our bank, 70 is its fee (simulated: 1.5% of 3000 + 25), and its 3000 debt is cleared
+            // the PSP pays: 2930 reaches our bank, 70 is its fee (simulated: 1.5% of 3000 + 25), and its 3000 debt is
+            // cleared
             assertThat(postings(platformCash, "SETTLEMENT", paymentIdSub)).containsExactly("DEBIT|2930")
             assertThat(postings(pspFeeExpense, "SETTLEMENT", paymentIdSub)).containsExactly("DEBIT|70")
             assertThat(postings(pspReceivable, "SETTLEMENT", paymentIdSub)).containsExactly("CREDIT|3000")
@@ -312,7 +325,8 @@ class PaymentFlowE2EIntegrationTest {
         // These journal types belong to later batch jobs, not this flow:
         assertThat(
             centralCount(
-                "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type IN ('REFUND','PAYOUT','REVENUE_RECOGNITION')"
+                "SELECT count(*) FROM journal_entries WHERE payment_id=$paymentIdSub AND journal_type IN " +
+                    "('REFUND','PAYOUT','REVENUE_RECOGNITION')"
             )
         )
             .isEqualTo(0L)
@@ -340,7 +354,8 @@ class PaymentFlowE2EIntegrationTest {
         // the payment
         assertThat(
             centralRows(
-                "SELECT processing_model || '|' || total_amount_value || '|' || captured_amount_value || '|' || status " +
+                "SELECT processing_model || '|' || total_amount_value || '|' || captured_amount_value || '|' || " +
+                    "status " +
                     "FROM payments WHERE payment_intent_id=$pkInt"
             )
         ).containsExactly("DIRECT_MERCHANT|5000|5000|SETTLED")
@@ -380,7 +395,8 @@ class PaymentFlowE2EIntegrationTest {
         await().atMost(settlement).pollInterval(poll).untilAsserted {
             assertThat(
                 centralRows(
-                    "SELECT transfer_type || '|' || source_account || '|' || target_account || '|' || amount_value || '|' || status " +
+                    "SELECT transfer_type || '|' || source_account || '|' || target_account || '|' || " +
+                        "amount_value || '|' || status " +
                         "FROM transfers WHERE payment_id=$paymentIdSub ORDER BY 1"
                 )
             ).containsExactlyInAnyOrder(
@@ -438,7 +454,8 @@ class PaymentFlowE2EIntegrationTest {
         return publicId
     }
 
-    // --------------------------------------------------------------- accounts (ACCOUNT_TYPE.MERCHANT.[SELLER].CURRENCY)
+    // --------------------------------------------------------------- accounts
+    // (ACCOUNT_TYPE.MERCHANT.[SELLER].CURRENCY)
     private val authReceivable = "AUTH_RECEIVABLE.MARKETPLACE-5.EUR"
     private val authLiability = "AUTH_LIABILITY.MARKETPLACE-5.EUR"
     private val pspReceivable = "PSP_RECEIVABLE.GLOBAL.EUR"
@@ -462,7 +479,8 @@ class PaymentFlowE2EIntegrationTest {
     /** Every posting on one account for this payment, as JOURNAL_TYPE|DIRECTION|AMOUNT. */
     private fun allPostings(accountCode: String, paymentIdSub: String): List<String> {
         return centralRows(
-            "SELECT j.journal_type || '|' || p.direction || '|' || p.amount FROM postings p JOIN journal_entries j ON j.id = p.journal_id " +
+            "SELECT j.journal_type || '|' || p.direction || '|' || p.amount " +
+                "FROM postings p JOIN journal_entries j ON j.id = p.journal_id " +
                 "WHERE j.payment_id=$paymentIdSub AND p.account_code='$accountCode'"
         )
     }
@@ -478,7 +496,8 @@ class PaymentFlowE2EIntegrationTest {
     }
 
     private fun signedSum(accountCode: String, paymentIdSub: String, positiveDirection: String): Long {
-        val sql = "SELECT COALESCE(SUM(CASE WHEN p.direction='$positiveDirection' THEN p.amount ELSE -p.amount END), 0) " +
+        val sql = "SELECT COALESCE(SUM(CASE WHEN p.direction='$positiveDirection' " +
+            "THEN p.amount ELSE -p.amount END), 0) " +
             "FROM postings p JOIN journal_entries j ON j.id = p.journal_id " +
             "WHERE j.payment_id=$paymentIdSub AND p.account_code='$accountCode'"
         return centralCount(sql)

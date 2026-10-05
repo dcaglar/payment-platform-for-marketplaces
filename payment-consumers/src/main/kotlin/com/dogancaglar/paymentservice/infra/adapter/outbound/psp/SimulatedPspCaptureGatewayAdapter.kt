@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.psp
 
+import com.dogancaglar.paymentservice.domain.exception.PspOperation
 import com.dogancaglar.paymentservice.domain.exception.PspPermanentException
 import com.dogancaglar.paymentservice.domain.exception.PspTransientException
 import com.dogancaglar.paymentservice.domain.model.payment.Payment
@@ -33,15 +34,15 @@ class SimulatedPspCaptureGatewayAdapter(
 
     private val activeCapture: CaptureSimulationProperties.ScenarioConfig
         get() = captureConfig.scenarios[captureConfig.scenario]
-            ?: throw IllegalStateException("No capture scenario config for ${captureConfig.scenario}")
+            ?: error("No capture scenario config for ${captureConfig.scenario}")
 
     private val activeRefund: RefundSimulationProperties.ScenarioConfig
         get() = refundConfig.scenarios[refundConfig.scenario]
-            ?: throw IllegalStateException("No refund scenario config for ${refundConfig.scenario}")
+            ?: error("No refund scenario config for ${refundConfig.scenario}")
 
     override fun capture(payment: Payment): CompletableFuture<PspCaptureGatewayResponse> {
         return CompletableFuture.supplyAsync({
-            val roll = Random.nextInt(100)
+            val roll = Random.nextInt(PERCENT)
             val sc = activeCapture.response
             val generatedPspRef = "sim_cap_${UUID.randomUUID()}"
 
@@ -56,15 +57,17 @@ class SimulatedPspCaptureGatewayAdapter(
                 roll < sc.successful + sc.retryable -> {
                     pspCallsTotal.add(1, Attributes.of(AttributeKey.stringKey("result"), "RETRYABLE"))
                     throw PspTransientException(
-                        "Simulated transient gateway network timeout",
-                        RuntimeException("capture network lag")
+                        PspOperation.CAPTURE,
+                        payment.paymentIntentId.value,
+                        "simulated network timeout"
                     )
                 }
                 else -> {
                     pspCallsTotal.add(1, Attributes.of(AttributeKey.stringKey("result"), "DECLINED"))
                     throw PspPermanentException(
-                        "Simulated terminal capture rejection by card scheme",
-                        RuntimeException("capture declined")
+                        PspOperation.CAPTURE,
+                        payment.paymentIntentId.value,
+                        "simulated refusal"
                     )
                 }
             }
@@ -73,7 +76,7 @@ class SimulatedPspCaptureGatewayAdapter(
 
     override fun refund(paymentIntentId: PaymentIntentId): CompletableFuture<PspModificationStatus> {
         return CompletableFuture.supplyAsync({
-            val roll = Random.nextInt(100)
+            val roll = Random.nextInt(PERCENT)
             val sc = activeRefund.response
 
             val resultStatus = when {
@@ -85,5 +88,9 @@ class SimulatedPspCaptureGatewayAdapter(
             pspRefundCallsTotal.add(1, Attributes.of(AttributeKey.stringKey("result"), resultStatus.name))
             resultStatus
         }, pspExecutor)
+    }
+
+    private companion object {
+        const val PERCENT = 100 // a roll is a percentage
     }
 }

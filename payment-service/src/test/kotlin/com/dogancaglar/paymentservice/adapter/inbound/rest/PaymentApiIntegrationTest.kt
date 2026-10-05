@@ -252,16 +252,18 @@ class PaymentApiIntegrationTest {
         // AUTHORIZE rules:
         //   PSP authorized             -> AUTHORIZED
         //   PSP declined the card      -> DECLINED (final)
-        //   PSP unavailable/unknown    -> back to CREATED, answer 503
+        //   PSP unavailable (not done) -> back to CREATED, answer 503
+        //   PSP outcome unknown (reset, 5xx, unreadable) -> stays PENDING_AUTH, answer 202 (it may have authorized)
         //   PSP refused our request    -> FAILED (final)
         //   PSP has not decided        -> PENDING_AUTH, answer 202
         //   PSP answers after our 3 s wait -> answer 202 (PENDING_AUTH), then the late answer decides:
         //       authorized -> AUTHORIZED; declined -> DECLINED; refused -> FAILED;
-        //       unavailable, error, reset or no answer before our 6 s timeout -> back to CREATED
+        //       unavailable -> back to CREATED; error, reset or no answer before our 6 s timeout -> stays PENDING_AUTH
         //   our PSP thread pool full   -> answer 503, back to CREATED, the PSP is not called
         //   payment not in CREATED     -> the PSP is not called, the current state answers
         //   otherwise the PSP is called once per request (no retries on our side)
-        //   AUTHORIZED is stored with its payment_authorized event in the outbox (carrying the order id and the card's brand + last 4);
+        // AUTHORIZED is stored with its payment_authorized event in the outbox (carrying the order id and the card's
+        // brand + last 4);
         //   every other outcome writes no event
         @JvmStatic
         fun authorizeContract() = listOf(
@@ -297,9 +299,9 @@ class PaymentApiIntegrationTest {
                 "PSP outcome unknown",
                 givenPayment = "CREATED",
                 givenPsp = "PSP-AUTH-RESET",
-                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
-                expectedBody = "RETRY_LATER",
-                expectedStored = "CREATED",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
                 expectedPspCalls = 1
             ),
             AuthorizeCase(
@@ -324,27 +326,27 @@ class PaymentApiIntegrationTest {
                 "PSP error (500)",
                 givenPayment = "CREATED",
                 givenPsp = "PSP-AUTH-500",
-                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
-                expectedBody = "RETRY_LATER",
-                expectedStored = "CREATED",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
                 expectedPspCalls = 1
             ),
             AuthorizeCase(
                 "PSP bad gateway (502)",
                 givenPayment = "CREATED",
                 givenPsp = "PSP-AUTH-502",
-                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
-                expectedBody = "RETRY_LATER",
-                expectedStored = "CREATED",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
                 expectedPspCalls = 1
             ),
             AuthorizeCase(
                 "PSP gateway timeout (504)",
                 givenPayment = "CREATED",
                 givenPsp = "PSP-AUTH-504",
-                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
-                expectedBody = "RETRY_LATER",
-                expectedStored = "CREATED",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
                 expectedPspCalls = 1
             ),
             AuthorizeCase(
@@ -360,12 +362,22 @@ class PaymentApiIntegrationTest {
                 "PSP answer unreadable",
                 givenPayment = "CREATED",
                 givenPsp = "PSP-AUTH-NOT-JSON",
-                expectedHttp = HttpStatus.SERVICE_UNAVAILABLE,
-                expectedBody = "RETRY_LATER",
-                expectedStored = "CREATED",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
                 expectedPspCalls = 1
             ),
-            AuthorizeCase("PSP authorizes after 5 s", givenPayment = "CREATED", givenPsp = "PSP-AUTH-SLOW", expectedHttp = HttpStatus.ACCEPTED, expectedBody = "PENDING_AUTH", expectedStored = "PENDING_AUTH", expectedPspCalls = 1, expectedStoredLater = "AUTHORIZED", expectedEvent = "payment_authorized"),
+            AuthorizeCase(
+                "PSP authorizes after 5 s",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-SLOW",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
+                expectedPspCalls = 1,
+                expectedStoredLater = "AUTHORIZED",
+                expectedEvent = "payment_authorized"
+            ),
             AuthorizeCase(
                 "PSP declines after 5 s",
                 givenPayment = "CREATED",
@@ -404,7 +416,7 @@ class PaymentApiIntegrationTest {
                 expectedBody = "PENDING_AUTH",
                 expectedStored = "PENDING_AUTH",
                 expectedPspCalls = 1,
-                expectedStoredLater = "CREATED"
+                expectedStoredLater = "PENDING_AUTH"
             ),
             AuthorizeCase(
                 "connection reset after 4 s",
@@ -414,7 +426,7 @@ class PaymentApiIntegrationTest {
                 expectedBody = "PENDING_AUTH",
                 expectedStored = "PENDING_AUTH",
                 expectedPspCalls = 1,
-                expectedStoredLater = "CREATED"
+                expectedStoredLater = "PENDING_AUTH"
             ),
             AuthorizeCase(
                 "PSP hangs past our timeout",
@@ -424,7 +436,7 @@ class PaymentApiIntegrationTest {
                 expectedBody = "PENDING_AUTH",
                 expectedStored = "PENDING_AUTH",
                 expectedPspCalls = 1,
-                expectedStoredLater = "CREATED"
+                expectedStoredLater = "PENDING_AUTH"
             ),
             AuthorizeCase(
                 "our PSP thread pool is full",
@@ -589,7 +601,8 @@ class PaymentApiIntegrationTest {
         // a direct sale must not have splits
         val body = directSale(orderId).replace(
             "\"totalAmount\"",
-            "\"splits\": [ { \"type\": \"Commission\", \"amount\": { \"quantity\": 5000, \"currency\": \"EUR\" } } ], \"totalAmount\""
+            "\"splits\": [ { \"type\": \"Commission\", \"amount\": { \"quantity\": 5000, \"currency\": \"EUR\" } } " +
+                "], \"totalAmount\""
         )
 
         val result = create(newKey(), body)
@@ -627,7 +640,13 @@ class PaymentApiIntegrationTest {
         assertThat(answer(result)).isEqualTo(case.expectedBody)
         assertThat(storedStatus(orderId)).isEqualTo(case.expectedStored)
         assertThat(pspAuthorizeCalls(orderId)).isEqualTo(case.expectedPspCalls)
-        if (case.expectedStoredLater != null) {
+        if (case.expectedStoredLater == case.expectedStored) {
+            // the late answer must NOT move it: the status holds while the late answers arrive
+            // (the slowest, a hang, ends at our 6 s read timeout)
+            await().during(Duration.ofSeconds(8)).atMost(Duration.ofSeconds(10)).untilAsserted {
+                assertThat(storedStatus(orderId)).isEqualTo(case.expectedStoredLater)
+            }
+        } else if (case.expectedStoredLater != null) {
             await().atMost(Duration.ofSeconds(20)).untilAsserted {
                 assertThat(storedStatus(orderId)).isEqualTo(case.expectedStoredLater)
             }
@@ -863,7 +882,7 @@ class PaymentApiIntegrationTest {
         while (!refused) {
             try {
                 executor.execute { release.await() }
-            } catch (e: RejectedExecutionException) {
+            } catch (@Suppress("SwallowedException") e: RejectedExecutionException) { // the end of the loop
                 refused = true
             }
         }

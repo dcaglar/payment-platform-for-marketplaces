@@ -384,7 +384,13 @@ class LedgerMapperIntegrationTest {
         )
     }
 
-    private fun posting(journalId: String, accountCode: String, accountType: String, amount: Long, direction: String): PostingEntity {
+    private fun posting(
+        journalId: String,
+        accountCode: String,
+        accountType: String,
+        amount: Long,
+        direction: String
+    ): PostingEntity {
         return PostingEntity(
             journalId = journalId,
             accountCode = accountCode,
@@ -420,7 +426,7 @@ class LedgerMapperIntegrationTest {
         try {
             future.get(700, TimeUnit.MILLISECONDS)
             return false
-        } catch (e: TimeoutException) {
+        } catch (@Suppress("SwallowedException") e: TimeoutException) { // the timeout IS the answer
             return true
         }
     }

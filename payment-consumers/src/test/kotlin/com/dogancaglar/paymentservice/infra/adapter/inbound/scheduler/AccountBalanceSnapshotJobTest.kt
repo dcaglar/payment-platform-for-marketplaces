@@ -4,9 +4,15 @@ import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.domain.model.balance.AccountBalanceSnapshot
 import com.dogancaglar.paymentservice.ports.outbound.AccountBalanceCachePort
 import com.dogancaglar.paymentservice.ports.outbound.AccountBalanceSnapshotPort
-import io.mockk.*
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockk
+import io.mockk.runs
+import io.mockk.verify
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class AccountBalanceSnapshotJobTest {
 
@@ -198,12 +204,12 @@ class AccountBalanceSnapshotJobTest {
     }
 
     @Test
-    fun `mergeDeltasToSnapshots should handle exceptions gracefully`() {
+    fun `mergeDeltasToSnapshots lets a failure propagate, so the scheduler logs it and the next run tries again`() {
         // Given
-        val accountCode = "MERCHANT_PAYABLE.MERCHANT-456"
         every { accountBalanceCachePort.getDirtyAccounts() } throws RuntimeException("Redis error")
 
-        // When/Then - Should not throw
-        job.mergeDeltasToSnapshots()
+        // When/Then - the error comes out unchanged (it is not swallowed)
+        val thrown = assertThrows<RuntimeException> { job.mergeDeltasToSnapshots() }
+        assertEquals("Redis error", thrown.message)
     }
 }

@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.DependsOn
+import org.springframework.dao.DataAccessException
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.stereotype.Service
@@ -31,7 +32,7 @@ class LocalOutboxStoreAndForwardJob(
     fun dispatchBatches() {
         if (dispatchWorker.isSchemaReady()) {
             repeat(threadCount) { workerIdx ->
-                val delayMs = 500L * workerIdx
+                val delayMs = START_DELAY_PER_WORKER_MS * workerIdx
                 taskScheduler.schedule(
                     {
                         dispatchWorker.dispatchBatchWorker()
@@ -62,7 +63,8 @@ class LocalOutboxStoreAndForwardJob(
         val reclaimed = dispatchWorker.reclaimAll()
         if (reclaimed > 0) {
             logger.info(
-                "Step 2: Rescued {} abandoned events. (Active threads were killed, so we instantly reset their events back to 'NEW')",
+                "Step 2: Rescued {} abandoned events. (Active threads were killed, so we instantly reset their " +
+                    "events back to 'NEW')",
                 reclaimed
             )
         } else {
@@ -70,18 +72,19 @@ class LocalOutboxStoreAndForwardJob(
         }
 
         logger.info(
-            "Step 3: Beginning the final drain loop. We will wait for 3 consecutive seconds of silence to ensure no last-minute events are missed."
+            "Step 3: Beginning the final drain loop. We will wait for 3 consecutive seconds of silence to ensure no " +
+                "last-minute events are missed."
         )
         var flushCount = 0
         var emptyCycles = 0
-        while (emptyCycles < 3) {
+        while (emptyCycles < EMPTY_CYCLES_BEFORE_DONE) {
             val workerId = "$appInstanceId:shutdown-flush"
             val processed = dispatchWorker.flushBatch(workerId)
 
             if (processed == 0) {
                 emptyCycles++
                 logger.info("   -> Empty cycle {}/3: No new events found in the local outbox.", emptyCycles)
-                Thread.sleep(1000)
+                Thread.sleep(EMPTY_CYCLE_PAUSE_MS)
             } else if (processed > 0) {
                 logger.info("   -> Sent {} events! Resetting empty cycle countdown back to 0.", processed)
                 emptyCycles = 0
@@ -89,12 +92,13 @@ class LocalOutboxStoreAndForwardJob(
             } else {
                 // processed == -1 means flush failed and it unclaimed
                 logger.warn("   -> Batch forward failed during drain. Backing off 2 seconds before retry.")
-                Thread.sleep(2000)
+                Thread.sleep(FAILED_BATCH_BACKOFF_MS)
             }
         }
 
         logger.info(
-            "Step 4: Drain complete! We saw 3 full seconds of silence. Successfully forwarded a total of {} final events.",
+            "Step 4: Drain complete! We saw 3 full seconds of silence. Successfully forwarded a total of {} final " +
+                "events.",
             flushCount
         )
         try {
@@ -103,8 +107,16 @@ class LocalOutboxStoreAndForwardJob(
                 "Step 5: Deleted worker watermark for {}. Pod is now safely cleared to terminate.",
                 appInstanceId
             )
-        } catch (t: Throwable) {
-            logger.error("Failed to delete watermark during shutdown!", t)
+        } catch (e: DataAccessException) {
+            // shutdown must go on; a stale watermark only delays nothing (the pod is going away)
+            logger.error("Failed to delete watermark during shutdown!", e)
         }
+    }
+
+    private companion object {
+        const val START_DELAY_PER_WORKER_MS = 500L
+        const val EMPTY_CYCLES_BEFORE_DONE = 3
+        const val EMPTY_CYCLE_PAUSE_MS = 1000L
+        const val FAILED_BATCH_BACKOFF_MS = 2000L
     }
 }

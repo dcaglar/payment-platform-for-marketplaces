@@ -241,7 +241,7 @@ class AccountDirectoryMapperIntegrationTest {
     // ----------------------------------------------------------- findAllSubEntitiesByMaster
 
     @Test
-    fun `should list a merchant's seller accounts in natural order of the seller code, without other merchants' sellers`() {
+    fun `lists a merchant's seller accounts in natural order of the seller code, without other merchants' sellers`() {
         insertAccount("SELLER_PAYABLE.MERCHANT-A.SELLER-A-10.EUR", "SELLER_PAYABLE", "MERCHANT-A", "SELLER-A-10", "EUR")
         insertAccount("SELLER_PAYABLE.MERCHANT-A.SELLER-A-2.EUR", "SELLER_PAYABLE", "MERCHANT-A", "SELLER-A-2", "EUR")
         insertAccount("SELLER_PAYABLE.MERCHANT-A.SELLER-A-1.EUR", "SELLER_PAYABLE", "MERCHANT-A", "SELLER-A-1", "EUR")
@@ -332,7 +332,8 @@ class AccountDirectoryMapperIntegrationTest {
 
         val error = assertThrows(DataIntegrityViolationException::class.java) {
             jdbcTemplate.update(
-                "INSERT INTO accounts (account_code, kind, parent_code, ledger_type) VALUES ('SELLER-A-1', 'SELLER', 'MERCHANT-A', 'SELLER_PAYABLE')"
+                "INSERT INTO accounts (account_code, kind, parent_code, ledger_type) VALUES ('SELLER-A-1', 'SELLER', " +
+                    "'MERCHANT-A', 'SELLER_PAYABLE')"
             )
         }
         assertTrue(error.message!!.contains("chk_accounts_seller"), error.message)
@@ -360,7 +361,8 @@ class AccountDirectoryMapperIntegrationTest {
         var owner = merchant
         if (subEntityId != null) {
             jdbcTemplate.update(
-                "INSERT INTO accounts (account_code, kind, parent_code) VALUES (?, 'SELLER', ?) ON CONFLICT (account_code) DO NOTHING",
+                "INSERT INTO accounts (account_code, kind, parent_code) VALUES (?, 'SELLER', ?) ON CONFLICT " +
+                    "(account_code) DO NOTHING",
                 subEntityId,
                 merchant
             )
@@ -384,7 +386,8 @@ class AccountDirectoryMapperIntegrationTest {
 
     private fun insertLedger(accountCode: String, accountType: String, owner: String, currency: String) {
         jdbcTemplate.update(
-            "INSERT INTO accounts (account_code, kind, parent_code, ledger_type, currency) VALUES (?, 'LEDGER', ?, ?, ?)",
+            "INSERT INTO accounts (account_code, kind, parent_code, ledger_type, currency) VALUES (?, 'LEDGER', ?, " +
+                "?, ?)",
             accountCode,
             owner,
             accountType,

@@ -28,9 +28,9 @@ class PaymentEdgeWorkersThreadPoolConfig {
     @Bean("resilientExecutor")
     fun resilientExecutor(): ThreadPoolTaskExecutor {
         val resilientExecutor = ThreadPoolTaskExecutor()
-        resilientExecutor.corePoolSize = 32
-        resilientExecutor.maxPoolSize = 32
-        resilientExecutor.queueCapacity = 500
+        resilientExecutor.corePoolSize = RESILIENT_POOL_SIZE
+        resilientExecutor.maxPoolSize = RESILIENT_POOL_SIZE
+        resilientExecutor.queueCapacity = RESILIENT_QUEUE_CAPACITY
         resilientExecutor.setThreadNamePrefix("edge-worker-resilient-callback-")
         resilientExecutor.setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
 /*
@@ -72,5 +72,10 @@ public ExecutorService wrapExecutor(ExecutorService executor) {
         }
 
         return scheduler
+    }
+
+    private companion object {
+        const val RESILIENT_POOL_SIZE = 32
+        const val RESILIENT_QUEUE_CAPACITY = 500
     }
 }

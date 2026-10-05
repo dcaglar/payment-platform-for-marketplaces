@@ -1,5 +1,7 @@
 package com.dogancaglar.paymentservice.domain.model.common
 
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
+
 /**
  * Represents a monetary amount using the smallest currency unit (e.g., cents, pence).
  *
@@ -17,7 +19,11 @@ package com.dogancaglar.paymentservice.domain.model.common
 @JvmInline
 value class Currency(val currencyCode: String) {
     init {
-        require(currencyCode.matches(Regex("^[A-Z]{3}$"))) { "Invalid currency code" }
+        require(currencyCode.matches(Regex("^[A-Z]{3}$"))) {
+            PaymentDomainException.InvalidCurrencyException(
+                "Invalid currency code '$currencyCode': must be 3 capital letters"
+            )
+        }
     }
 }
 
@@ -25,7 +31,11 @@ data class Amount private constructor(val quantity: Long, val currency: Currency
 
     companion object {
         fun of(quantity: Long, currency: Currency): Amount {
-            require(quantity > 0) { "Amount quantity must be greater than zero, but was: $quantity" }
+            require(quantity > 0) {
+                PaymentDomainException.InvalidAmountException(
+                    "Amount quantity must be greater than zero, but was $quantity"
+                )
+            }
             return Amount(quantity, currency)
         }
 
@@ -35,21 +45,21 @@ data class Amount private constructor(val quantity: Long, val currency: Currency
     }
 
     operator fun plus(other: Amount): Amount {
-        require(other.currency == currency) {
-            "currency not matching"
-        }
+        requireSameCurrency(other)
         return Amount(quantity + other.quantity, currency)
     }
 
     operator fun minus(other: Amount): Amount {
-        require(other.currency == currency) {
-            "currency not matching"
-        }
+        requireSameCurrency(other)
         return Amount(quantity - other.quantity, currency)
     }
 
     private fun requireSameCurrency(other: Amount) {
-        require(currency == other.currency) { "Currency mismatch: $currency vs ${other.currency}" }
+        require(currency == other.currency) {
+            PaymentDomainException.CurrencyMismatchException(
+                "Currency mismatch: ${currency.currencyCode} vs ${other.currency.currencyCode}"
+            )
+        }
     }
 
     fun negate(): Amount = Amount(-quantity, currency)

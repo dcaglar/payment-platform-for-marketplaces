@@ -1,12 +1,19 @@
 # Fixing the detekt baseline
 
-How to clean up the old detekt findings, module by module, until the baselines are empty.
+How to work through the detekt findings, module by module, until the baselines are empty.
 For what detekt is and when it runs, see [code-quality.md](code-quality.md).
 
 ## What the baseline is
 
-Each module has a `detekt-baseline.xml`: the findings that already existed when detekt was introduced. detekt
-ignores them; anything not in the list fails `mvn verify`. One line per finding:
+Each module has a `detekt-baseline.xml`: **every finding still left in that module's code**, in all files
+(`src/main` and `src/test`), whatever their age. It is a to-do list, not a list of accepted problems:
+
+- The findings in it are **tolerated for now**, so the build stays green while they're being fixed step by step.
+- Anything **not** in it fails `mvn verify`: code you write or change must be clean.
+- The goal is an **empty** baseline. Progress per module and per step is tracked in
+  [code-health/checkup-2026-10-04.md](code-health/checkup-2026-10-04.md) (table at the top).
+
+One line per finding:
 
 ```xml
 <ID>LongParameterList:InternalTransfer.kt$InternalTransfer.Companion$( transferId: InternalTransferId, ... )</ID>
@@ -68,11 +75,13 @@ List what's left (same command as in step 1) and work through it. Per rule:
 |---|---|
 | `UnusedImports`, `UnusedPrivateMember`, `UnusedPrivateProperty`, `UnusedParameter` | delete it (check it's really unused: IntelliJ greys it out too) |
 | `InvalidPackageDeclaration` | the `package` line doesn't match the folder: move the file (IntelliJ: F6 Move) or fix the `package` line |
-| `MaxLineLength` (over 120 characters) | break the line where it reads best, e.g. one argument per line |
+| `MaxLineLength` (over 120 characters) | break the line where it reads best, e.g. one argument per line. Break only at a space, `+` or comma: never inside a name, a number or a `${…}` template. A long string: split it into `"…" +` parts at a space. A one-line `/** … */`: make it a multi-line KDoc. A fully qualified class name in code: import it instead |
 | `MagicNumber` | give the number a name: a `const val` in a `companion object`, e.g. `SIMULATED_PSP_FEE_BPS = 150L` |
-| `UseCheckOrError` | `throw IllegalStateException("...")` → `error("...")`; `if (!x) throw IllegalStateException(...)` → `check(x) { "..." }` |
-| `TooGenericExceptionCaught` | `catch (e: Exception)` → catch the specific type, or let it propagate (root `CLAUDE.md` §5: catch only where you can do something useful) |
-| `LongParameterList`, `LongMethod`, `TooManyFunctions`, `ReturnCount`, `ThrowsCount` | refactor if it makes the code clearer; if the size is natural (e.g. an aggregate's `rehydrate` with all its fields), keep it and suppress (below) |
+| `UseCheckOrError`, `UseRequire` | in `payment-domain`: our `require(x) { PaymentDomainException.… }` from `domain/model/common/Preconditions.kt` (import it explicitly, or Kotlin's own `require` is used silently); elsewhere `throw IllegalStateException("...")` → `error("...")`, `if (!x) throw IllegalStateException(...)` → `check(x) { "..." }`. Messages name the payment (`paymentId=…`). See [code-health/exception-hierarchy.md](code-health/exception-hierarchy.md) |
+| `TooGenericExceptionCaught` | root `CLAUDE.md` §5: catch only where you can do something useful. Then: **narrow** to the real type (`DataAccessException`, `IOException`, `JsonProcessingException`, `ExecutionException`, `KafkaException`); **log and rethrow** → remove the catch (the handling layer logs once, e.g. the Kafka recoverer); **count a metric and rethrow** → `try/finally` with a success flag, no catch; **react per subtype** → catch the sealed family once, exhaustive `when (e) { is A, is B -> … }` |
+| `SwallowedException` | log it **with** the exception where it's handled, or let it propagate; if dropping it is the point (a timeout that is the expected outcome, "not a UUID" = invalid), keep it and suppress (below) |
+| `LongParameterList` | first check the callers: if several arguments come from one object they already have (`payment.paymentId`, `payment.paymentIntentId`, `captureTx.txId`, …), pass that object instead (e.g. `Tx.createSettleTx(txId, captureTx, …)`). Don't invent a new class to group arguments. If the size is natural (an aggregate's constructor / `rehydrate` with all its fields, Spring `@Value` config), keep it |
+| `LongMethod`, `TooManyFunctions`, `ReturnCount`, `ThrowsCount` | refactor if it makes the code clearer; if the size is natural, keep it and suppress (below) |
 
 ### c. Suppressing a finding on purpose
 When a finding is not a problem in that place, say so in the code, with the reason, instead of keeping it in
@@ -80,6 +89,10 @@ the baseline:
 ```kotlin
 @Suppress("LongParameterList") // rehydrate takes every persisted field of the aggregate
 fun rehydrate(...)
+```
+For a single `catch`, put it on the caught parameter, so it covers only that one catch:
+```kotlin
+} catch (@Suppress("SwallowedException") e: TimeoutException) { // the timeout IS the answer
 ```
 The suppression is visible in review and stays with the code; a baseline entry is invisible.
 

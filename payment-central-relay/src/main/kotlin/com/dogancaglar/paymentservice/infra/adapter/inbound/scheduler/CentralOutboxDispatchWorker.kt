@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.dao.DataAccessException
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.stereotype.Component
 import java.time.Instant
@@ -48,7 +49,8 @@ class CentralOutboxDispatchWorker(
                                 "✅ Marked dispatched outboxevent with ${entry.eventType} and oeid ${entry.oeid}"
                             )
                             markDispatched(entry.oeid, Utc.toInstant(entry.createdAt))
-                        } catch (exception: Exception) {
+                        } catch (@Suppress("TooGenericExceptionCaught") exception: Exception) {
+                            // any failure on purpose (publish or mark): stop this aggregate's chain to keep its order
                             logger.error(
                                 "🛑 Breaking chain for aggregate $aggregateId at oeid=${entry.oeid}",
                                 exception
@@ -77,7 +79,7 @@ class CentralOutboxDispatchWorker(
     private fun unclaimSpecific(oeid: Long, createdAt: Instant, workerId: String) {
         try {
             centralOutboxRepository.unclaimSpecific(oeid, createdAt, workerId)
-        } catch (dbEx: Exception) {
+        } catch (dbEx: DataAccessException) {
             logger.error("Failed to unclaim oeid=$oeid. Relies on reclaimer.", dbEx)
         }
     }

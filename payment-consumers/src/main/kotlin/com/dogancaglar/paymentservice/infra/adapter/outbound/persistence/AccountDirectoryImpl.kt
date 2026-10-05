@@ -14,14 +14,21 @@ class AccountDirectoryImpl(
     private val redisCache: AccountProfileRedisCache
 ) : AccountDirectoryPort {
 
-    override fun getAccountProfile(accountType: LedgerAccountType, masterAccountCode: String, currency: Currency): AccountProfile {
+    override fun getAccountProfile(
+        accountType: LedgerAccountType,
+        masterAccountCode: String,
+        currency: Currency
+    ): AccountProfile {
         // 1. Check Cache
         val cached = redisCache.getProfile(accountType, masterAccountCode, null, currency)
         if (cached != null) return cached
 
         // 2. Fetch from DB
         val dbProfile = mapper.findByEntityAndType(accountType.name, masterAccountCode, currency.currencyCode)
-            ?: throw IllegalArgumentException("Account not found: ${accountType.name}.$masterAccountCode.${currency.currencyCode}")
+            ?: throw IllegalArgumentException(
+                "Account not found: " +
+                    "${accountType.name}.$masterAccountCode.${currency.currencyCode}"
+            )
 
         // 3. Populate Cache
         redisCache.saveProfile(dbProfile)
@@ -29,14 +36,22 @@ class AccountDirectoryImpl(
         return dbProfile
     }
 
-    override fun getSubEntityAccountProfile(accountType: LedgerAccountType, masterAccountCode: String, subEntityId: String, currency: Currency): AccountProfile {
+    override fun getSubEntityAccountProfile(
+        accountType: LedgerAccountType,
+        masterAccountCode: String,
+        subEntityId: String,
+        currency: Currency
+    ): AccountProfile {
         // 1. Check Cache
         val cached = redisCache.getProfile(accountType, masterAccountCode, subEntityId, currency)
         if (cached != null) return cached
 
         // 2. Fetch from DB
         val dbProfile = mapper.findBySubEntity(accountType.name, masterAccountCode, subEntityId, currency.currencyCode)
-            ?: throw IllegalArgumentException("Account not found: ${accountType.name}.$masterAccountCode.$subEntityId.${currency.currencyCode}")
+            ?: throw IllegalArgumentException(
+                "Account not found: " +
+                    "${accountType.name}.$masterAccountCode.$subEntityId.${currency.currencyCode}"
+            )
 
         // 3. Populate Cache
         redisCache.saveProfile(dbProfile)
@@ -44,17 +59,26 @@ class AccountDirectoryImpl(
         return dbProfile
     }
 
-    override fun getAccountProfilesBySubEntity(accountType: LedgerAccountType, subEntityId: String): List<AccountProfile> {
+    override fun getAccountProfilesBySubEntity(
+        accountType: LedgerAccountType,
+        subEntityId: String
+    ): List<AccountProfile> {
         // Not using redis cache for sub entity lookups currently, could be added later
         return mapper.findAllBySubEntity(accountType.name, subEntityId)
     }
 
-    override fun getAccountProfilesByMaster(accountType: LedgerAccountType, masterAccountCode: String): List<AccountProfile> {
+    override fun getAccountProfilesByMaster(
+        accountType: LedgerAccountType,
+        masterAccountCode: String
+    ): List<AccountProfile> {
         // Not using redis cache for merchant lookups currently, could be added later
         return mapper.findAllByMaster(accountType.name, masterAccountCode)
     }
 
-    override fun getSubEntityAccountProfilesByMaster(accountType: LedgerAccountType, masterAccountCode: String): List<AccountProfile> {
+    override fun getSubEntityAccountProfilesByMaster(
+        accountType: LedgerAccountType,
+        masterAccountCode: String
+    ): List<AccountProfile> {
         return mapper.findAllSubEntitiesByMaster(accountType.name, masterAccountCode)
     }
 

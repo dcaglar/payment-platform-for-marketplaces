@@ -11,6 +11,8 @@ interface PaymentIntentMapper {
 
     fun tryMarkPendingAuth(id: Long, now: Instant): Int
     fun updatePspReference(paymentIntentId: Long, pspReference: String, now: Instant): Int
+
+    @Suppress("LongParameterList") // one @Param per updated column
     fun updatePaymentIntentWithPspResponse(
         paymentIntentId: Long,
         pspReference: String?,

@@ -1,10 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongParameterList:PaymentTestHelper.kt$PaymentTestHelper$( paymentIntentId: Long = 100L, buyerId: String = "buyer-123", orderId: String = "order-456", totalAmount: Long = 10_000, currency: String = "EUR", sellerId: String = "seller-789", merchantAccount: String = "merchant-001", processingModel: ProcessingModel = ProcessingModel.DIRECT_MERCHANT )</ID>
-    <ID>NestedBlockDepth:TestDatabases.kt$TestDatabases$fun truncateAll(db: PostgreSQLContainer&lt;*&gt;)</ID>
-    <ID>NestedBlockDepth:TestDatabases.kt$TestDatabases$private fun createDefaultPartitions(db: PostgreSQLContainer&lt;*&gt;)</ID>
-    <ID>WildcardImport:JournalEntryTestHelper.kt$import com.dogancaglar.paymentservice.domain.model.ledger.*</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

@@ -1,6 +1,6 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
-import com.dogancaglar.port.out.web.dto.CreateAccountRequestDTO
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CreateAccountRequestDTO
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity

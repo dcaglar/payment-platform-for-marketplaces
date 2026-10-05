@@ -9,7 +9,8 @@ It models the **ubiquitous language** in code and nothing else. Respect the tact
 - **Aggregate roots** = the consistency boundaries: `PaymentIntent`, `Payment`, `JournalEntry`, `InternalTransfer` (+ `OutboxEvent` as a technical aggregate). Each guards its own invariants in `init{}`/`createNew` and is the ONLY entry point for mutating its internals. Never reach past a root to mutate a child (`Posting`, `Tx`) directly.
 - **Value objects** = identity-less, immutable, self-validating: `Amount`/`Currency`, `PaymentSplit`, and every `@JvmInline value class …Id`. Equality is by value. Prefer a VO over a primitive in every signature.
 - **Rich model, NOT anemic**: behavior lives ON the aggregate (`markAuthorized`, `markAsCreated`, balance/sign logic), not in external services. If you're tempted to write a `…Service` that pulls data out of an aggregate to compute on it, the method belongs on the aggregate.
-- **Invariants at the boundary**: business rules are enforced once, at construction/transition (`require(...)`), so an instance is *always valid by existence*. Callers never re-check.
+- **Invariants at the boundary**: business rules are enforced once, at construction/transition (`require(...)`), so an instance i- **Invariants at the boundary**: business rules are enforced once, at construction/transition (`require(...)`), so an instance is *always valid by existence*. Callers never re-check.
+  s *always valid by existence*. Callers never re-check.
 - **Ubiquitous language is deliberate** — e.g. `PaymentIntent` (edge-only intent to pay, no money movement) vs `Payment` (central, real money) is a domain distinction, not a naming accident (architecture.md §4). Keep names aligned with the business, both ways.
 - **State lives here; change does NOT.** The domain models **state** — an aggregate holds its current status (`PaymentIntent` in `AUTHORIZED`). An **event** like `PaymentAuthorized` is not a domain object: it represents a *change / something that happened* (past-tense fact of a transition), not a state. That conceptual difference is why events are NOT in this module — they live one layer out in `payment-application/events` (`PaymentAuthorized`, `CaptureRequested`, …), alongside use-case coordination and ports (except the one legacy outlier below). This module has NO domain services and NO event classes; keep orchestration and events OUT of here.
 
@@ -21,7 +22,7 @@ It models the **ubiquitous language** in code and nothing else. Respect the tact
 ## Aggregate construction convention (follow exactly)
 Every aggregate (`PaymentIntent`, `Payment`, `JournalEntry`, `InternalTransfer`, `OutboxEvent`) uses:
 - `private constructor(...)` — never called directly.
-- `companion object.createNew(...)` — the ONLY place business invariants are enforced (`require(...)`). Use for genuinely new instances.
+- `companion object.createNew(...)` — the ONLY place business invariants are enforced (`require(...)`). Use for genuinely new instances. only payment intent, also only jounrlalfactor use joruanal.crewate
 - `companion object.rehydrate(...)` — reconstructs from persisted state. **Trusts the DB**: minimal/no invariant checks (comment in JournalEntry: "assume the DB holds valid, balanced data"). Do NOT duplicate createNew's validation here.
 - State transitions return a NEW instance via a private `copy(...)`; aggregates are effectively immutable. A transition `require(...)`s the legal source status first (state-machine guard).
 

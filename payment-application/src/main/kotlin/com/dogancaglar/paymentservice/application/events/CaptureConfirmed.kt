@@ -15,6 +15,7 @@ data class CaptureConfirmed(
     override val eventType: String = EventType.CAPTURE_CONFIRMED
 
     companion object {
+        @Suppress("LongParameterList") // one argument per event field
         fun from(
             paymentIntentId: String,
             publicPaymentIntentId: String,

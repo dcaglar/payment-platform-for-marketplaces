@@ -24,7 +24,7 @@ class AuthorizationSimulationProperties {
 
     class TimeoutConfig {
         var enabled: Boolean = true
-        var probability: Int = 5 // default: 5% chance of timeout
+        var probability: Int = DEFAULT_TIMEOUT_PERCENT
     }
 
     class LatencyConfig {
@@ -40,10 +40,17 @@ class AuthorizationSimulationProperties {
     }
 
     class ResponseDistribution {
-        var successful: Int = 80 // 60% of responses
-        var retryable: Int = 17 // 25% of responses
+        var successful: Int = DEFAULT_SUCCESSFUL_PERCENT
+        var retryable: Int = DEFAULT_RETRYABLE_PERCENT
         var statusCheck: Int = 0 // 10% of responses
-        var nonRetryable: Int = 3 // 5% of responses
+        var nonRetryable: Int = DEFAULT_NON_RETRYABLE_PERCENT
     }
     // existing inner classes TimeoutConfig, LatencyConfig, ResponseDistribution…
+
+    private companion object {
+        const val DEFAULT_TIMEOUT_PERCENT = 5
+        const val DEFAULT_SUCCESSFUL_PERCENT = 80
+        const val DEFAULT_RETRYABLE_PERCENT = 17
+        const val DEFAULT_NON_RETRYABLE_PERCENT = 3
+    }
 }

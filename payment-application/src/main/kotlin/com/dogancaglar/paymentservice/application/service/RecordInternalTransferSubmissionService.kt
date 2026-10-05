@@ -5,9 +5,8 @@ import com.dogancaglar.paymentservice.application.util.toPublicPaymentIntentId
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalType
 import com.dogancaglar.paymentservice.domain.model.payment.InternalTransfer
+import com.dogancaglar.paymentservice.domain.model.payment.Payment
 import com.dogancaglar.paymentservice.domain.model.vo.InternalTransferId
-import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
-import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import com.dogancaglar.paymentservice.ports.inbound.usecases.RecordInternalTransferSubmissionUseCase
 import com.dogancaglar.paymentservice.ports.outbound.CentralDbTransactionalFacadePort
 import com.dogancaglar.paymentservice.ports.outbound.IdGeneratorPort
@@ -23,23 +22,22 @@ class RecordInternalTransferSubmissionService(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     override fun recordSubmission(
-        paymentId: PaymentId,
-        paymentIntentId: PaymentIntentId,
-        paymentMerchantAccountId: String,
+        payment: Payment,
         sourceAccount: String,
         targetAccount: String,
         transferAmount: Amount,
         journalType: JournalType,
         reason: String
     ) {
+        val paymentIntentId = payment.paymentIntentId
         val transferId = InternalTransferId(idGeneratorPort.generateId()) // using same generator for simplicity
 
         // 1. Create InternalTransfer and mark as SENT_FOR_TRANSFER
         val internalTransfer = InternalTransfer.createNew(
             transferId = transferId,
             paymentIntentId = paymentIntentId,
-            paymentId = paymentId,
-            merchantAccount = paymentMerchantAccountId,
+            paymentId = payment.paymentId,
+            merchantAccount = payment.merchantAccount,
             amount = transferAmount,
             sourceAccount = sourceAccount,
             targetAccount = targetAccount,

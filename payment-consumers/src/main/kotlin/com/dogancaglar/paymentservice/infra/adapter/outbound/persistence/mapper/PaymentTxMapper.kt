@@ -23,7 +23,8 @@ interface PaymentTxMapper {
         @Param("merchantAccount") merchantAccount: String
     ): List<PaymentTxEntity>
 
-    fun findByTxIdForMerchant(@Param(
-        "txId"
-    ) txId: Long, @Param("merchantAccount") merchantAccount: String): PaymentTxEntity?
+    fun findByTxIdForMerchant(
+        @Param("txId") txId: Long,
+        @Param("merchantAccount") merchantAccount: String
+    ): PaymentTxEntity?
 }

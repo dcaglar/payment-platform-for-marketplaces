@@ -1,12 +1,12 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CreateAccountRequestDTO
 import com.dogancaglar.paymentservice.application.command.CreateAccountCommand
 import com.dogancaglar.paymentservice.domain.model.account.Address
 import com.dogancaglar.paymentservice.domain.model.account.PlatformFee
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.ports.inbound.usecases.RequestAccountCreationUseCase
-import com.dogancaglar.port.out.web.dto.CreateAccountRequestDTO
 import org.springframework.stereotype.Service
 
 /** Maps the account request to its command and hands it to the use case, which queues it. */

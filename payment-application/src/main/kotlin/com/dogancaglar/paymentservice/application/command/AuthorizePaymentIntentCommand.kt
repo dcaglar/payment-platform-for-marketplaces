@@ -7,5 +7,6 @@ data class AuthorizePaymentIntentCommand(
     val paymentIntentId: PaymentIntentId,
     /** The caller's merchant: only its own intents are found. */
     val merchantAccount: String,
-    val paymentMethod: PaymentMethod? = null // Optional - for Stripe Payment Element, payment method is already attached
+    // Optional - for Stripe Payment Element, payment method is already attached
+    val paymentMethod: PaymentMethod? = null
 )

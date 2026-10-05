@@ -69,6 +69,7 @@ class CreatePaymentIntentService(
             return createdPaymentIntent
         } catch (e: PspPermanentException) {
             // the PSP refused to create it: a final answer, the intent is still CREATED_PENDING
+            logger.warn("PSP refused to create {}, marking FAILED", paymentIntent.paymentIntentId.value, e)
             val failed = paymentIntent.markFailed()
             paymentIntentRepository.updatePaymentIntent(failed)
             return failed

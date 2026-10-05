@@ -1,13 +1,17 @@
 package com.dogancaglar.paymentservice.domain.model.payment
 
 import com.dogancaglar.common.time.Utc
+import com.dogancaglar.paymentservice.domain.exception.InternalTransferDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
+import com.dogancaglar.paymentservice.domain.model.common.require
 import com.dogancaglar.paymentservice.domain.model.vo.InternalTransferId
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import java.time.LocalDateTime
 
-class InternalTransfer private constructor(
+class InternalTransfer
+@Suppress("LongParameterList")
+private constructor( // the object's own fields
     val transferId: InternalTransferId,
     val paymentId: PaymentId,
     val paymentIntentId: PaymentIntentId,
@@ -27,19 +31,29 @@ class InternalTransfer private constructor(
 
     init {
         require(targetAccount.isNotBlank()) {
-            "targetEntityId must not be blank"
+            InternalTransferDomainException.InvariantViolationException(
+                "transferId=${transferId.value}: targetAccount must not be blank"
+            )
         }
         require(sourceAccount.isNotBlank()) {
-            "sourceEntityId must not be blank"
+            InternalTransferDomainException.InvariantViolationException(
+                "transferId=${transferId.value}: sourceAccount must not be blank"
+            )
         }
         require(amount.isPositive()) {
-            "amount must be positive, but was ${amount.quantity}"
+            InternalTransferDomainException.InvariantViolationException(
+                "transferId=${transferId.value}: amount must be positive, but was ${amount.quantity}"
+            )
         }
         require(paymentIntentId.value > 0) {
-            "paymentIntentId must not be zero or negative"
+            InternalTransferDomainException.InvariantViolationException(
+                "transferId=${transferId.value}: paymentIntentId must not be zero or negative"
+            )
         }
         require(paymentId.value > 0) {
-            "paymentId must not be zero or negative"
+            InternalTransferDomainException.InvariantViolationException(
+                "transferId=${transferId.value}: paymentId must not be zero or negative"
+            )
         }
     }
 
@@ -53,14 +67,18 @@ class InternalTransfer private constructor(
 
     fun markSentForTransfer(now: LocalDateTime = Utc.nowLocalDateTime()): InternalTransfer {
         require(status == InternalTransferStatus.CREATED_PENDING) {
-            "Can only mark SENT_FOR_TRANSFER from CREATED_PENDING (current=$status)"
+            InternalTransferDomainException.InvalidStateTransitionException(
+                "transferId=${transferId.value}: can only mark SENT_FOR_TRANSFER from CREATED_PENDING (current=$status)"
+            )
         }
         return copy(status = InternalTransferStatus.SENT_FOR_TRANSFER, updatedAt = now)
     }
 
     fun markTransferred(now: LocalDateTime = Utc.nowLocalDateTime()): InternalTransfer {
         require(status == InternalTransferStatus.SENT_FOR_TRANSFER) {
-            "Can only mark TRANSFERRED from SENT_FOR_TRANSFER (current=$status)"
+            InternalTransferDomainException.InvalidStateTransitionException(
+                "transferId=${transferId.value}: can only mark TRANSFERRED from SENT_FOR_TRANSFER (current=$status)"
+            )
         }
         return copy(status = InternalTransferStatus.TRANSFERRED, updatedAt = now)
     }
@@ -88,7 +106,8 @@ class InternalTransfer private constructor(
 
     override fun toString(): String =
         "amount=$amount, target=$targetAccount/$targetAccount, " +
-            "source=$sourceAccount/$sourceAccount, status=$status, transferType= $transferType createdAt=$createdAt, updatedAt=$updatedAt)"
+            "source=$sourceAccount/$sourceAccount, status=$status, transferType= $transferType createdAt=$createdAt, " +
+            "updatedAt=$updatedAt)"
 
     // =========================================================================
     // Factory Methods
@@ -96,6 +115,7 @@ class InternalTransfer private constructor(
 
     companion object {
 
+        @Suppress("LongParameterList") // the object's own fields
         fun createNew(
             transferId: InternalTransferId,
             paymentIntentId: PaymentIntentId,
@@ -122,6 +142,7 @@ class InternalTransfer private constructor(
             )
         }
 
+        @Suppress("LongParameterList") // the object's own fields
         fun rehydrate(
             transferId: InternalTransferId,
             paymentId: PaymentId,

@@ -26,6 +26,7 @@ class CentralOutboxDataSourceConfig {
     // =========================================================================
 
     @Bean("centralOutboxDataSource")
+    @Suppress("LongParameterList") // one @Value per datasource setting
     fun centralOutboxDataSource(
         @Value("\${app.datasource.central-outbox.jdbc-url}") jdbcUrl: String,
         @Value("\${app.datasource.central-outbox.username}") username: String,
@@ -58,7 +59,7 @@ class CentralOutboxDataSourceConfig {
 
     @Bean("centralOutboxTxManager")
     fun centralOutboxTxManager(@Qualifier("centralOutboxDataSource") ds: DataSource): DataSourceTransactionManager {
-        return DataSourceTransactionManager(ds).apply { defaultTimeout = 60 }
+        return DataSourceTransactionManager(ds).apply { defaultTimeout = TX_TIMEOUT_SECONDS }
     }
 
     @Bean("centralOutboxSqlSessionFactory")
@@ -83,6 +84,7 @@ class CentralOutboxDataSourceConfig {
     // =========================================================================
 
     @Bean("maintenanceDataSource")
+    @Suppress("LongParameterList") // one @Value per datasource setting
     fun maintenanceDataSource(
         @Value("\${app.datasource.maintenance.jdbc-url}") jdbcUrl: String,
         @Value("\${app.datasource.maintenance.username}") username: String,
@@ -117,11 +119,15 @@ class CentralOutboxDataSourceConfig {
 
     @Bean("maintenanceTxManager")
     fun maintenanceTxManager(@Qualifier("maintenanceDataSource") ds: DataSource): DataSourceTransactionManager {
-        return DataSourceTransactionManager(ds).apply { defaultTimeout = 60 }
+        return DataSourceTransactionManager(ds).apply { defaultTimeout = TX_TIMEOUT_SECONDS }
     }
 
     @Bean("maintenanceJdbcTemplate")
     fun maintenanceJdbcTemplate(@Qualifier("maintenanceDataSource") ds: DataSource): JdbcTemplate {
         return JdbcTemplate(ds)
+    }
+
+    private companion object {
+        const val TX_TIMEOUT_SECONDS = 60
     }
 }

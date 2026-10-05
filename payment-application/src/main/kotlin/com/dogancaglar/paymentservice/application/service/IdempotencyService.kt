@@ -15,6 +15,7 @@ open class IdempotencyService(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    @Suppress("ThrowsCount") // translates each failure into our own exception type (CLAUDE.md §5)
     open fun <REQ : Any, RES : Any> run(
         key: java.util.UUID,
         requestBody: REQ,
@@ -40,12 +41,12 @@ open class IdempotencyService(
                 store.updateResponsePayload(key, json, internalId)
 
                 return IdempotencyResult(response, IdempotencyExecutionStatus.CREATED)
-            } catch (e: Exception) {
-                // If it fails, remove the "Lock" so the client can try again.
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                // Any failure on purpose: whatever it is, release the "Lock" so the client can try again, then rethrow.
                 // A failing delete must not hide the original error.
                 try {
                     store.deletePending(key)
-                } catch (deleteError: Exception) {
+                } catch (@Suppress("TooGenericExceptionCaught") deleteError: Exception) {
                     e.addSuppressed(deleteError)
                 }
                 throw e

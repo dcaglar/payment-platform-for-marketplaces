@@ -2,6 +2,7 @@ package com.dogancaglar.common.db.partitioning
 
 import com.dogancaglar.common.time.Utc
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -12,11 +13,10 @@ abstract class AbstractOutboxPartitionCreator(
     protected val logger = LoggerFactory.getLogger(javaClass)
     protected val partitionFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmm")
     protected val sqlFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-    protected val PARTITION_SIZE_MIN = 30L
 
     fun ensureCurrentAndNext() {
         val now = Utc.nowLocalDateTime()
-        val start = now.withMinute((now.minute / 30) * 30).withSecond(0).withNano(0)
+        val start = windowStart(now)
         // current window
         ensurePartitionExists(start, start.plusMinutes(PARTITION_SIZE_MIN))
         // next window
@@ -34,20 +34,18 @@ abstract class AbstractOutboxPartitionCreator(
             FOR VALUES FROM ('$fromStr') TO ('$toStr');
         """.trimIndent()
 
-        try {
-            jdbcTemplate.execute(sql)
-            /** 2) Immediately disable autovacuum on the child */
-            jdbcTemplate.execute("""ALTER TABLE $partitionName SET (autovacuum_enabled = false);""")
-            logger.info("Ensured partition exists: $partitionName for [$fromStr, $toStr)")
-            logger.debug("Disabled autovacuum on child partition: $partitionName")
-        } catch (e: Exception) {
-            logger.error("Error creating partition $partitionName: ${e.message}", e)
-        }
+        // a failure propagates: the scheduled job counts it (maintenance error metric) and Spring logs it;
+        // swallowing it here would hide a missing partition until outbox inserts start failing
+        jdbcTemplate.execute(sql)
+        /** 2) Immediately disable autovacuum on the child */
+        jdbcTemplate.execute("""ALTER TABLE $partitionName SET (autovacuum_enabled = false);""")
+        logger.info("Ensured partition exists: $partitionName for [$fromStr, $toStr)")
+        logger.debug("Disabled autovacuum on child partition: $partitionName")
     }
 
     fun pruneOldPartitions() {
         val now = Utc.nowLocalDateTime()
-        val currWindowStart = now.withMinute((now.minute / 30) * 30).withSecond(0).withNano(0)
+        val currWindowStart = windowStart(now)
 
         val sql = """
         DO ${'$'}${'$'}
@@ -81,17 +79,14 @@ abstract class AbstractOutboxPartitionCreator(
         END ${'$'}${'$'};
         """.trimIndent()
 
-        try {
-            jdbcTemplate.execute(sql)
-            logger.debug("Pruned old partitions up to $currWindowStart")
-        } catch (e: Exception) {
-            logger.error("Partition prune failed: ${e.message}", e)
-        }
+        // a failure propagates to the scheduled job (counted + logged there)
+        jdbcTemplate.execute(sql)
+        logger.debug("Pruned old partitions up to $currWindowStart")
     }
 
     fun vacuumOldPartitionsWithNewRows() {
         val now = Utc.nowLocalDateTime()
-        val currWindowStart = now.withMinute((now.minute / 30) * 30).withSecond(0).withNano(0)
+        val currWindowStart = windowStart(now)
         val nextWindowStart = currWindowStart.plusMinutes(PARTITION_SIZE_MIN)
 
         val currPartitionName = "outbox_event_${currWindowStart.format(partitionFormatter)}"
@@ -119,10 +114,21 @@ abstract class AbstractOutboxPartitionCreator(
                 logger.debug("VACUUM: $partitionName ($newCount NEW/PROCESSING rows remaining)")
                 try {
                     jdbcTemplate.execute("VACUUM $partitionName")
-                } catch (ex: Exception) {
+                } catch (ex: DataAccessException) {
+                    // best effort per partition: one failing VACUUM must not stop the others
                     logger.warn("VACUUM failed for $partitionName: ${ex.message}", ex)
                 }
             }
         }
+    }
+
+    /** The start of the partition window [now] falls in (windows of PARTITION_SIZE_MIN minutes). */
+    private fun windowStart(now: LocalDateTime): LocalDateTime {
+        val windowMinutes = PARTITION_SIZE_MIN.toInt()
+        return now.withMinute((now.minute / windowMinutes) * windowMinutes).withSecond(0).withNano(0)
+    }
+
+    private companion object {
+        const val PARTITION_SIZE_MIN = 30L // one partition per 30 minutes
     }
 }

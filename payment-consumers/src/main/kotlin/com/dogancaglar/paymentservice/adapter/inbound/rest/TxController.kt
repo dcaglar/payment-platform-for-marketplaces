@@ -1,22 +1,20 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
-import com.dogancaglar.common.time.Utc
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.AmountDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.JournalEntryDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PaymentDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PostingDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.TxDto
+import com.dogancaglar.paymentservice.domain.exception.LedgerDomainException
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
 import com.dogancaglar.paymentservice.domain.model.ledger.Posting
 import com.dogancaglar.paymentservice.domain.model.ledger.Tx
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
 import com.dogancaglar.paymentservice.domain.model.vo.TxId
 import com.dogancaglar.paymentservice.ports.inbound.usecases.TxUseCase
-import com.dogancaglar.port.out.web.dto.AmountDto
-import com.dogancaglar.port.out.web.dto.JournalEntryDto
-import com.dogancaglar.port.out.web.dto.PaymentDto
-import com.dogancaglar.port.out.web.dto.PostingDto
-import com.dogancaglar.port.out.web.dto.TxDto
-import jakarta.servlet.http.HttpServletRequest
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
-import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
@@ -39,7 +37,9 @@ class TxController(
     fun getPayment(@PathVariable merchantAccount: String, @PathVariable paymentId: Long): ResponseEntity<PaymentDto> {
         val txs = txUseCase.findTxsOfPayment(PaymentId(paymentId), merchantAccount)
         if (txs.isEmpty()) {
-            throw TxNotFoundException("No payment $paymentId of $merchantAccount")
+            throw PaymentDomainException.PaymentNotFoundException(
+                "paymentId=$paymentId, merchantAccount=$merchantAccount"
+            )
         }
         val txDtos = mutableListOf<TxDto>()
         for (tx in txs) {
@@ -56,25 +56,13 @@ class TxController(
     @PreAuthorize("hasAuthority('ledger:read') and hasAuthority('merchant:all')")
     @GetMapping("/merchants/{merchantAccount}/{txId}")
     fun getTx(@PathVariable merchantAccount: String, @PathVariable txId: Long): ResponseEntity<TxDto> {
-        val tx = txUseCase.getTx(TxId(txId), merchantAccount) ?: throw TxNotFoundException("No tx $txId of $merchantAccount")
+        val tx = txUseCase.getTx(TxId(txId), merchantAccount)
+            ?: throw LedgerDomainException.TxNotFoundException("txId=$txId, merchantAccount=$merchantAccount")
         val entryDtos = mutableListOf<JournalEntryDto>()
         for (entry in txUseCase.findJournalEntriesOfTx(TxId(txId), merchantAccount)) {
             entryDtos.add(toDto(entry))
         }
         return ResponseEntity.ok(toDto(tx, merchantAccount, entryDtos))
-    }
-
-    @ExceptionHandler(TxNotFoundException::class)
-    fun handleNotFound(ex: TxNotFoundException, request: HttpServletRequest): ResponseEntity<Map<String, Any?>> {
-        val body = mapOf(
-            "timestamp" to Utc.nowInstant().toString(),
-            "status" to 404,
-            "error" to "Not Found",
-            "code" to "NOT_FOUND",
-            "message" to ex.message,
-            "path" to request.requestURI
-        )
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body)
     }
 
     private fun toDto(tx: Tx, merchantAccount: String, journalEntries: List<JournalEntryDto>?): TxDto {
@@ -149,6 +137,3 @@ class TxController(
         )
     }
 }
-
-/** No such payment or tx for this merchant (404). */
-class TxNotFoundException(message: String) : RuntimeException(message)

@@ -6,7 +6,7 @@ import java.sql.CallableStatement
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Types
-import java.util.*
+import java.util.UUID
 
 class UUIDTypeHandler : BaseTypeHandler<UUID>() {
     override fun setNonNullParameter(ps: PreparedStatement, i: Int, parameter: UUID, jdbcType: JdbcType?) {

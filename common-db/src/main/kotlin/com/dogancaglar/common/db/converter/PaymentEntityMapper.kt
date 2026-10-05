@@ -5,6 +5,7 @@ import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.payment.Payment
+import com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentStatus
 import com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel
 import com.dogancaglar.paymentservice.domain.model.vo.BuyerId
@@ -13,7 +14,10 @@ import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 
 object PaymentEntityMapper {
 
-    fun toDomain(entity: PaymentEntity, splits: List<com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit>): Payment {
+    fun toDomain(
+        entity: PaymentEntity,
+        splits: List<PaymentSplit>
+    ): Payment {
         val currency = Currency(entity.currency)
         val total = Amount.of(entity.totalAmountValue, currency)
 

@@ -1,6 +1,7 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
 import com.dogancaglar.common.time.Utc
+import com.dogancaglar.paymentservice.domain.exception.AccountDomainException
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -14,14 +15,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 @RestControllerAdvice(assignableTypes = [BalanceController::class])
 class BalanceApiExceptionHandler {
 
-    @ExceptionHandler(BalanceOwnerNotFoundException::class)
+    // no such merchant, or no such seller (of this merchant)
+    @ExceptionHandler(
+        AccountDomainException.MerchantAccountNotFoundException::class,
+        AccountDomainException.SellerAccountNotFoundException::class
+    )
     fun handleNotFound(
-        ex: BalanceOwnerNotFoundException,
+        ex: AccountDomainException,
         request: HttpServletRequest
     ): ResponseEntity<Map<String, Any?>> {
         val body = mapOf(
             "timestamp" to Utc.nowInstant().toString(),
-            "status" to 404,
+            "status" to HttpStatus.NOT_FOUND.value(),
             "error" to "Not Found",
             "code" to "NOT_FOUND",
             "message" to ex.message,
@@ -35,7 +40,7 @@ class BalanceApiExceptionHandler {
     fun handleInvalid(ex: IllegalArgumentException, request: HttpServletRequest): ResponseEntity<Map<String, Any?>> {
         val body = mapOf(
             "timestamp" to Utc.nowInstant().toString(),
-            "status" to 400,
+            "status" to HttpStatus.BAD_REQUEST.value(),
             "error" to "Bad Request",
             "code" to "VALIDATION_ERROR",
             "message" to ex.message,

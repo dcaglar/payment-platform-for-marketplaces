@@ -45,7 +45,7 @@ class TransactionService(
 
     override fun findTransactions(filter: TransactionFilter, page: Int, size: Int): List<Transaction> {
         require(page >= 0) { "page must be 0 or more" }
-        require(size in 1..100) { "size must be between 1 and 100" }
+        require(size in 1..MAX_PAGE_SIZE) { "size must be between 1 and $MAX_PAGE_SIZE" }
         return transactionRepository.findPage(filter, page * size, size)
     }
 
@@ -82,5 +82,9 @@ class TransactionService(
             return null
         }
         return CardSummary.of(CardBrand.valueOf(brand), last4)
+    }
+
+    private companion object {
+        const val MAX_PAGE_SIZE = 100
     }
 }

@@ -3,6 +3,7 @@ package com.dogancaglar.paymentservice.infra.adapter.outbound.redis.client
 import com.dogancaglar.common.event.EventEnvelope
 import com.dogancaglar.paymentservice.application.events.CaptureRequested
 import com.dogancaglar.paymentservice.application.util.RetryItem
+import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
@@ -25,11 +26,6 @@ open class CaptureRetryRedisCache(
         return redisTemplate.opsForValue()[retryKey]?.toInt() ?: 0
     }
 
-    fun incrementAndGetRetryCount(paymentIntentId: String): Int {
-        val retryKey = "retry:count:capture:$paymentIntentId"
-        return redisTemplate.opsForValue().increment(retryKey)?.toInt() ?: 1
-    }
-
     fun resetRetryCounter(paymentIntentId: String) {
         val retryKey = "retry:count:capture:$paymentIntentId"
         redisTemplate.delete(retryKey)
@@ -40,31 +36,6 @@ open class CaptureRetryRedisCache(
         retryAt: Double
     ) {
         redisTemplate.opsForZSet().add(queue, json, retryAt)
-    }
-
-    fun pollDueRetries(): List<String> {
-        val now = System.currentTimeMillis().toDouble()
-        // get due items from the sorted set
-        val dueItems = redisTemplate.opsForZSet().rangeByScore(queue, 0.0, now)
-        // remove them from the sorted set
-        dueItems?.forEach { json ->
-            pureRemoveDueRetry(json)
-        }
-        return dueItems?.toList() ?: emptyList()
-    }
-
-    fun pollDueRetriesAtomic(max: Long = 1000): List<String> {
-        val now = System.currentTimeMillis().toDouble()
-        val connection = redisTemplate.connectionFactory?.connection
-        val raw = connection?.zSetCommands()?.zPopMin(queue.toByteArray(), max)
-        val (due, notDue) = raw?.partition { it.score <= now } ?: Pair(emptyList(), emptyList())
-        // Re-insert not-due items
-        notDue.forEach { connection?.zSetCommands()?.zAdd(queue.toByteArray(), it.score, it.value) }
-        return due.map { String(it.value) }
-    }
-
-    fun pureRemoveDueRetry(json: String) {
-        redisTemplate.opsForZSet().remove(queue, json)
     }
 
     fun zsetSize(): Long =
@@ -110,9 +81,10 @@ open class CaptureRetryRedisCache(
                 )
                 val envelope: EventEnvelope<CaptureRequested> = objectMapper.readValue(String(raw), type)
                 items += RetryItem(envelope, raw)
-            } catch (e: Exception) {
-                // If we cannot deserialize, drop from inflight to avoid poison loops
-                logger.warn("Failed to deserialize retry item, removing from inflight: \${e.message}")
+            } catch (e: JsonProcessingException) {
+                // unreadable: drop it from inflight to avoid a poison loop. That capture will not be retried,
+                // so log it findably (error, the item itself and the cause)
+                logger.error("Unreadable capture retry item dropped: {}", String(raw).take(MAX_LOGGED_ITEM_CHARS), e)
                 removeFromInflight(raw)
             }
         }
@@ -126,15 +98,6 @@ open class CaptureRetryRedisCache(
                 conn.zSetCommands().zRem(inflight.toByteArray(), raw) ?: 0L
             }
         )
-    }
-
-    /** Number of items currently inflight. */
-    fun inflightSize(): Long {
-        return redisTemplate.execute(
-            RedisCallback<Long> { conn ->
-                conn.zSetCommands().zCard(inflight.toByteArray()) ?: 0L
-            }
-        ) ?: 0L
     }
 
     /**
@@ -156,5 +119,9 @@ open class CaptureRetryRedisCache(
                 }
             }
         )
+    }
+
+    private companion object {
+        const val MAX_LOGGED_ITEM_CHARS = 500 // enough to identify the item in the log
     }
 }

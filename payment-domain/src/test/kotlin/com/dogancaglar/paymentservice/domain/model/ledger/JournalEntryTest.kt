@@ -3,6 +3,7 @@ package com.dogancaglar.paymentservice.domain.model.ledger
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
+import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import com.dogancaglar.paymentservice.domain.model.vo.TxId
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,6 +22,7 @@ class JournalEntryTest {
 
     private val eur = Currency("EUR")
     private val paymentId = PaymentId(100L)
+    private val paymentIntentId = PaymentIntentId(200L)
     private val txId = TxId(1L)
     private val journalId = "PAY-1"
 
@@ -81,12 +83,18 @@ class JournalEntryTest {
         assertEquals(
             totalDebits,
             totalCredits,
-            "CRITICAL LEDGER FAILURE: Journal entry [${entry.id}] is not balanced. Debits: $totalDebits, Credits: $totalCredits"
+            "CRITICAL LEDGER FAILURE: Journal entry [${entry.id}] is not balanced. Debits: $totalDebits, Credits: " +
+                "$totalCredits"
         )
         assertTrue(totalDebits > 0, "Journal entry has zero financial movement.")
     }
 
-    private fun assertPostingContains(entry: JournalEntry, account: LedgerAccount, isDebit: Boolean, expectedAmount: Long) {
+    private fun assertPostingContains(
+        entry: JournalEntry,
+        account: LedgerAccount,
+        isDebit: Boolean,
+        expectedAmount: Long
+    ) {
         val matchingPostings = entry.postings.filter {
             it.account == account && ((isDebit && it is Posting.Debit) || (!isDebit && it is Posting.Credit))
         }
@@ -94,9 +102,13 @@ class JournalEntryTest {
             matchingPostings.isNotEmpty(),
             "Expected ${if (isDebit) "Debit (DR)" else "Credit (CR)"} for account ${account.type} was not found."
         )
-        assertEquals(expectedAmount, matchingPostings.sumOf {
-            it.amount.quantity
-        }, "Financial miscalculation for account ${account.accountCode}")
+        assertEquals(
+            expectedAmount,
+            matchingPostings.sumOf {
+                it.amount.quantity
+            },
+            "Financial miscalculation for account ${account.accountCode}"
+        )
     }
 
     // =========================================================================
@@ -113,12 +125,11 @@ class JournalEntryTest {
          */
         val amount = Amount.of(10_000, eur) // €100.00
 
+        val authTx = Tx.AuthorizationTx(txId, paymentId, paymentIntentId, "psp-auth-1", amount)
         val entries = JournalEntry.authHold(
             1L,
-            paymentId,
-            txId,
+            authTx,
             journalId,
-            amount,
             authReceivableAccount,
             authLiabilityAccount
         )
@@ -142,7 +153,17 @@ class JournalEntryTest {
          */
         val amount = Amount.of(10_000, eur)
 
-        val entries = JournalEntry.captureGrossAsset(2L, paymentId, txId, journalId, amount, authReceivableAccount, authLiabilityAccount, merchantSuspenseAccount, pspReceivableAccount)
+        val captureTx = Tx.CaptureTx(txId, paymentId, paymentIntentId, TxId(0L), "psp-cap-1", amount)
+        val entries = JournalEntry.captureGrossAsset(
+            2L,
+            captureTx,
+            journalId,
+            amount,
+            authReceivableAccount,
+            authLiabilityAccount,
+            merchantSuspenseAccount,
+            pspReceivableAccount
+        )
         val entry = entries.first()
 
         assertBalanced(entry)
@@ -194,7 +215,18 @@ class JournalEntryTest {
         val settledAmount = Amount.of(9_500, eur)
         val feeAmount = Amount.of(500, eur)
 
-        val entries = JournalEntry.settlementLineItem(4L, paymentId, txId, journalId, gross, settledAmount, feeAmount, platformCashAccount, pspReceivableAccount, pspFeeExpenseAccount)
+        val captureTx = Tx.CaptureTx(TxId(2L), paymentId, paymentIntentId, TxId(0L), "psp-cap-1", gross)
+        val settleTx = Tx.createSettleTx(txId, captureTx, "psp-batch-1", gross)
+        val entries = JournalEntry.settlementLineItem(
+            4L,
+            settleTx,
+            journalId,
+            settledAmount,
+            feeAmount,
+            platformCashAccount,
+            pspReceivableAccount,
+            pspFeeExpenseAccount
+        )
         val entry = entries.first()
 
         assertBalanced(entry)
@@ -209,10 +241,13 @@ class JournalEntryTest {
         /*
          * SCENARIO: Mor-DC charges a €2 platform fee to the marketplace operator.
          * * RULE:
-         * - DR Operator Commission Account (-Liability): We reduce the operator's payable earnings by €2.(LIAbility means should beon right but we put left becasuse it needs to reduce,
-         *  on the ohter hand, we do increase a special temp accopunt which will potential be in our commission in future)
+         * - DR Operator Commission Account (-Liability): We reduce the operator's payable earnings by €2.(LIAbility
+         * means should beon right but we put left becasuse it needs to reduce,
+         * on the ohter hand, we do increase a special temp accopunt which will potential be in our commission in
+         * future)
          * * - CR Platform Fee Reserve (+Liability): We lock that €2 into the fee reserve.
-         * (Still a liability because chargebacks could force us to return it) THAT MAKES IT NOT AN ASSET OR REVENUE YET,BECAUSE WE MIGHT HAVE TO PAY BACK IF 14 DAYS ARE NOT PASSED AFTER AUTH
+         * (Still a liability because chargebacks could force us to return it) THAT MAKES IT NOT AN ASSET OR REVENUE
+         * YET,BECAUSE WE MIGHT HAVE TO PAY BACK IF 14 DAYS ARE NOT PASSED AFTER AUTH
          */
         val amount = Amount.of(200, eur)
 
@@ -233,7 +268,7 @@ class JournalEntryTest {
     }
 
     @Test
-    fun `recognizePlatformRevenue - move money in fee reserve account into  confirmed earnings, so it was a liability,now a revenue`() {
+    fun `recognizePlatformRevenue - moves the fee reserve into confirmed earnings, a liability becomes revenue`() {
         /*
          * SCENARIO: 14 days have passed. The risk window is closed. Mor-DC officially claims the €2 fee as profit.
          * * RULE:
@@ -265,12 +300,14 @@ class JournalEntryTest {
         /*
          * SCENARIO: A sub-seller requests a wire transfer for their €98 earnings.
          * * RULE:
-         * - DR Seller Balance (-Liability): We no longer owe the seller this money.reduce liability(credit),so seller balance on the left(DR) , PlatformCAsh(Debit) is reduced (so put in right side)
+         * - DR Seller Balance (-Liability): We no longer owe the seller this money.reduce liability(credit),so seller
+         * balance on the left(DR) , PlatformCAsh(Debit) is reduced (so put in right side)
          * - CR Platform Cash (-Asset): Our physical bank account liquidity decreases.
          */
         val amount = Amount.of(9_800, eur)
 
-        val entries = JournalEntry.payout(7L, paymentId, txId, journalId, amount, subSellerAccount, platformCashAccount)
+        val payoutTx = Tx.PayoutTx(txId, paymentId, paymentIntentId, "SELLER-1", "payout-batch-1", amount)
+        val entries = JournalEntry.payout(7L, payoutTx, journalId, subSellerAccount, platformCashAccount)
         val entry = entries.first()
 
         assertBalanced(entry)
@@ -286,11 +323,22 @@ class JournalEntryTest {
          * * RULE:
          * - DR Merchant Suspense / Pool (-Liability): Deduct the €100 from the merchant's balance.
          * - CR PSP Receivable (-Asset): Record that Adyen will pull this €100 from our next settlement.
-         * - DR Auth Liability (+Liability) & CR Auth Receivable (+Asset): Temporarily reopen the auth states for tracking.
+         * - DR Auth Liability (+Liability) & CR Auth Receivable (+Asset): Temporarily reopen the auth states for
+         * tracking.
          */
         val amount = Amount.of(10_000, eur)
 
-        val entries = JournalEntry.refund(8L, paymentId, txId, journalId, amount, authReceivableAccount, authLiabilityAccount, merchantSuspenseAccount, pspReceivableAccount)
+        val captureTx = Tx.CaptureTx(TxId(2L), paymentId, paymentIntentId, TxId(0L), "psp-cap-1", amount)
+        val refundTx = Tx.createRefundTx(txId, captureTx, "psp-refund-1", amount)
+        val entries = JournalEntry.refund(
+            8L,
+            refundTx,
+            journalId,
+            authReceivableAccount,
+            authLiabilityAccount,
+            merchantSuspenseAccount,
+            pspReceivableAccount
+        )
         val entry = entries.first()
 
         assertBalanced(entry)

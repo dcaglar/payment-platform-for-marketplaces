@@ -66,6 +66,7 @@ object TestDatabases {
      * test starts clean. Liquibase bookkeeping tables and changelog-seeded reference data
      * (accounts) are preserved.
      */
+    @Suppress("NestedBlockDepth") // JDBC use { use { use { } } } chain
     fun truncateAll(db: PostgreSQLContainer<*>) {
         val tableNames = ArrayList<String>()
 
@@ -159,6 +160,7 @@ object TestDatabases {
      * create the time-range partitions. Tests need an insertable partition, so every
      * partitioned parent gets a DEFAULT partition here.
      */
+    @Suppress("NestedBlockDepth") // JDBC use { use { use { } } } chain
     private fun createDefaultPartitions(db: PostgreSQLContainer<*>) {
         val parentTableNames = ArrayList<String>()
 

@@ -11,6 +11,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.event.EventListener
+import org.springframework.dao.DataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.scheduling.annotation.Async
 import org.springframework.scheduling.annotation.Scheduled
@@ -34,7 +35,7 @@ class LocalOutboxMaintenanceJob(
     )
     @Async("partitionCreationExecutor")
     fun ensureCurrentAndNextScheduled() {
-        try {
+        countFailures("LocalOutboxMaintenanceJob.ensureCurrentAndNext") {
             waitForParentTable()
 
             val start = Utc.nowLocalDateTime()
@@ -42,18 +43,12 @@ class LocalOutboxMaintenanceJob(
             val end = Utc.nowLocalDateTime()
             val durationMs = ChronoUnit.MILLIS.between(start, end)
             logger.debug("Partition check complete started at $start, ended at $end, duration: $durationMs ")
-        } catch (t: Throwable) {
-            maintenanceErrorCounter.add(
-                1,
-                Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.ensureCurrentAndNext")
-            )
-            throw t
         }
     }
 
     private fun waitForParentTable() {
         var attempts = 0
-        while (attempts < 20) {
+        while (attempts < MAX_TABLE_CHECK_ATTEMPTS) {
             try {
                 val exists = jdbcTemplate.queryForObject(
                     "SELECT count(1) FROM pg_tables WHERE tablename = 'outbox_event'",
@@ -63,14 +58,15 @@ class LocalOutboxMaintenanceJob(
                     logger.info("Found outbox_event table! Proceeding with partition creation.")
                     return
                 }
-            } catch (e: Exception) {
-                // ignore and retry
+            } catch (e: DataAccessException) {
+                // the database isn't reachable yet: say why, and try again
+                logger.info("Outbox table check failed, retrying: {}", e.message, e)
             }
             attempts++
             logger.info(
                 "Waiting for payment-service to create outbox_event table via Liquibase... (Attempt ${'$'}attempts/20)"
             )
-            Thread.sleep(3000)
+            Thread.sleep(TABLE_CHECK_INTERVAL_MS)
         }
         logger.error("Timed out waiting for outbox_event table to be created!")
     }
@@ -78,37 +74,43 @@ class LocalOutboxMaintenanceJob(
     @Scheduled(initialDelay = 45000, fixedDelay = 21 * 60 * 1000)
     @Async("partitionRemovalExecutor")
     fun pruneOldPartitionsScheduled() {
-        try {
+        countFailures("LocalOutboxMaintenanceJob.pruneOldPartitions") {
             val start = Utc.nowLocalDateTime()
             pruneOldPartitions()
             val end = Utc.nowLocalDateTime()
             val durationMs = ChronoUnit.MILLIS.between(start, end)
             logger.debug("Partition prune complete started at $start, ended at $end, duration: $durationMs ")
-        } catch (t: Throwable) {
-            maintenanceErrorCounter.add(
-                1,
-                Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.pruneOldPartitions")
-            )
-            throw t
         }
     }
 
     @Scheduled(fixedDelay = 30 * 60 * 1000, initialDelay = 15 * 60 * 1000)
     @Async("partitionRemovalExecutor")
     fun vacuumOldPartitionsWithNewRowsScheduled() {
-        try {
+        countFailures("LocalOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows") {
             val start = Utc.nowLocalDateTime()
             vacuumOldPartitionsWithNewRows()
             val end = Utc.nowLocalDateTime()
             val durationMs = ChronoUnit.MILLIS.between(start, end)
             logger.debug("Partition vacuum check complete started at $start, ended at $end, duration: $durationMs ")
-        } catch (t: Throwable) {
-            maintenanceErrorCounter.add(
-                1,
-                Attributes.of(AttributeKey.stringKey("job"), "LocalOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows")
-            )
-            throw t
         }
+    }
+
+    /** Runs a maintenance job; a failure is counted (maintenance_job_error_total) and propagates. No catch needed. */
+    private fun countFailures(job: String, run: () -> Unit) {
+        var completed = false
+        try {
+            run()
+            completed = true
+        } finally {
+            if (!completed) {
+                maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), job))
+            }
+        }
+    }
+
+    private companion object {
+        const val MAX_TABLE_CHECK_ATTEMPTS = 20
+        const val TABLE_CHECK_INTERVAL_MS = 3000L
     }
 }
 

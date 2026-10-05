@@ -23,7 +23,8 @@ class RealmSeedFileTest {
         assertEquals(
             json.readTree(generated),
             json.readTree(RealmSeedGenerator.seedFile.readText()),
-            "keycloak/realm/merchants-seed.json is out of date; regenerate it from merchants.json (see RealmSeedGenerator)"
+            "keycloak/realm/merchants-seed.json is out of date; regenerate it from merchants.json (see " +
+                "RealmSeedGenerator)"
         )
     }
 }

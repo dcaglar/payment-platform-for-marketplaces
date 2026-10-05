@@ -36,7 +36,7 @@ class CentralOutboxMaintenanceJob(
     )
     fun ensureCurrentAndNextScheduled() {
         taskScheduler.execute {
-            try {
+            countFailures("CentralOutboxMaintenanceJob.ensureCurrentAndNext") {
                 val start = Utc.nowLocalDateTime()
                 ensureCurrentAndNext()
                 val end = Utc.nowLocalDateTime()
@@ -44,12 +44,6 @@ class CentralOutboxMaintenanceJob(
                 logger.debug(
                     "Central partition check complete started at $start, ended at $end, duration: $durationMs "
                 )
-            } catch (t: Throwable) {
-                maintenanceErrorCounter.add(
-                    1,
-                    Attributes.of(AttributeKey.stringKey("job"), "CentralOutboxMaintenanceJob.ensureCurrentAndNext")
-                )
-                throw t
             }
         }
     }
@@ -57,7 +51,7 @@ class CentralOutboxMaintenanceJob(
     @Scheduled(initialDelay = 45000, fixedDelay = 21 * 60 * 1000)
     fun pruneOldPartitionsScheduled() {
         taskScheduler.execute {
-            try {
+            countFailures("CentralOutboxMaintenanceJob.pruneOldPartitions") {
                 val start = Utc.nowLocalDateTime()
                 pruneOldPartitions()
                 val end = Utc.nowLocalDateTime()
@@ -65,12 +59,6 @@ class CentralOutboxMaintenanceJob(
                 logger.debug(
                     "Central partition prune complete started at $start, ended at $end, duration: $durationMs "
                 )
-            } catch (t: Throwable) {
-                maintenanceErrorCounter.add(
-                    1,
-                    Attributes.of(AttributeKey.stringKey("job"), "CentralOutboxMaintenanceJob.pruneOldPartitions")
-                )
-                throw t
             }
         }
     }
@@ -78,7 +66,7 @@ class CentralOutboxMaintenanceJob(
     @Scheduled(fixedDelay = 30 * 60 * 1000, initialDelay = 15 * 60 * 1000)
     fun vacuumOldPartitionsWithNewRowsScheduled() {
         taskScheduler.execute {
-            try {
+            countFailures("CentralOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows") {
                 val start = Utc.nowLocalDateTime()
                 vacuumOldPartitionsWithNewRows()
                 val end = Utc.nowLocalDateTime()
@@ -86,15 +74,19 @@ class CentralOutboxMaintenanceJob(
                 logger.debug(
                     "Central partition vacuum check complete started at $start, ended at $end, duration: $durationMs "
                 )
-            } catch (t: Throwable) {
-                maintenanceErrorCounter.add(
-                    1,
-                    Attributes.of(
-                        AttributeKey.stringKey("job"),
-                        "CentralOutboxMaintenanceJob.vacuumOldPartitionsWithNewRows"
-                    )
-                )
-                throw t
+            }
+        }
+    }
+
+    /** Runs a maintenance job; a failure is counted (maintenance_job_error_total) and propagates. No catch needed. */
+    private fun countFailures(job: String, run: () -> Unit) {
+        var completed = false
+        try {
+            run()
+            completed = true
+        } finally {
+            if (!completed) {
+                maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), job))
             }
         }
     }

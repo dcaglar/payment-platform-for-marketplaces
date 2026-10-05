@@ -1,4 +1,4 @@
-package com.dogancaglar.port.out.web.dto
+package com.dogancaglar.paymentservice.adapter.inbound.rest.dto
 
 /** One page of a list, newest or first items first. [page] starts at 0. */
 data class PageDto<T>(

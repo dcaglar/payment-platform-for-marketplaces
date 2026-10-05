@@ -108,7 +108,8 @@ class TransactionApiResponseTest {
             splits = emptyList(),
             authorizedAt = Instant.parse("2026-10-02T10:00:02Z")
         )
-        // only the MARKETPLACE-5 question has an answer: if the controller passed MARKETPLACE-1 on, the list would be empty
+        // only the MARKETPLACE-5 question has an answer: if the controller passed MARKETPLACE-1 on, the list would be
+        // empty
         val ownTransactions = TransactionFilter(merchantAccount = "MARKETPLACE-5")
         `when`(transactionUseCase.findTransactions(ownTransactions, 0, 20)).thenReturn(listOf(own))
         `when`(transactionUseCase.countTransactions(ownTransactions)).thenReturn(1)

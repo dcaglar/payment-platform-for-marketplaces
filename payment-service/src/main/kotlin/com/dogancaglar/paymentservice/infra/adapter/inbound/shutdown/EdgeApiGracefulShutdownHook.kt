@@ -3,6 +3,7 @@ package com.dogancaglar.paymentservice.infra.adapter.inbound.shutdown
 import com.dogancaglar.paymentservice.ports.outbound.LocalOutboxWriterPort
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataAccessException
 import org.springframework.stereotype.Component
 
 /**
@@ -26,13 +27,14 @@ class EdgeApiGracefulShutdownHook(
 
         // We block termination as long as there are NEW or PROCESSING events in the local outbox.
         // We require 3 empty cycles to be absolutely sure the worker has finished sweeping.
-        while (emptyCycles < 3) {
+        while (emptyCycles < EMPTY_CYCLES_BEFORE_DONE) {
             val hasPending = try {
                 localOutboxWriterPort.hasPendingEvents()
-            } catch (t: Throwable) {
+            } catch (e: DataAccessException) {
                 logger.error(
-                    "Failed to query outbox status during shutdown. Proceeding with termination to avoid permanent hang.",
-                    t
+                    "Failed to query outbox status during shutdown. Proceeding with termination to avoid permanent " +
+                        "hang.",
+                    e
                 )
                 break
             }
@@ -40,21 +42,27 @@ class EdgeApiGracefulShutdownHook(
             if (hasPending) {
                 if (!warningLogged) {
                     logger.warn(
-                        "Step 2: Pending outbox events detected! Blocking API Pod termination until payment-edge-worker drains them."
+                        "Step 2: Pending outbox events detected! Blocking API Pod termination until " +
+                            "payment-edge-worker drains them."
                     )
                     warningLogged = true
                 }
                 emptyCycles = 0
-                Thread.sleep(1000)
+                Thread.sleep(CHECK_INTERVAL_MS)
             } else {
                 emptyCycles++
                 if (warningLogged) {
                     logger.info("   -> Empty cycle {}/3: No pending events found.", emptyCycles)
                 }
-                Thread.sleep(1000)
+                Thread.sleep(CHECK_INTERVAL_MS)
             }
         }
 
         logger.info("Step 3: Local outbox is completely drained. API Pod is now cleared to terminate.")
+    }
+
+    private companion object {
+        const val EMPTY_CYCLES_BEFORE_DONE = 3
+        const val CHECK_INTERVAL_MS = 1000L
     }
 }

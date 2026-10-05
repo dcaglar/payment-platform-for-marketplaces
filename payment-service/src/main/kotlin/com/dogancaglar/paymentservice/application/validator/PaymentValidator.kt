@@ -29,7 +29,8 @@ class PaymentValidator {
         if (processingModel == ProcessingModelDto.MARKETPLACE) {
             val totalAmount = request.splits?.sumOf { it.amount.quantity }
             require(totalAmount == request.totalAmount.quantity) {
-                "Sum of payment split amounts ($totalAmount) must exactly equal total amount (${request.totalAmount.quantity})"
+                "Sum of payment split amounts ($totalAmount) must exactly equal total amount " +
+                    "(${request.totalAmount.quantity})"
             }
         }
     }

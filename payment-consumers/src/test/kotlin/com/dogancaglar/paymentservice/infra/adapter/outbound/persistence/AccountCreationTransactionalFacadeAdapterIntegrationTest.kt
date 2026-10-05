@@ -160,7 +160,8 @@ class AccountCreationTransactionalFacadeAdapterIntegrationTest {
         assertEquals(
             0,
             count(
-                "SELECT count(*) FROM ledger_account_directory WHERE master_account_code = 'GLOBAL' AND currency = 'USD'"
+                "SELECT count(*) FROM ledger_account_directory WHERE master_account_code = 'GLOBAL' AND currency = " +
+                    "'USD'"
             )
         )
 
@@ -169,7 +170,8 @@ class AccountCreationTransactionalFacadeAdapterIntegrationTest {
         assertEquals(
             4,
             count(
-                "SELECT count(*) FROM ledger_account_directory WHERE master_account_code = 'GLOBAL' AND currency = 'USD'"
+                "SELECT count(*) FROM ledger_account_directory WHERE master_account_code = 'GLOBAL' AND currency = " +
+                    "'USD'"
             )
         )
         assertNotNull(accountDirectoryMapper.findByEntityAndType("PSP_RECEIVABLE", "GLOBAL", "USD"))

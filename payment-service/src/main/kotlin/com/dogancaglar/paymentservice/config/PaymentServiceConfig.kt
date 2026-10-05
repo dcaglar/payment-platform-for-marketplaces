@@ -9,10 +9,16 @@ import com.dogancaglar.paymentservice.application.service.UpdatePaymentIntentSer
 import com.dogancaglar.paymentservice.infra.adapter.outbound.serialization.OutboxEventEventFactory
 import com.dogancaglar.paymentservice.ports.inbound.usecases.CreatePaymentIntentUseCase
 import com.dogancaglar.paymentservice.ports.inbound.usecases.GetPaymentIntentUseCase
-import com.dogancaglar.paymentservice.ports.outbound.*
+import com.dogancaglar.paymentservice.ports.outbound.HasherPort
+import com.dogancaglar.paymentservice.ports.outbound.IdGeneratorPort
+import com.dogancaglar.paymentservice.ports.outbound.IdempotencyStorePort
+import com.dogancaglar.paymentservice.ports.outbound.LocalOutboxWriterPort
+import com.dogancaglar.paymentservice.ports.outbound.OutboxEventFactoryPort
+import com.dogancaglar.paymentservice.ports.outbound.PaymentIntentRepository
 import com.dogancaglar.paymentservice.ports.outbound.PaymentTransactionalFacadePort
 import com.dogancaglar.paymentservice.ports.outbound.PspAuthorizationGatewayPort
 import com.dogancaglar.paymentservice.ports.outbound.ResilientExecutionPort
+import com.dogancaglar.paymentservice.ports.outbound.SerializationPort
 import com.stripe.StripeClient
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value

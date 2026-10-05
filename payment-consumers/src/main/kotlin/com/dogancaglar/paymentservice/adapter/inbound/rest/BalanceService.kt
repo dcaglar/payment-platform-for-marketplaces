@@ -1,19 +1,21 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.AccountBalanceDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.BalanceDto
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CurrencyEnum
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.OwnerType
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PageDto
+import com.dogancaglar.paymentservice.domain.exception.AccountDomainException
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 import com.dogancaglar.paymentservice.ports.inbound.usecases.AccountBalanceReadUseCase
 import com.dogancaglar.paymentservice.ports.outbound.AccountDirectoryPort
-import com.dogancaglar.port.out.web.dto.AccountBalanceDto
-import com.dogancaglar.port.out.web.dto.BalanceDto
-import com.dogancaglar.port.out.web.dto.CurrencyEnum
-import com.dogancaglar.port.out.web.dto.OwnerType
-import com.dogancaglar.port.out.web.dto.PageDto
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 /**
- * Reads balances for the balance API. Accounts are found in `accounts` (via the ledger_account_directory view): a seller's account
+ * Reads balances for the balance API. Accounts are found in `accounts` (via the ledger_account_directory view): a
+ * seller's account
  * by its sub_entity_id, a merchant's accounts by master_account_code. Each balance is the real-time
  * value (snapshot + Redis delta).
  */
@@ -39,7 +41,7 @@ class BalanceService(
             }
         }
         if (own.isEmpty()) {
-            throw BalanceOwnerNotFoundException("No seller $sellerId of merchant $merchantId")
+            throw AccountDomainException.SellerAccountNotFoundException("sellerId=$sellerId, merchantId=$merchantId")
         }
         return toBalance(OwnerType.SELLER, sellerId, own)
     }
@@ -54,7 +56,7 @@ class BalanceService(
             accountDirectory.getAccountProfilesByMaster(LedgerAccountType.MERCHANT_COMMISSION_PAYABLE, merchantId)
         )
         if (profiles.isEmpty()) {
-            throw BalanceOwnerNotFoundException("No merchant accounts for $merchantId")
+            throw AccountDomainException.MerchantAccountNotFoundException("merchantId=$merchantId")
         }
         return toBalance(OwnerType.MERCHANT, merchantId, profiles)
     }
@@ -62,7 +64,7 @@ class BalanceService(
     /** One page of a merchant's sellers, each with its balance. [page] starts at 0. */
     fun getSellerBalancesOfMerchant(merchantId: String, page: Int, size: Int): PageDto<BalanceDto> {
         require(page >= 0) { "page must be 0 or more" }
-        require(size in 1..100) { "size must be between 1 and 100" }
+        require(size in 1..MAX_PAGE_SIZE) { "size must be between 1 and $MAX_PAGE_SIZE" }
         val sellers = accountDirectory.getSubEntityAccountProfilesByMaster(LedgerAccountType.SELLER_PAYABLE, merchantId)
         val items = mutableListOf<BalanceDto>()
         var i = page * size
@@ -77,7 +79,7 @@ class BalanceService(
     private fun sellerAccounts(sellerId: String): List<AccountProfile> {
         val profiles = accountDirectory.getAccountProfilesBySubEntity(LedgerAccountType.SELLER_PAYABLE, sellerId)
         if (profiles.isEmpty()) {
-            throw BalanceOwnerNotFoundException("No seller account for $sellerId")
+            throw AccountDomainException.SellerAccountNotFoundException("sellerId=$sellerId")
         }
         return profiles
     }
@@ -87,7 +89,7 @@ class BalanceService(
         for (profile in profiles) {
             if (profile.currency != currency) {
                 // One response has one currency and one total; several currencies are not supported yet
-                throw IllegalStateException("$ownerId has accounts in several currencies; expected one")
+                error("$ownerId has accounts in several currencies; expected one")
             }
         }
 
@@ -115,7 +117,8 @@ class BalanceService(
             accounts = accounts
         )
     }
-}
 
-/** No seller or merchant account for the requested id (404). */
-class BalanceOwnerNotFoundException(message: String) : RuntimeException(message)
+    private companion object {
+        const val MAX_PAGE_SIZE = 100
+    }
+}

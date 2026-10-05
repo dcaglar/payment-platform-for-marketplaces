@@ -2,8 +2,12 @@ package com.dogancaglar.paymentservice.util
 
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
-import com.dogancaglar.paymentservice.domain.model.ledger.*
+import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccount
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
+import com.dogancaglar.paymentservice.domain.model.ledger.Tx
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
+import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import com.dogancaglar.paymentservice.domain.model.vo.TxId
 
 /**
@@ -31,10 +35,14 @@ object JournalEntryTestHelper {
         val pId = paymentId.filter { it.isDigit() }.toLongOrNull() ?: 100L
         val result = JournalEntry.authHold(
             globalJournalEntryId = 1L,
-            paymentId = PaymentId(pId),
-            txId = TxId(ledgerEntryId),
+            authTx = Tx.AuthorizationTx(
+                txId = TxId(ledgerEntryId),
+                paymentId = PaymentId(pId),
+                paymentIntentId = PaymentIntentId(pId),
+                acquirerReference = "",
+                amount = amount
+            ),
             journalIdentifier = paymentId,
-            authorizedAmount = amount,
             authReceivable = authReceivable,
             authLiability = authLiability
         )
@@ -63,8 +71,14 @@ object JournalEntryTestHelper {
         val pspReceivable = LedgerAccount.createNew(LedgerAccountType.PSP_RECEIVABLE, "GLOBAL", null, amount.currency)
         val result = JournalEntry.captureGrossAsset(
             globalJournalEntryId = 2L,
-            paymentId = PaymentId(100L),
-            txId = TxId(ledgerEntryId),
+            captureTx = Tx.CaptureTx(
+                txId = TxId(ledgerEntryId),
+                paymentId = PaymentId(100L),
+                paymentIntentId = PaymentIntentId(100L),
+                authorizationTxId = TxId(0L),
+                acquirerReference = "",
+                amount = amount
+            ),
             journalIdentifier = paymentOrderId,
             capturedAmount = amount,
             authReceivable = authReceivable,

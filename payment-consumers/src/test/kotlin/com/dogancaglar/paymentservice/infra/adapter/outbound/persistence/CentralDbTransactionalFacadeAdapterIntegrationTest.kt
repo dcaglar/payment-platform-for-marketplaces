@@ -151,17 +151,13 @@ class CentralDbTransactionalFacadeAdapterIntegrationTest {
         )
         val authTx = Tx.createAuthTx(
             txId = TxId(txId),
-            paymentId = PaymentId(paymentId),
-            paymentIntentId = PaymentIntentId(paymentIntentId),
-            acquirerReference = "",
-            amount = amount
+            payment = payment,
+            acquirerReference = ""
         )
         val journalEntries = JournalEntry.authHold(
             globalJournalEntryId = globalJournalEntryId,
-            paymentId = PaymentId(paymentId),
-            txId = TxId(txId),
+            authTx = authTx,
             journalIdentifier = paymentIntentId.toString(),
-            authorizedAmount = amount,
             authReceivable = account(LedgerAccountType.AUTH_RECEIVABLE),
             authLiability = account(LedgerAccountType.AUTH_LIABILITY)
         )

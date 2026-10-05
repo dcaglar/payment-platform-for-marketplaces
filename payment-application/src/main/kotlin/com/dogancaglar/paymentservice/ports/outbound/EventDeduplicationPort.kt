@@ -9,4 +9,9 @@ package com.dogancaglar.paymentservice.ports.outbound
 interface EventDeduplicationPort {
     fun exists(prefix: String, eventId: String): Boolean
     fun markProcessed(prefix: String, eventId: String, ttlSeconds: Long)
+
+    companion object {
+        /** How long a processed event is remembered: a redelivery within an hour is skipped. */
+        const val PROCESSED_EVENT_TTL_SECONDS = 3600L
+    }
 }

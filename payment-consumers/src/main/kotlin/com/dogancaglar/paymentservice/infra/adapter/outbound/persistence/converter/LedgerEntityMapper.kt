@@ -1,4 +1,4 @@
-package com.dogancaglar.common.db.converter
+package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.converter
 
 import com.dogancaglar.common.db.entity.JournalEntryEntity
 import com.dogancaglar.common.db.entity.PostingEntity
@@ -6,7 +6,7 @@ import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
 import com.dogancaglar.paymentservice.domain.model.ledger.Posting
 
-internal object LedgerEntitiyMapper {
+internal object LedgerEntityMapper {
 
     fun toJournalEntryEntity(entry: JournalEntry): JournalEntryEntity =
         JournalEntryEntity(

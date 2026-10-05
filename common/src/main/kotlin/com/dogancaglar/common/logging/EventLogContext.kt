@@ -3,7 +3,7 @@ package com.dogancaglar.common.logging
 import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.EventEnvelope
 import org.slf4j.MDC
-import java.util.*
+import java.util.Collections
 
 object EventLogContext {
     fun getEventId(): String? =

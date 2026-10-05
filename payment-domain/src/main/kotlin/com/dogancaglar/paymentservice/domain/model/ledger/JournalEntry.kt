@@ -1,6 +1,8 @@
 package com.dogancaglar.paymentservice.domain.model.ledger
 
+import com.dogancaglar.paymentservice.domain.exception.LedgerDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
+import com.dogancaglar.paymentservice.domain.model.common.require
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
 import com.dogancaglar.paymentservice.domain.model.vo.TxId
 
@@ -20,7 +22,9 @@ import com.dogancaglar.paymentservice.domain.model.vo.TxId
  *
  * ============================================================
  */
-class JournalEntry private constructor(
+class JournalEntry
+@Suppress("LongParameterList")
+private constructor( // the object's own fields
     val id: String,
     val globalJournalEntryId: Long,
     val journalType: JournalType,
@@ -33,21 +37,31 @@ class JournalEntry private constructor(
 
     init {
         require(postings.size >= 2) {
-            "JournalEntry must have at least 2 postings, but had ${postings.size}"
+            LedgerDomainException.LessThanTwoPostingsInJournalException(
+                "JournalEntry must have at least 2 postings, but had ${postings.size}"
+            )
         }
         val totalDebit = postings.filterIsInstance<Posting.Debit>().sumOf { it.amount.quantity }
         val totalCredit = postings.filterIsInstance<Posting.Credit>().sumOf { it.amount.quantity }
         require(totalDebit == totalCredit) {
-            "Unbalanced JournalEntry [$id]: debits=$totalDebit, credits=$totalCredit"
+            LedgerDomainException.UnbalancedJournalEntryException(
+                "Unbalanced JournalEntry [$id]: debits=$totalDebit, credits=$totalCredit"
+            )
         }
-        require(globalJournalEntryId > 0)
+        require(globalJournalEntryId > 0) {
+            LedgerDomainException.InvariantViolationException(
+                "globalJournalEntryId must be positive, was $globalJournalEntryId"
+            )
+        }
         val duplicates = postings
             .groupingBy { it.account.accountCode }
             .eachCount()
             .filterValues { it > 1 }
             .keys
         require(duplicates.isEmpty()) {
-            "JournalEntry [$id] contains duplicate accounts: ${duplicates.joinToString(", ")}"
+            LedgerDomainException.DuplicateAccountInJournalException(
+                "JournalEntry [$id] contains duplicate accounts: ${duplicates.joinToString(", ")}"
+            )
         }
     }
 
@@ -61,12 +75,11 @@ class JournalEntry private constructor(
         // AUTHORIZATION  is succesful in sync api call
         // =====================================================================
 
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun authHold(
             globalJournalEntryId: Long,
-            paymentId: PaymentId,
-            txId: TxId, // <-- Added! (This is the ID of the AuthorizationTx)
+            authTx: Tx.AuthorizationTx, // the payment, the tx and the authorized amount
             journalIdentifier: String,
-            authorizedAmount: Amount,
             authReceivable: LedgerAccount,
             authLiability: LedgerAccount,
             reason: String? = "Auth Hold"
@@ -76,26 +89,28 @@ class JournalEntry private constructor(
                 globalJournalEntryId = globalJournalEntryId,
                 journalType = JournalType.AUTHORIZATION,
                 name = "AuthorizationTx Hold",
-                paymentId = paymentId,
-                txId = txId,
+                paymentId = authTx.paymentId,
+                txId = authTx.txId,
                 postings = listOf(
-                    Posting.Debit.create(authReceivable, authorizedAmount),
-                    Posting.Credit.create(authLiability, authorizedAmount)
+                    Posting.Debit.create(authReceivable, authTx.amount),
+                    Posting.Credit.create(authLiability, authTx.amount)
                 ),
                 reason = reason
             )
         )
 
         // =====================================================================
-        // CAPTURE — This journal entry is recorded when external PSP notifies Mor-DC platform regarding the final status of capture, money is still not in Mor-DC account, but PSP confrms that it will send within 3 or 5 days
+        // CAPTURE — This journal entry is recorded when external PSP notifies Mor-DC platform regarding the final
+        // status of capture, money is still not in Mor-DC account, but PSP confrms that it will send within 3 or 5
+        // days
         // =====================================================================
 
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun captureGrossAsset(
             globalJournalEntryId: Long,
-            paymentId: PaymentId,
-            txId: TxId,
+            captureTx: Tx.CaptureTx, // the payment and the tx
             journalIdentifier: String,
-            capturedAmount: Amount,
+            capturedAmount: Amount, // what the PSP confirmed
             authReceivable: LedgerAccount,
             authLiability: LedgerAccount,
             merchantGrossPool: LedgerAccount,
@@ -107,8 +122,8 @@ class JournalEntry private constructor(
                 globalJournalEntryId = globalJournalEntryId,
                 journalType = JournalType.CAPTURE,
                 name = "Gross Asset Capture Pool on ${merchantGrossPool.accountCode}",
-                paymentId = paymentId,
-                txId = txId,
+                paymentId = captureTx.paymentId,
+                txId = captureTx.txId,
                 postings = listOf(
                     Posting.Debit.create(authLiability, capturedAmount),
                     Posting.Credit.create(authReceivable, capturedAmount),
@@ -119,6 +134,7 @@ class JournalEntry private constructor(
             )
         )
 
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun internalTransfer(
             globalJournalEntryId: Long,
             paymentId: PaymentId,
@@ -126,7 +142,8 @@ class JournalEntry private constructor(
             amount: Amount,
             sourceAccount: LedgerAccount,
             targetAccount: LedgerAccount,
-            allocationReason: String? = "INTERNAL_TRANSFER" // 🎯 e.g., "MARKETPLACE_SELLER_SPLIT" or "PLATFORM_COMMISSION_FEE"
+            // 🎯 e.g., "MARKETPLACE_SELLER_SPLIT" or "PLATFORM_COMMISSION_FEE"
+            allocationReason: String? = "INTERNAL_TRANSFER"
         ): List<JournalEntry> = listOf(
             JournalEntry(
                 id = "INTERNAL_TRANSFER:$journalIdentifier",
@@ -161,12 +178,11 @@ class JournalEntry private constructor(
          *
          * Called by: PspResultConsumer, processing a PaymentRefunded webhook event.
          */
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun refund(
             globalJournalEntryId: Long,
-            paymentId: PaymentId,
-            txId: TxId,
+            refundTx: Tx.RefundTx, // the payment, the tx and the refunded amount
             journalIdentifier: String,
-            refundedAmount: Amount,
             authReceivable: LedgerAccount,
             authLiability: LedgerAccount,
             merchantGrossPool: LedgerAccount,
@@ -178,13 +194,13 @@ class JournalEntry private constructor(
                 globalJournalEntryId = globalJournalEntryId,
                 journalType = JournalType.REFUND,
                 name = "Payment Refund",
-                paymentId = paymentId,
-                txId = txId,
+                paymentId = refundTx.paymentId,
+                txId = refundTx.txId,
                 postings = listOf(
-                    Posting.Debit.create(merchantGrossPool, refundedAmount),
-                    Posting.Credit.create(pspReceivable, refundedAmount),
-                    Posting.Debit.create(authLiability, refundedAmount),
-                    Posting.Credit.create(authReceivable, refundedAmount)
+                    Posting.Debit.create(merchantGrossPool, refundTx.amount),
+                    Posting.Credit.create(pspReceivable, refundTx.amount),
+                    Posting.Debit.create(authLiability, refundTx.amount),
+                    Posting.Credit.create(authReceivable, refundTx.amount)
                 ),
                 reason = reason
             )
@@ -200,12 +216,11 @@ class JournalEntry private constructor(
          * Converts the abstract gateway receivable into physical platform cash liquidity,
          * while isolating the exact processing expense levied by the network for this payment.
          */
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun settlementLineItem(
             globalJournalEntryId: Long,
-            paymentId: PaymentId, // 🎯 The true, original Payment identifier
-            settlementTxId: TxId, // The fresh unique ID for this settlement event
+            settleTx: Tx.SettleTx, // the payment, the tx and the gross amount the PSP settled (e.g., €3,000)
             journalIdentifier: String, // e.g., "ADYEN_SDR_LINE_998124"
-            grossAmount: Amount, // Original capture volume (e.g., €3,000)
             netCashAmount: Amount, // Cash deposited after fees (e.g., €2,940)
             pspFeeAmount: Amount, // Exact fees taken out (e.g., €60)
             platformCash: LedgerAccount, // PLATFORM_CASH.GLOBAL.EUR
@@ -219,14 +234,14 @@ class JournalEntry private constructor(
                     globalJournalEntryId = globalJournalEntryId,
                     journalType = JournalType.SETTLEMENT,
                     name = "Acquirer Network Line-Item Reconciled Settlement",
-                    paymentId = paymentId, // 🟢 No longer a blind sentinel! Absolute audit trail.
-                    txId = settlementTxId,
+                    paymentId = settleTx.paymentId, // 🟢 No longer a blind sentinel! Absolute audit trail.
+                    txId = settleTx.txId,
                     postings = listOf(
                         Posting.Debit.create(platformCash, netCashAmount), // Physical vault asset increase 🟢
                         Posting.Debit.create(pspFeeExpense, pspFeeAmount), // Direct operational fee expense 🟢
                         Posting.Credit.create(
                             pspReceivable,
-                            grossAmount
+                            settleTx.grossAmount
                         ) // Reconciles outstanding gateway IOU to zero 🔴
                     ),
                     reason = reason
@@ -261,8 +276,10 @@ class JournalEntry private constructor(
          * and holds it in a merchant-specific fee reserve account to manage chargeback risk.
          *
          * @param feeReserveAccount Must be LedgerAccountType.PLATFORM_FEE_RESERVE for the tenant
-         * @param merchantPayableAccount MERCHANT_DIRECT_PAYABLE (direct sale) or MERCHANT_COMMISSION_PAYABLE (marketplace)
+         * @param merchantPayableAccount MERCHANT_DIRECT_PAYABLE (direct sale) or MERCHANT_COMMISSION_PAYABLE
+         * (marketplace)
          */
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun commissionFeeRegistered(
             globalJournalEntryId: Long,
             paymentId: PaymentId,
@@ -273,7 +290,9 @@ class JournalEntry private constructor(
             reason: String? = "CommFeeRegistered"
         ): List<JournalEntry> {
             require(feeReserveAccount.type == LedgerAccountType.PLATFORM_FEE_RESERVE) {
-                "Target must be a tenant fee reserve account: ${feeReserveAccount.accountCode}"
+                LedgerDomainException.InvariantViolationException(
+                    "Target must be a tenant fee reserve account: ${feeReserveAccount.accountCode}"
+                )
             }
 
             return listOf(
@@ -311,6 +330,7 @@ class JournalEntry private constructor(
          * @param feeReserveAccount Must be LedgerAccountType.PLATFORM_FEE_RESERVE for the target tenant
          * @param platformRevenue Must be LedgerAccountType.PLATFORM_REVENUE for GLOBAL
          */
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun recognizePlatformRevenue(
             globalJournalEntryId: Long,
             recognitionIdentifier: String,
@@ -321,10 +341,14 @@ class JournalEntry private constructor(
 
         ): List<JournalEntry> {
             require(feeReserveAccount.type == LedgerAccountType.PLATFORM_FEE_RESERVE) {
-                "Source must be a tenant fee reserve account: ${feeReserveAccount.accountCode}"
+                LedgerDomainException.InvariantViolationException(
+                    "Source must be a tenant fee reserve account: ${feeReserveAccount.accountCode}"
+                )
             }
             require(platformRevenue.type == LedgerAccountType.PLATFORM_REVENUE) {
-                "Destination must be global platform revenue: ${platformRevenue.accountCode}"
+                LedgerDomainException.InvariantViolationException(
+                    "Destination must be global platform revenue: ${platformRevenue.accountCode}"
+                )
             }
 
             return listOf(
@@ -357,12 +381,11 @@ class JournalEntry private constructor(
         // =====================================================================
         // 7. PAYOUT (Clearing Liabilities & Pushing Cash to External Bank Accounts)
         // =====================================================================
+        @Suppress("LongParameterList") // the entry's ledger accounts; nothing groups them
         fun payout(
             globalJournalEntryId: Long,
-            paymentId: PaymentId,
-            txId: TxId,
+            payoutTx: Tx.PayoutTx, // the payment, the tx and the paid-out amount
             journalIdentifier: String,
-            payoutAmount: Amount,
             sourceBalanceAccount: LedgerAccount,
             platformCash: LedgerAccount,
             reason: String? = "PayOutToMerchant"
@@ -372,11 +395,11 @@ class JournalEntry private constructor(
                 globalJournalEntryId = globalJournalEntryId,
                 journalType = JournalType.PAYOUT,
                 name = "Outbound Wire Transfer to Merchant/Seller External Bank",
-                paymentId = paymentId,
-                txId = txId,
+                paymentId = payoutTx.paymentId,
+                txId = payoutTx.txId,
                 postings = listOf(
-                    Posting.Debit.create(sourceBalanceAccount, payoutAmount),
-                    Posting.Credit.create(platformCash, payoutAmount)
+                    Posting.Debit.create(sourceBalanceAccount, payoutTx.amount),
+                    Posting.Credit.create(platformCash, payoutTx.amount)
                 ),
                 reason = reason, // 🟢 Directly states the business purpose
             )
@@ -393,6 +416,7 @@ class JournalEntry private constructor(
          * Used exclusively by the repository layer. No business validation runs here
          * beyond the init{} block invariants — assume the DB holds valid, balanced data.
          */
+        @Suppress("LongParameterList") // the object's own fields
         fun rehytrate(
             id: String,
             globalJournalEntryId: Long,

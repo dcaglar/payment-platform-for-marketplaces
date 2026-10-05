@@ -1,7 +1,7 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
+import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PageDto
 import com.dogancaglar.paymentservice.config.SecurityConfig
-import com.dogancaglar.port.out.web.dto.PageDto
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
