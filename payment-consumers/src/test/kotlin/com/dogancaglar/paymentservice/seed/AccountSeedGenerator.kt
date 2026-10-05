@@ -19,7 +19,8 @@ import java.io.File
  * accounts the code expects: the platform's per currency, every merchant's, and every seller's.
  *
  * Regenerate after changing merchants.json:
- *   mvn -pl payment-consumers -am test -Dtest=AccountSeedFileTest -Dseed.regenerate=true -Dsurefire.failIfNoSpecifiedTests=false
+ * mvn -pl payment-consumers -am test -Dtest=AccountSeedFileTest -Dseed.regenerate=true
+ * -Dsurefire.failIfNoSpecifiedTests=false
  * Paths are relative to the payment-consumers module (the test's working directory).
  */
 object AccountSeedGenerator {
@@ -126,7 +127,19 @@ object AccountSeedGenerator {
     private fun ledgerRow(l: LedgerAccount): String {
         // the owner row: the seller for seller accounts, otherwise the merchant or GLOBAL
         val parent = l.sellerCode ?: l.ownerCode
-        return insert(l.accountCode, "LEDGER", l.status.name, parent, l.type.name, l.currency.currencyCode, null, null, null, null, null)
+        return insert(
+            l.accountCode,
+            "LEDGER",
+            l.status.name,
+            parent,
+            l.type.name,
+            l.currency.currencyCode,
+            null,
+            null,
+            null,
+            null,
+            null
+        )
     }
 
     private fun insert(

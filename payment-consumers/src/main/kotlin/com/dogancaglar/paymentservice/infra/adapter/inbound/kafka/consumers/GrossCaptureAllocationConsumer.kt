@@ -63,7 +63,11 @@ class GrossCaptureAllocationConsumer(
             val captureEntry = event.ledgerEntries.find { it.journalType == JournalType.CAPTURE }
             if (captureEntry == null) {
                 logger.debug("No CAPTURE journal entry found. No clearing allocation required.")
-                dedupe.markProcessed(ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId, 3600)
+                dedupe.markProcessed(
+                    ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR,
+                    eventId,
+                    EventDeduplicationPort.PROCESSED_EVENT_TTL_SECONDS
+                )
                 return@with
             }
             val rawPaymentIntentId = event.paymentIntentId.trim()
@@ -74,7 +78,11 @@ class GrossCaptureAllocationConsumer(
                 logger.error(
                     "🛑 POISON PILL DETECTED: Payment data entity not found for paymentIntentId='$rawPaymentIntentId'."
                 )
-                dedupe.markProcessed(ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId, 3600)
+                dedupe.markProcessed(
+                    ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR,
+                    eventId,
+                    EventDeduplicationPort.PROCESSED_EVENT_TTL_SECONDS
+                )
                 return@with
             }
             // 1. Resolve Global Platform Accounts
@@ -110,9 +118,7 @@ class GrossCaptureAllocationConsumer(
                 )
                 // A1. Move 100% of funds from suspense to the merchant's direct payable account
                 recordInternalTransferSubmissionUseCase.recordSubmission(
-                    paymentId = payment.paymentId,
-                    paymentIntentId = paymentIntentId,
-                    paymentMerchantAccountId = payment.merchantAccount,
+                    payment = payment,
                     sourceAccount = grossSuspenseAccount.accountCode,
                     targetAccount = merchantDirectPayableAccount.accountCode,
                     transferAmount = Amount.of(captureEntry.postings.first().amount, currency),
@@ -120,12 +126,11 @@ class GrossCaptureAllocationConsumer(
                     reason = "DIRECT_MERCHANT_REVENUE_ALLOCATION"
                 )
 
-                // A2. Charge Mor-DC's infrastructure processing fee from the merchant's direct payable account (none if 0)
+                // A2. Charge Mor-DC's infrastructure processing fee from the merchant's direct payable account (none
+                // if 0)
                 if (morDcPlatformFee.isPositive()) {
                     recordInternalTransferSubmissionUseCase.recordSubmission(
-                        paymentId = payment.paymentId,
-                        paymentIntentId = paymentIntentId,
-                        paymentMerchantAccountId = payment.merchantAccount,
+                        payment = payment,
                         sourceAccount = merchantDirectPayableAccount.accountCode,
                         targetAccount = platformFeeReserveAccount.accountCode,
                         transferAmount = morDcPlatformFee,
@@ -135,15 +140,21 @@ class GrossCaptureAllocationConsumer(
                 }
 
                 logger.info(
-                    "💾 Suspense account cleanly cleared. Staged 100% allocation to direct payable for merchant: ${payment.merchantAccount}"
+                    "💾 Suspense account cleanly cleared. Staged 100% allocation to direct payable for merchant: " +
+                        "${payment.merchantAccount}"
                 )
-                dedupe.markProcessed(ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId, 3600)
+                dedupe.markProcessed(
+                    ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR,
+                    eventId,
+                    EventDeduplicationPort.PROCESSED_EVENT_TTL_SECONDS
+                )
                 return@with
             }
 
             // === PATH B: Marketplace Split Payment ===
             logger.info(
-                "🌿 Marketplace multi-party transaction identified. Executing clearing transfers for ${payment.splits.size} split definitions."
+                "🌿 Marketplace multi-party transaction identified. Executing clearing transfers for " +
+                    "${payment.splits.size} split definitions."
             )
             // === PATH B: Marketplace Split Payment ===
             // The operator's commission account. Commission splits are credited here (B1) and
@@ -182,9 +193,7 @@ class GrossCaptureAllocationConsumer(
                     )
                 }
                 recordInternalTransferSubmissionUseCase.recordSubmission(
-                    paymentId = payment.paymentId,
-                    paymentIntentId = paymentIntentId,
-                    paymentMerchantAccountId = payment.merchantAccount,
+                    payment = payment,
                     sourceAccount = grossSuspenseAccount.accountCode,
                     targetAccount = targetAccountCode,
                     transferAmount = split.amount,
@@ -193,12 +202,11 @@ class GrossCaptureAllocationConsumer(
                 )
             }
 
-            // B2. Charge Mor-DC's infrastructure fee straight from the operator's commission payable account (none if 0)
+            // B2. Charge Mor-DC's infrastructure fee straight from the operator's commission payable account (none if
+            // 0)
             if (morDcPlatformFee.isPositive()) {
                 recordInternalTransferSubmissionUseCase.recordSubmission(
-                    paymentId = payment.paymentId,
-                    paymentIntentId = paymentIntentId,
-                    paymentMerchantAccountId = payment.merchantAccount,
+                    payment = payment,
                     sourceAccount = operatorCommissionAccount.accountCode,
                     targetAccount = platformFeeReserveAccount.accountCode,
                     transferAmount = morDcPlatformFee,
@@ -208,11 +216,17 @@ class GrossCaptureAllocationConsumer(
             }
 
             logger.info(
-                "💾 Suspense account cleanly cleared. Staged split ledger allocations across all ${payment.splits.size} distribution paths."
+                "💾 Suspense account cleanly cleared. Staged split ledger allocations across all " +
+                    "${payment.splits.size} distribution paths."
             )
-            dedupe.markProcessed(ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR, eventId, 3600)
+            dedupe.markProcessed(
+                ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR,
+                eventId,
+                EventDeduplicationPort.PROCESSED_EVENT_TTL_SECONDS
+            )
             logger.info(
-                "Gross capture allocation consumer executed successfully for paymentIntentId=${event.publicPaymentIntentId}"
+                "Gross capture allocation consumer executed successfully for " +
+                    "paymentIntentId=${event.publicPaymentIntentId}"
             )
         }
     }

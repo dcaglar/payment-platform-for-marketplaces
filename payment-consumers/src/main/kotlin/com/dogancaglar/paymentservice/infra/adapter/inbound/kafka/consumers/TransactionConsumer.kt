@@ -38,7 +38,11 @@ class TransactionConsumer(
                 return@with
             }
             transactionUseCase.updateTransactions(envelope.data)
-            dedupe.markProcessed(ConsumerGroups.TRANSACTION_CONSUMER, eventId, 3600)
+            dedupe.markProcessed(
+                ConsumerGroups.TRANSACTION_CONSUMER,
+                eventId,
+                EventDeduplicationPort.PROCESSED_EVENT_TTL_SECONDS
+            )
         }
     }
 }

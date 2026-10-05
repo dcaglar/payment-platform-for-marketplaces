@@ -75,10 +75,8 @@ class JournalEntry private constructor(
 
         fun authHold(
             globalJournalEntryId: Long,
-            paymentId: PaymentId,
-            txId: TxId, // <-- Added! (This is the ID of the AuthorizationTx)
+            authTx: Tx.AuthorizationTx, // the payment, the tx and the authorized amount
             journalIdentifier: String,
-            authorizedAmount: Amount,
             authReceivable: LedgerAccount,
             authLiability: LedgerAccount,
             reason: String? = "Auth Hold"
@@ -88,26 +86,27 @@ class JournalEntry private constructor(
                 globalJournalEntryId = globalJournalEntryId,
                 journalType = JournalType.AUTHORIZATION,
                 name = "AuthorizationTx Hold",
-                paymentId = paymentId,
-                txId = txId,
+                paymentId = authTx.paymentId,
+                txId = authTx.txId,
                 postings = listOf(
-                    Posting.Debit.create(authReceivable, authorizedAmount),
-                    Posting.Credit.create(authLiability, authorizedAmount)
+                    Posting.Debit.create(authReceivable, authTx.amount),
+                    Posting.Credit.create(authLiability, authTx.amount)
                 ),
                 reason = reason
             )
         )
 
         // =====================================================================
-        // CAPTURE — This journal entry is recorded when external PSP notifies Mor-DC platform regarding the final status of capture, money is still not in Mor-DC account, but PSP confrms that it will send within 3 or 5 days
+        // CAPTURE — This journal entry is recorded when external PSP notifies Mor-DC platform regarding the final
+        // status of capture, money is still not in Mor-DC account, but PSP confrms that it will send within 3 or 5
+        // days
         // =====================================================================
 
         fun captureGrossAsset(
             globalJournalEntryId: Long,
-            paymentId: PaymentId,
-            txId: TxId,
+            captureTx: Tx.CaptureTx, // the payment and the tx
             journalIdentifier: String,
-            capturedAmount: Amount,
+            capturedAmount: Amount, // what the PSP confirmed
             authReceivable: LedgerAccount,
             authLiability: LedgerAccount,
             merchantGrossPool: LedgerAccount,
@@ -119,8 +118,8 @@ class JournalEntry private constructor(
                 globalJournalEntryId = globalJournalEntryId,
                 journalType = JournalType.CAPTURE,
                 name = "Gross Asset Capture Pool on ${merchantGrossPool.accountCode}",
-                paymentId = paymentId,
-                txId = txId,
+                paymentId = captureTx.paymentId,
+                txId = captureTx.txId,
                 postings = listOf(
                     Posting.Debit.create(authLiability, capturedAmount),
                     Posting.Credit.create(authReceivable, capturedAmount),
@@ -138,7 +137,8 @@ class JournalEntry private constructor(
             amount: Amount,
             sourceAccount: LedgerAccount,
             targetAccount: LedgerAccount,
-            allocationReason: String? = "INTERNAL_TRANSFER" // 🎯 e.g., "MARKETPLACE_SELLER_SPLIT" or "PLATFORM_COMMISSION_FEE"
+            // 🎯 e.g., "MARKETPLACE_SELLER_SPLIT" or "PLATFORM_COMMISSION_FEE"
+            allocationReason: String? = "INTERNAL_TRANSFER"
         ): List<JournalEntry> = listOf(
             JournalEntry(
                 id = "INTERNAL_TRANSFER:$journalIdentifier",
@@ -175,10 +175,8 @@ class JournalEntry private constructor(
          */
         fun refund(
             globalJournalEntryId: Long,
-            paymentId: PaymentId,
-            txId: TxId,
+            refundTx: Tx.RefundTx, // the payment, the tx and the refunded amount
             journalIdentifier: String,
-            refundedAmount: Amount,
             authReceivable: LedgerAccount,
             authLiability: LedgerAccount,
             merchantGrossPool: LedgerAccount,
@@ -190,13 +188,13 @@ class JournalEntry private constructor(
                 globalJournalEntryId = globalJournalEntryId,
                 journalType = JournalType.REFUND,
                 name = "Payment Refund",
-                paymentId = paymentId,
-                txId = txId,
+                paymentId = refundTx.paymentId,
+                txId = refundTx.txId,
                 postings = listOf(
-                    Posting.Debit.create(merchantGrossPool, refundedAmount),
-                    Posting.Credit.create(pspReceivable, refundedAmount),
-                    Posting.Debit.create(authLiability, refundedAmount),
-                    Posting.Credit.create(authReceivable, refundedAmount)
+                    Posting.Debit.create(merchantGrossPool, refundTx.amount),
+                    Posting.Credit.create(pspReceivable, refundTx.amount),
+                    Posting.Debit.create(authLiability, refundTx.amount),
+                    Posting.Credit.create(authReceivable, refundTx.amount)
                 ),
                 reason = reason
             )
@@ -214,10 +212,8 @@ class JournalEntry private constructor(
          */
         fun settlementLineItem(
             globalJournalEntryId: Long,
-            paymentId: PaymentId, // 🎯 The true, original Payment identifier
-            settlementTxId: TxId, // The fresh unique ID for this settlement event
+            settleTx: Tx.SettleTx, // the payment, the tx and the gross amount the PSP settled (e.g., €3,000)
             journalIdentifier: String, // e.g., "ADYEN_SDR_LINE_998124"
-            grossAmount: Amount, // Original capture volume (e.g., €3,000)
             netCashAmount: Amount, // Cash deposited after fees (e.g., €2,940)
             pspFeeAmount: Amount, // Exact fees taken out (e.g., €60)
             platformCash: LedgerAccount, // PLATFORM_CASH.GLOBAL.EUR
@@ -231,14 +227,14 @@ class JournalEntry private constructor(
                     globalJournalEntryId = globalJournalEntryId,
                     journalType = JournalType.SETTLEMENT,
                     name = "Acquirer Network Line-Item Reconciled Settlement",
-                    paymentId = paymentId, // 🟢 No longer a blind sentinel! Absolute audit trail.
-                    txId = settlementTxId,
+                    paymentId = settleTx.paymentId, // 🟢 No longer a blind sentinel! Absolute audit trail.
+                    txId = settleTx.txId,
                     postings = listOf(
                         Posting.Debit.create(platformCash, netCashAmount), // Physical vault asset increase 🟢
                         Posting.Debit.create(pspFeeExpense, pspFeeAmount), // Direct operational fee expense 🟢
                         Posting.Credit.create(
                             pspReceivable,
-                            grossAmount
+                            settleTx.grossAmount
                         ) // Reconciles outstanding gateway IOU to zero 🔴
                     ),
                     reason = reason
@@ -273,7 +269,8 @@ class JournalEntry private constructor(
          * and holds it in a merchant-specific fee reserve account to manage chargeback risk.
          *
          * @param feeReserveAccount Must be LedgerAccountType.PLATFORM_FEE_RESERVE for the tenant
-         * @param merchantPayableAccount MERCHANT_DIRECT_PAYABLE (direct sale) or MERCHANT_COMMISSION_PAYABLE (marketplace)
+         * @param merchantPayableAccount MERCHANT_DIRECT_PAYABLE (direct sale) or MERCHANT_COMMISSION_PAYABLE
+         * (marketplace)
          */
         fun commissionFeeRegistered(
             globalJournalEntryId: Long,
@@ -377,10 +374,8 @@ class JournalEntry private constructor(
         // =====================================================================
         fun payout(
             globalJournalEntryId: Long,
-            paymentId: PaymentId,
-            txId: TxId,
+            payoutTx: Tx.PayoutTx, // the payment, the tx and the paid-out amount
             journalIdentifier: String,
-            payoutAmount: Amount,
             sourceBalanceAccount: LedgerAccount,
             platformCash: LedgerAccount,
             reason: String? = "PayOutToMerchant"
@@ -390,11 +385,11 @@ class JournalEntry private constructor(
                 globalJournalEntryId = globalJournalEntryId,
                 journalType = JournalType.PAYOUT,
                 name = "Outbound Wire Transfer to Merchant/Seller External Bank",
-                paymentId = paymentId,
-                txId = txId,
+                paymentId = payoutTx.paymentId,
+                txId = payoutTx.txId,
                 postings = listOf(
-                    Posting.Debit.create(sourceBalanceAccount, payoutAmount),
-                    Posting.Credit.create(platformCash, payoutAmount)
+                    Posting.Debit.create(sourceBalanceAccount, payoutTx.amount),
+                    Posting.Credit.create(platformCash, payoutTx.amount)
                 ),
                 reason = reason, // 🟢 Directly states the business purpose
             )

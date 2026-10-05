@@ -52,7 +52,8 @@ class PaymentApiOrchestrator(
         )
         val cmd = PaymentRequestMapper.toAuthorizePaymentIntentCommand(publicPaymentIntentId, request, merchantAccount)
         logger.info(
-            "⚡ [Orchestrator] Calling authorizePaymentIntentUseCase.authorize for internal long numeric ID: ${cmd.paymentIntentId}"
+            "⚡ [Orchestrator] Calling authorizePaymentIntentUseCase.authorize for internal long numeric ID: " +
+                "${cmd.paymentIntentId}"
         )
         val paymentIntent = authorizePaymentIntentUseCase.authorize(cmd)
         return PaymentRequestMapper.toPaymentResponseDto(paymentIntent)

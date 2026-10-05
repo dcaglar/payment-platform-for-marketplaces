@@ -1,7 +1,10 @@
 package com.dogancaglar.paymentservice.domain.model.common
 
 import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class AmountTest {

@@ -36,7 +36,10 @@ import org.springframework.dao.DuplicateKeyException
 import org.springframework.dao.NonTransientDataAccessException
 import org.springframework.dao.TransientDataAccessException
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory
-import org.springframework.kafka.core.*
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory
+import org.springframework.kafka.core.DefaultKafkaProducerFactory
+import org.springframework.kafka.core.KafkaTemplate
+import org.springframework.kafka.core.ProducerFactory
 import org.springframework.kafka.listener.ConsumerRecordRecoverer
 import org.springframework.kafka.listener.DefaultErrorHandler
 import org.springframework.kafka.listener.RecordInterceptor
@@ -63,6 +66,13 @@ class KafkaTypedConsumerFactoryConfig(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     companion object {
+        const val MAX_ERROR_MESSAGE_CHARS = 8_000 // DLQ header caps: no jumbo headers
+        const val MAX_ERROR_STACKTRACE_CHARS = 16_000
+        const val MAX_RETRIES = 5
+        const val RETRY_INITIAL_INTERVAL_MS = 2_000L
+        const val RETRY_MAX_INTERVAL_MS = 30_000L
+        const val POLL_TIMEOUT_MS = 1000L
+        const val IDLE_BETWEEN_POLLS_MS = 250L
         private const val HDR_VALUE_BYTES = "springDeserializerExceptionValue"
     }
 
@@ -133,10 +143,10 @@ class KafkaTypedConsumerFactoryConfig(
                     "x-error-message",
                     (
                         (ex?.message ?: "")
-                            .take(8_000)
+                            .take(MAX_ERROR_MESSAGE_CHARS)
                         ).toByteArray()
                 ) // cap to avoid jumbo headers
-                add("x-error-stacktrace", stackTraceString(ex, 16_000).toByteArray())
+                add("x-error-stacktrace", stackTraceString(ex, MAX_ERROR_STACKTRACE_CHARS).toByteArray())
                 add("x-recovered-at", Utc.nowInstant().toString().toByteArray())
                 add(
                     "x-consumer-group",
@@ -201,10 +211,10 @@ class KafkaTypedConsumerFactoryConfig(
 
     @Bean
     fun kafkaExponentialBackOff(): ExponentialBackOffWithMaxRetries =
-        ExponentialBackOffWithMaxRetries(5).apply {
-            initialInterval = 2_000L
+        ExponentialBackOffWithMaxRetries(MAX_RETRIES).apply {
+            initialInterval = RETRY_INITIAL_INTERVAL_MS
             multiplier = 2.0
-            maxInterval = 30_000L
+            maxInterval = RETRY_MAX_INTERVAL_MS
         }
 
     private fun <T : Event> createFactory(
@@ -223,10 +233,10 @@ class KafkaTypedConsumerFactoryConfig(
             consumerFactory.updateConfigs(
                 mapOf(CLIENT_ID_CONFIG to clientId)
             )
-            containerProperties.pollTimeout = 1000 // block up to 1s waiting for data
+            containerProperties.pollTimeout = POLL_TIMEOUT_MS // block up to 1s waiting for data
             containerProperties.isMicrometerEnabled = false
             containerProperties.isObservationEnabled = false
-            containerProperties.idleBetweenPolls = 250 // nap 250ms after an empty poll
+            containerProperties.idleBetweenPolls = IDLE_BETWEEN_POLLS_MS // nap 250ms after an empty poll
             @Suppress("UNCHECKED_CAST")
             setRecordInterceptor(interceptor as RecordInterceptor<String, EventEnvelope<T>>)
             setCommonErrorHandler(errorHandler)

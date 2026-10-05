@@ -5,24 +5,6 @@
     <ID>LongParameterList:MultiDataSourceConfig.kt$MultiDataSourceConfig$( @Value("\${app.datasource.central.jdbc-url}") url: String, @Value("\${app.datasource.central.username}") user: String, @Value("\${app.datasource.central.password}") pass: String, @Value("\${app.datasource.central.connection-timeout:15000}") cTimeout: Long, @Value("\${app.datasource.central.validation-timeout:15000}") vTimeout: Long, @Value("\${app.datasource.central.idle-timeout:600000}") iTimeout: Long, @Value("\${app.datasource.central.max-lifetime:1800000}") mLife: Long, @Value("\${app.datasource.central.maximum-pool-size:10}") mPool: Int, openTelemetry: OpenTelemetry )</ID>
     <ID>LongParameterList:MultiDataSourceConfig.kt$MultiDataSourceConfig$( @Value("\${app.datasource.maintenance.username}") user: String, @Value("\${app.datasource.maintenance.password}") pass: String, @Value("\${app.datasource.maintenance.connection-timeout:15000}") cTimeout: Long, @Value("\${app.datasource.maintenance.validation-timeout:15000}") vTimeout: Long, @Value("\${app.datasource.maintenance.idle-timeout:60000}") iTimeout: Long, @Value("\${app.datasource.maintenance.max-lifetime:1800000}") mLife: Long, @Value("\${app.datasource.maintenance.maximum-pool-size:1}") mPool: Int, @Value("\${app.datasource.maintenance.minimum-idle:0}") minIdleConns: Int, openTelemetry: OpenTelemetry )</ID>
     <ID>LongParameterList:MultiDataSourceConfig.kt$MultiDataSourceConfig$( @Value("\${app.datasource.outbox.username}") user: String, @Value("\${app.datasource.outbox.password}") pass: String, @Value("\${app.datasource.outbox.connection-timeout:15000}") cTimeout: Long, @Value("\${app.datasource.outbox.validation-timeout:15000}") vTimeout: Long, @Value("\${app.datasource.outbox.idle-timeout:600000}") iTimeout: Long, @Value("\${app.datasource.outbox.max-lifetime:1800000}") mLife: Long, @Value("\${app.datasource.outbox.maximum-pool-size:20}") mPool: Int, openTelemetry: OpenTelemetry )</ID>
-    <ID>MagicNumber:LocalOutboxDispatchWorker.kt$LocalOutboxDispatchWorker$10</ID>
-    <ID>MagicNumber:LocalOutboxDispatchWorker.kt$LocalOutboxDispatchWorker$1_000_000_000.0</ID>
-    <ID>MagicNumber:LocalOutboxDispatchWorker.kt$LocalOutboxDispatchWorker$60</ID>
-    <ID>MagicNumber:LocalOutboxMaintenanceJob.kt$LocalOutboxMaintenanceJob$20</ID>
-    <ID>MagicNumber:LocalOutboxMaintenanceJob.kt$LocalOutboxMaintenanceJob$3000</ID>
-    <ID>MagicNumber:LocalOutboxStoreAndForwardJob.kt$LocalOutboxStoreAndForwardJob$1000</ID>
-    <ID>MagicNumber:LocalOutboxStoreAndForwardJob.kt$LocalOutboxStoreAndForwardJob$2000</ID>
-    <ID>MagicNumber:LocalOutboxStoreAndForwardJob.kt$LocalOutboxStoreAndForwardJob$3</ID>
-    <ID>MagicNumber:LocalOutboxStoreAndForwardJob.kt$LocalOutboxStoreAndForwardJob$500L</ID>
-    <ID>MagicNumber:MultiDataSourceConfig.kt$MultiDataSourceConfig$5</ID>
-    <ID>MagicNumber:MultiDataSourceConfig.kt$MultiDataSourceConfig$60</ID>
-    <ID>MagicNumber:PaymentEdgeWorkersThreadPoolConfig.kt$PaymentEdgeWorkersThreadPoolConfig$32</ID>
-    <ID>MagicNumber:PaymentEdgeWorkersThreadPoolConfig.kt$PaymentEdgeWorkersThreadPoolConfig$500</ID>
-    <ID>MaxLineLength:LocalOutboxStoreAndForwardJob.kt$LocalOutboxStoreAndForwardJob$"Step 2: Rescued {} abandoned events. (Active threads were killed, so we instantly reset their events back to 'NEW')"</ID>
-    <ID>MaxLineLength:LocalOutboxStoreAndForwardJob.kt$LocalOutboxStoreAndForwardJob$"Step 3: Beginning the final drain loop. We will wait for 3 consecutive seconds of silence to ensure no last-minute events are missed."</ID>
-    <ID>MaxLineLength:LocalOutboxStoreAndForwardJob.kt$LocalOutboxStoreAndForwardJob$"Step 4: Drain complete! We saw 3 full seconds of silence. Successfully forwarded a total of {} final events."</ID>
-    <ID>MaxLineLength:MyBatisFactoriesConfig.kt$MyBatisFactoriesConfig$)</ID>
-    <ID>MaxLineLength:MyBatisFactoriesConfig.kt$MyBatisFactoriesConfig$com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.LocalOutboxMapperForEdgeWorker::class.java</ID>
     <ID>ReturnCount:LocalOutboxDispatchWorker.kt$LocalOutboxDispatchWorker$@WithSpan("outbox-shutdown-flush") fun flushBatch(workerId: String): Int</ID>
     <ID>SpreadOperator:MyBatisFactoriesConfig.kt$MyBatisFactoriesConfig$(*resolver.getResources("classpath*:mapper/**/*.xml"))</ID>
     <ID>SpreadOperator:PaymentEdgeWorkersApplication.kt$(*args)</ID>

@@ -262,7 +262,8 @@ class PaymentApiIntegrationTest {
         //   our PSP thread pool full   -> answer 503, back to CREATED, the PSP is not called
         //   payment not in CREATED     -> the PSP is not called, the current state answers
         //   otherwise the PSP is called once per request (no retries on our side)
-        //   AUTHORIZED is stored with its payment_authorized event in the outbox (carrying the order id and the card's brand + last 4);
+        // AUTHORIZED is stored with its payment_authorized event in the outbox (carrying the order id and the card's
+        // brand + last 4);
         //   every other outcome writes no event
         @JvmStatic
         fun authorizeContract() = listOf(
@@ -366,7 +367,17 @@ class PaymentApiIntegrationTest {
                 expectedStored = "PENDING_AUTH",
                 expectedPspCalls = 1
             ),
-            AuthorizeCase("PSP authorizes after 5 s", givenPayment = "CREATED", givenPsp = "PSP-AUTH-SLOW", expectedHttp = HttpStatus.ACCEPTED, expectedBody = "PENDING_AUTH", expectedStored = "PENDING_AUTH", expectedPspCalls = 1, expectedStoredLater = "AUTHORIZED", expectedEvent = "payment_authorized"),
+            AuthorizeCase(
+                "PSP authorizes after 5 s",
+                givenPayment = "CREATED",
+                givenPsp = "PSP-AUTH-SLOW",
+                expectedHttp = HttpStatus.ACCEPTED,
+                expectedBody = "PENDING_AUTH",
+                expectedStored = "PENDING_AUTH",
+                expectedPspCalls = 1,
+                expectedStoredLater = "AUTHORIZED",
+                expectedEvent = "payment_authorized"
+            ),
             AuthorizeCase(
                 "PSP declines after 5 s",
                 givenPayment = "CREATED",
@@ -590,7 +601,8 @@ class PaymentApiIntegrationTest {
         // a direct sale must not have splits
         val body = directSale(orderId).replace(
             "\"totalAmount\"",
-            "\"splits\": [ { \"type\": \"Commission\", \"amount\": { \"quantity\": 5000, \"currency\": \"EUR\" } } ], \"totalAmount\""
+            "\"splits\": [ { \"type\": \"Commission\", \"amount\": { \"quantity\": 5000, \"currency\": \"EUR\" } } " +
+                "], \"totalAmount\""
         )
 
         val result = create(newKey(), body)

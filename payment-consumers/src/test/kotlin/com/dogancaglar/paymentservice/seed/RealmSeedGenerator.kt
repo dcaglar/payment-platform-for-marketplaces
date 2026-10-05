@@ -15,7 +15,8 @@ import java.io.File
  * The secrets and passwords are local / test seed data only.
  *
  * Regenerate after changing merchants.json:
- *   mvn -pl payment-consumers -am test -Dtest=RealmSeedFileTest -Dseed.regenerate=true -Dsurefire.failIfNoSpecifiedTests=false
+ * mvn -pl payment-consumers -am test -Dtest=RealmSeedFileTest -Dseed.regenerate=true
+ * -Dsurefire.failIfNoSpecifiedTests=false
  */
 object RealmSeedGenerator {
 

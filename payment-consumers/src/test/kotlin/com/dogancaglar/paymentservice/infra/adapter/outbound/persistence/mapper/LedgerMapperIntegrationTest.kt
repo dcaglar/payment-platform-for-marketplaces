@@ -384,7 +384,13 @@ class LedgerMapperIntegrationTest {
         )
     }
 
-    private fun posting(journalId: String, accountCode: String, accountType: String, amount: Long, direction: String): PostingEntity {
+    private fun posting(
+        journalId: String,
+        accountCode: String,
+        accountType: String,
+        amount: Long,
+        direction: String
+    ): PostingEntity {
         return PostingEntity(
             journalId = journalId,
             accountCode = accountCode,

@@ -104,7 +104,8 @@ class InternalTransfer private constructor(
 
     override fun toString(): String =
         "amount=$amount, target=$targetAccount/$targetAccount, " +
-            "source=$sourceAccount/$sourceAccount, status=$status, transferType= $transferType createdAt=$createdAt, updatedAt=$updatedAt)"
+            "source=$sourceAccount/$sourceAccount, status=$status, transferType= $transferType createdAt=$createdAt, " +
+            "updatedAt=$updatedAt)"
 
     // =========================================================================
     // Factory Methods

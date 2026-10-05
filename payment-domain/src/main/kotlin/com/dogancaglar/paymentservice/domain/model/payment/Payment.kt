@@ -291,7 +291,7 @@ class Payment private constructor(
 
         val updatedPayment = this.copy(
             status = newStatus,
-            updatedAt = com.dogancaglar.common.time.Utc.nowLocalDateTime()
+            updatedAt = Utc.nowLocalDateTime()
         )
 
         return ReconciliationResult(updatedPayment, updatedCaptureTx)
@@ -358,7 +358,7 @@ class Payment private constructor(
             )
         }
         require(capturedAmount > Amount.zero(totalAmount.currency)) {
-            PaymentDomainException.RefundLimitExceededException("$id: cannot refund a payment with nothing captured")
+            PaymentDomainException.CaptureTxNotFoundException("$id: cannot refund a payment with nothing captured")
         }
         require(
             status in setOf(

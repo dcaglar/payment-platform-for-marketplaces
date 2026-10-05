@@ -1,10 +1,13 @@
 package com.dogancaglar.paymentservice.domain.exception
 
-/** An account the processing relies on is missing: our bug (or corrupt data) → non-retryable, DLQ. */
+/** An account is missing or an account rule was violated → non-retryable (Kafka: DLQ; API: 404 / 400). */
 sealed class AccountDomainException(message: String) : NonRetryableException(message) {
 
     /** No merchant account with this code, although a payment or event refers to it. */
     class MerchantAccountNotFoundException(message: String) : AccountDomainException(message)
+
+    /** No seller account with this id (or not under this merchant). */
+    class SellerAccountNotFoundException(message: String) : AccountDomainException(message)
 
     /**
      * An account rule was violated (blank name or address, invalid code or country, fee out of range, a seller

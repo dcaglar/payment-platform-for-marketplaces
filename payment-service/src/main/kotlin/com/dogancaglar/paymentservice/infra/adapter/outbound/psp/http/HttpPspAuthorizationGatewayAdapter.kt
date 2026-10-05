@@ -13,6 +13,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.http.HttpStatus
+import org.springframework.http.HttpStatusCode
 import org.springframework.http.MediaType
 import org.springframework.http.client.JdkClientHttpRequestFactory
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
@@ -31,7 +33,8 @@ import java.util.concurrent.RejectedExecutionException
 /**
  * Talks to a PSP over HTTP. The PSP API (played by WireMock in tests):
  *   POST /v1/intents                  create    -> 200 {"id", "clientSecret", "status": "CREATED"}
- *   POST /v1/intents/{id}/authorize   authorize -> 200 {"id", "status": "AUTHORIZED" | "DECLINED" | "PENDING", "card": {"brand", "last4"}}, 402 = declined
+ * POST /v1/intents/{id}/authorize   authorize -> 200 {"id", "status": "AUTHORIZED" | "DECLINED" | "PENDING", "card":
+ * {"brand", "last4"}}, 402 = declined
  *   GET  /v1/intents/{id}             retrieve  -> 200 {"id", "clientSecret", "status"}
  * Every call carries an Idempotency-Key derived from our payment intent id, so a retry of the
  * same step never makes the PSP do it twice.
@@ -106,7 +109,10 @@ class HttpPspAuthorizationGatewayAdapter(
         }
     }
 
-    override fun authorizePaymentIntent(paymentIntent: PaymentIntent, token: PaymentMethod?): CompletableFuture<PaymentIntent> {
+    override fun authorizePaymentIntent(
+        paymentIntent: PaymentIntent,
+        token: PaymentMethod?
+    ): CompletableFuture<PaymentIntent> {
         val op = PspOperation.AUTHORIZE
         val id = paymentIntent.paymentIntentId.value
         return submit(authorizePaymentIntentExecutor, op, id) {
@@ -121,7 +127,7 @@ class HttpPspAuthorizationGatewayAdapter(
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(AuthorizeRequest(paymentMethod = paymentMethodToken))
             }
-            if (answer.status == 402) {
+            if (answer.status == HttpStatus.PAYMENT_REQUIRED.value()) {
                 // a decline is a result, not an error
                 paymentIntent.markDeclined()
             } else if (!answer.isSuccess()) {
@@ -199,10 +205,10 @@ class HttpPspAuthorizationGatewayAdapter(
     }
 
     private fun failure(op: PspOperation, id: Long, status: Int): RuntimeException {
-        if (status == 429 || status == 503) {
+        if (status == HttpStatus.TOO_MANY_REQUESTS.value() || status == HttpStatus.SERVICE_UNAVAILABLE.value()) {
             return PspTransientException(op, id, "not done, answered $status")
         }
-        if (status in 400..499) {
+        if (HttpStatusCode.valueOf(status).is4xxClientError) {
             return PspPermanentException(op, id, "refused our request, answered $status")
         }
         return PspUnknownException(op, id, "answered $status, outcome unknown")
@@ -217,7 +223,7 @@ class HttpPspAuthorizationGatewayAdapter(
     }
 
     private class PspAnswer(val status: Int, val body: ByteArray) {
-        fun isSuccess(): Boolean = status in 200..299
+        fun isSuccess(): Boolean = HttpStatusCode.valueOf(status).is2xxSuccessful
     }
 
     data class CreateIntentRequest(

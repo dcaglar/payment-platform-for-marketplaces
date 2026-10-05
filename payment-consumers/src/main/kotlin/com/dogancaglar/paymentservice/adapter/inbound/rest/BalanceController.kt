@@ -18,7 +18,8 @@ import org.springframework.web.bind.annotation.RestController
  *   - a seller (claim seller_id): its own balance;
  *   - a merchant (claim merchant_id): its own balance, its sellers, one of its sellers (another merchant's: 404);
  *   - staff (merchant:all): the balance and the sellers of the merchant named in the path, any seller.
- * URL convention (also TransactionController): /<api>/merchants/me… = the token's merchant, /<api>/merchants/{merchantAccount}… = staff.
+ * URL convention (also TransactionController): /<api>/merchants/me… = the token's merchant,
+ * /<api>/merchants/{merchantAccount}… = staff.
  * See new-backoffice.md, "Security".
  */
 @RestController

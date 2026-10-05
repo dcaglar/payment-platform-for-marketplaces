@@ -29,8 +29,12 @@ import com.dogancaglar.paymentservice.ports.outbound.OutboxEventFactoryPort
 import com.dogancaglar.paymentservice.ports.outbound.PaymentRepository
 import com.dogancaglar.paymentservice.ports.outbound.PaymentTxPort
 import com.dogancaglar.paymentservice.ports.outbound.TransferRepository
-import io.mockk.*
-import org.junit.jupiter.api.Assertions.*
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicLong
@@ -134,7 +138,8 @@ class ProcessPspResultProcessingServiceTest {
     @Test
     fun `two captures of one payment get different journal ids`() {
         // Given
-        every { paymentRepository.findByPaymentIntentId(paymentIntentId) } returns payment(PaymentStatus.SENT_FOR_SETTLE)
+        every { paymentRepository.findByPaymentIntentId(paymentIntentId) } returns
+            payment(PaymentStatus.SENT_FOR_SETTLE)
         every { accountDirectory.getAccountProfile(LedgerAccountType.CAPTURE_SUSPENSE, merchant, eur) } returns
             profile(suspenseCode, LedgerAccountType.CAPTURE_SUSPENSE)
         every { accountDirectory.getAccountProfile(LedgerAccountType.AUTH_RECEIVABLE, merchant, eur) } returns
@@ -240,8 +245,7 @@ class ProcessPspResultProcessingServiceTest {
 
     private fun pendingCaptureTx(txId: Long): Tx = Tx.createCaptureTx(
         txId = TxId(txId),
-        paymentId = paymentId,
-        paymentIntentId = paymentIntentId,
+        payment = payment(PaymentStatus.SENT_FOR_SETTLE),
         authorizationTxId = TxId(230392875798626305L),
         acquirerReference = "sim_cap_$txId",
         amount = Amount.of(3000, eur)

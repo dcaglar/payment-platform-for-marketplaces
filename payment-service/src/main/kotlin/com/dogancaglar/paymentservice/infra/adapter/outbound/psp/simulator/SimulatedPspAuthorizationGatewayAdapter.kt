@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.stereotype.Component
-import java.util.*
+import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.RejectedExecutionException
 import kotlin.random.Random
@@ -40,7 +40,7 @@ class SimulatedPspAuthorizationGatewayAdapter(
         return submit(createPaymentIntentExecutor, op, id) {
             simulator.simulate()
             val sc = active.response
-            val roll = Random.nextInt(100)
+            val roll = Random.nextInt(PERCENT)
 
             when {
                 roll < sc.successful -> {
@@ -69,7 +69,7 @@ class SimulatedPspAuthorizationGatewayAdapter(
         return submit(authorizePaymentIntentExecutor, op, id) {
             simulator.simulate()
             val sc = active.response
-            val roll = Random.nextInt(100)
+            val roll = Random.nextInt(PERCENT)
 
             when {
                 roll < sc.successful -> {
@@ -93,7 +93,7 @@ class SimulatedPspAuthorizationGatewayAdapter(
         return submit(authorizePaymentIntentExecutor, op, id) {
             simulator.simulate()
             val sc = active.response
-            val roll = Random.nextInt(100)
+            val roll = Random.nextInt(PERCENT)
 
             when {
                 roll < sc.successful -> {
@@ -124,5 +124,9 @@ class SimulatedPspAuthorizationGatewayAdapter(
         } catch (e: RejectedExecutionException) {
             throw PspTransientException(op, id, "not sent: thread pool is full", e)
         }
+    }
+
+    private companion object {
+        const val PERCENT = 100 // a roll is a percentage
     }
 }

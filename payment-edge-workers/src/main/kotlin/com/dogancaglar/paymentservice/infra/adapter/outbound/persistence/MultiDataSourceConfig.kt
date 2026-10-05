@@ -121,20 +121,25 @@ class MultiDataSourceConfig(
         @Value("\${db.outbox.lock-timeout-ms:200}") lockMs: Long,
         @Value("\${db.outbox.idle-in-tx-timeout-ms:0}") idleMs: Long
     ) = DBWriterTxManager(ds, stmtMs, lockMs, idleMs).apply {
-        setDefaultTimeout(60)
+        setDefaultTimeout(TX_TIMEOUT_SECONDS)
     }
 
     @Bean("maintenanceTxManager")
     fun maintenanceTxManager(@Qualifier("maintenanceDataSource") ds: DataSource) =
-        DataSourceTransactionManager(ds).apply { setDefaultTimeout(5) } // DDL can be a bit longer
+        DataSourceTransactionManager(ds).apply { setDefaultTimeout(MAINTENANCE_TX_TIMEOUT_SECONDS) }
 
     @Bean("centralTxManager")
     fun centralTxManager(
         @Qualifier("centralDataSource") ds: DataSource
-    ) = DataSourceTransactionManager(ds).apply { setDefaultTimeout(60) }
+    ) = DataSourceTransactionManager(ds).apply { setDefaultTimeout(TX_TIMEOUT_SECONDS) }
 
     // -------- JdbcTemplate for repos/DAOs that should use job pools --------
 
     @Bean("maintenanceJdbcTemplate")
     fun maintenanceJdbc(@Qualifier("maintenanceDataSource") ds: DataSource) = JdbcTemplate(ds)
+
+    private companion object {
+        const val TX_TIMEOUT_SECONDS = 60
+        const val MAINTENANCE_TX_TIMEOUT_SECONDS = 5
+    }
 }

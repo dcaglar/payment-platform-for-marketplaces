@@ -40,9 +40,14 @@ class CapturePspPerformedConsumer(
                 event = eventData,
                 parentEventId = envelope.eventId
             )
-            dedupe.markProcessed(ConsumerGroups.CAPTURE_SUBMITTED_CONSUMER, eventId, 3600)
+            dedupe.markProcessed(
+                ConsumerGroups.CAPTURE_SUBMITTED_CONSUMER,
+                eventId,
+                EventDeduplicationPort.PROCESSED_EVENT_TTL_SECONDS
+            )
             logger.info(
-                "Capture PSP performed consumer executed successfully for paymentIntentId=${eventData.publicPaymentIntentId}"
+                "Capture PSP performed consumer executed successfully for " +
+                    "paymentIntentId=${eventData.publicPaymentIntentId}"
             )
         }
     }

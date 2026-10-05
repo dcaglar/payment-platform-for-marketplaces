@@ -2,6 +2,7 @@ package com.dogancaglar.paymentservice.ports.outbound
 
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
 import com.dogancaglar.paymentservice.domain.model.ledger.Tx
+import com.dogancaglar.paymentservice.domain.model.payment.InternalTransfer
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.paymentservice.domain.model.payment.Payment
 
@@ -26,7 +27,7 @@ interface CentralDbTransactionalFacadePort {
     )
 
     fun recordInternalTransferOperationInLedger(
-        internalTransfer: com.dogancaglar.paymentservice.domain.model.payment.InternalTransfer,
+        internalTransfer: InternalTransfer,
         journalEntries: List<JournalEntry> = emptyList(),
         outboxEvents: List<OutboxEvent> = emptyList()
     )

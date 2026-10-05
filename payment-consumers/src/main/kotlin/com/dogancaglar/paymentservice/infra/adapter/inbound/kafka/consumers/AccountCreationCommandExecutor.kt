@@ -41,7 +41,11 @@ class AccountCreationCommandExecutor(
 
             val request = envelope.data
             createAccountUseCase.create(request.toCommand())
-            dedupe.markProcessed(ConsumerGroups.ACCOUNT_CREATION_COMMAND_EXECUTOR, eventId, 3600)
+            dedupe.markProcessed(
+                ConsumerGroups.ACCOUNT_CREATION_COMMAND_EXECUTOR,
+                eventId,
+                EventDeduplicationPort.PROCESSED_EVENT_TTL_SECONDS
+            )
             logger.info("Account creation executed for merchant {}", request.merchantAccountCode)
         }
     }

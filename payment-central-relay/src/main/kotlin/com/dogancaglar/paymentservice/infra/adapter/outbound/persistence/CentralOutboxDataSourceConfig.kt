@@ -58,7 +58,7 @@ class CentralOutboxDataSourceConfig {
 
     @Bean("centralOutboxTxManager")
     fun centralOutboxTxManager(@Qualifier("centralOutboxDataSource") ds: DataSource): DataSourceTransactionManager {
-        return DataSourceTransactionManager(ds).apply { defaultTimeout = 60 }
+        return DataSourceTransactionManager(ds).apply { defaultTimeout = TX_TIMEOUT_SECONDS }
     }
 
     @Bean("centralOutboxSqlSessionFactory")
@@ -117,11 +117,15 @@ class CentralOutboxDataSourceConfig {
 
     @Bean("maintenanceTxManager")
     fun maintenanceTxManager(@Qualifier("maintenanceDataSource") ds: DataSource): DataSourceTransactionManager {
-        return DataSourceTransactionManager(ds).apply { defaultTimeout = 60 }
+        return DataSourceTransactionManager(ds).apply { defaultTimeout = TX_TIMEOUT_SECONDS }
     }
 
     @Bean("maintenanceJdbcTemplate")
     fun maintenanceJdbcTemplate(@Qualifier("maintenanceDataSource") ds: DataSource): JdbcTemplate {
         return JdbcTemplate(ds)
+    }
+
+    private companion object {
+        const val TX_TIMEOUT_SECONDS = 60
     }
 }

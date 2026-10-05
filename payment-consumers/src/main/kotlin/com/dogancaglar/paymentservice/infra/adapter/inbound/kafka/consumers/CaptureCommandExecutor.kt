@@ -40,9 +40,14 @@ class CaptureCommandExecutor(
 
             val captureRequested = envelope.data
             executeCaptureUseCase.execute(captureRequested)
-            dedupe.markProcessed(ConsumerGroups.CAPTURE_COMMAND_EXECUTOR, eventId, 3600)
+            dedupe.markProcessed(
+                ConsumerGroups.CAPTURE_COMMAND_EXECUTOR,
+                eventId,
+                EventDeduplicationPort.PROCESSED_EVENT_TTL_SECONDS
+            )
             logger.info(
-                "Capture command executor executed successfully for paymentIntentId=${captureRequested.publicPaymentIntentId}"
+                "Capture command executor executed successfully for " +
+                    "paymentIntentId=${captureRequested.publicPaymentIntentId}"
             )
         }
     }

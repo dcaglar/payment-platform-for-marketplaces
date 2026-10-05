@@ -63,7 +63,8 @@ class OutboxEvent private constructor(
     enum class Status { NEW, PROCESSING, SENT }
 
     override fun toString(): String {
-        return "OutboxEvent(oeid=$oeid, eventType='$eventType', aggregateId='$aggregateId', '$aggregateId' payload='$payload', status=$status, createdAt=$createdAt, updatedAt=$updatedAt)"
+        return "OutboxEvent(oeid=$oeid, eventType='$eventType', aggregateId='$aggregateId', '$aggregateId' " +
+            "payload='$payload', status=$status, createdAt=$createdAt, updatedAt=$updatedAt)"
     }
 
     companion object {

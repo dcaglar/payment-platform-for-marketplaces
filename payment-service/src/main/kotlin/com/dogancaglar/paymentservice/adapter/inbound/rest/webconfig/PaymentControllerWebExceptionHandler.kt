@@ -3,7 +3,7 @@ package com.dogancaglar.paymentservice.adapter.inbound.rest.webconfig
 import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.domain.exception.IdempotencyKeyInProgressException
 import com.dogancaglar.paymentservice.domain.exception.IdempotencyKeyReusedException
-import com.dogancaglar.paymentservice.domain.exception.PaymentIntentNotFoundException
+import com.dogancaglar.paymentservice.domain.exception.PaymentIntentDomainException
 import com.dogancaglar.paymentservice.domain.exception.PaymentNotReadyException
 import com.dogancaglar.paymentservice.domain.exception.PspTransientException
 import com.dogancaglar.paymentservice.domain.exception.PspUnknownException
@@ -110,8 +110,11 @@ class PaymentControllerWebExceptionHandler : ResponseEntityExceptionHandler() {
 
     // --- 404 ---
 
-    @ExceptionHandler(PaymentIntentNotFoundException::class)
-    fun handleNotFound(ex: PaymentIntentNotFoundException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+    @ExceptionHandler(PaymentIntentDomainException.PaymentIntentNotFoundException::class)
+    fun handleNotFound(
+        ex: PaymentIntentDomainException.PaymentIntentNotFoundException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
         log.warn("NOT_FOUND at {}: {}", request.requestURI, ex.message)
         return respond(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND, request, ex.message)
     }
@@ -157,7 +160,8 @@ class PaymentControllerWebExceptionHandler : ResponseEntityExceptionHandler() {
     }
 
     // --- 500: our fault or unknown outcome ---
-    // e.g. PspPermanentException (the PSP refused our request), DataIntegrityViolationException, bugs. The details stay in the log, the client gets the traceId.
+    // e.g. PspPermanentException (the PSP refused our request), DataIntegrityViolationException, bugs. The details
+    // stay in the log, the client gets the traceId.
 
     @ExceptionHandler(Exception::class)
     fun handleInternalError(ex: Exception, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
@@ -188,7 +192,12 @@ class PaymentControllerWebExceptionHandler : ResponseEntityExceptionHandler() {
         return ResponseEntity(createBody(status, code, msg, request), headers, status)
     }
 
-    private fun createBody(status: HttpStatus, code: ErrorCode, msg: String?, request: HttpServletRequest) = ErrorResponse(
+    private fun createBody(
+        status: HttpStatus,
+        code: ErrorCode,
+        msg: String?,
+        request: HttpServletRequest
+    ) = ErrorResponse(
         status = status.value(),
         error = status.reasonPhrase,
         code = code,
@@ -201,10 +210,15 @@ class PaymentControllerWebExceptionHandler : ResponseEntityExceptionHandler() {
     private fun causeSummary(ex: Throwable): String {
         val parts = mutableListOf<String>()
         var current: Throwable? = ex
-        while (current != null && parts.size < 5) {
-            parts.add("${current::class.simpleName}: ${current.message?.take(100)}")
+        while (current != null && parts.size < MAX_CAUSES_IN_LOG) {
+            parts.add("${current::class.simpleName}: ${current.message?.take(MAX_CAUSE_MESSAGE_CHARS)}")
             current = current.cause
         }
         return parts.joinToString(" -> ")
+    }
+
+    private companion object {
+        const val MAX_CAUSES_IN_LOG = 5
+        const val MAX_CAUSE_MESSAGE_CHARS = 100
     }
 }

@@ -135,7 +135,10 @@ open class ProcessCaptureService(
         return capped / 2 + Random.Default.nextLong(capped / 2 + 1)
     }
 
-    private fun toOutboxCaptureSubmittedEvent(captureRequested: CaptureRequested, pspCaptureGatewayResponse: PspCaptureGatewayResponse): OutboxEvent {
+    private fun toOutboxCaptureSubmittedEvent(
+        captureRequested: CaptureRequested,
+        pspCaptureGatewayResponse: PspCaptureGatewayResponse
+    ): OutboxEvent {
         val captureSubmittedEvent = CaptureSubmitted.from(captureRequested, pspCaptureGatewayResponse.pspReference)
         return outboxEventFactoryPort.create(captureSubmittedEvent)
     }

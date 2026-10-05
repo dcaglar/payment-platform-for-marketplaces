@@ -19,17 +19,17 @@ class AuthorizationNetworkSimulator(
     fun simulate() {
         val sc = active
         logger.debug("Selected scenario: ${config.scenario}")
-        if (sc.timeouts.enabled && Random.nextInt(100) < sc.timeouts.probability) {
+        if (sc.timeouts.enabled && Random.nextInt(PERCENT) < sc.timeouts.probability) {
             logger.warn(
                 "💥 [${
                     config.scenario
                 }] Simulated PSP timeout"
             )
-            Thread.sleep(10_000)
+            Thread.sleep(SIMULATED_TIMEOUT_MS)
         }
 
         // 2) latency buckets
-        val roll = Random.nextInt(100)
+        val roll = Random.nextInt(PERCENT)
         val latency = when {
             roll < sc.latency.fast.probability -> Random.nextLong(
                 sc.latency.fast.minMs,
@@ -40,14 +40,21 @@ class AuthorizationNetworkSimulator(
                 sc.latency.moderate.maxMs
             )
 
-            roll < sc.latency.slow.probability + sc.latency.moderate.probability + sc.latency.fast.probability -> Random.nextLong(
-                sc.latency.slow.minMs,
-                sc.latency.slow.maxMs
-            )
+            roll < sc.latency.slow.probability + sc.latency.moderate.probability + sc.latency.fast.probability ->
+                Random.nextLong(
+                    sc.latency.slow.minMs,
+                    sc.latency.slow.maxMs
+                )
 
-            else -> Random.nextLong(5000, 5000) // this enver happens
+            else -> FALLBACK_LATENCY_MS // this never happens
         }
         logger.debug("🕒 [${config.scenario}] Latency ${latency}ms (roll=$roll)")
         Thread.sleep(latency)
+    }
+
+    private companion object {
+        const val PERCENT = 100 // a roll is a percentage
+        const val SIMULATED_TIMEOUT_MS = 10_000L
+        const val FALLBACK_LATENCY_MS = 5000L
     }
 }

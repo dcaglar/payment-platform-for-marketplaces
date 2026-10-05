@@ -42,7 +42,7 @@ class SimulatedPspCaptureGatewayAdapter(
 
     override fun capture(payment: Payment): CompletableFuture<PspCaptureGatewayResponse> {
         return CompletableFuture.supplyAsync({
-            val roll = Random.nextInt(100)
+            val roll = Random.nextInt(PERCENT)
             val sc = activeCapture.response
             val generatedPspRef = "sim_cap_${UUID.randomUUID()}"
 
@@ -76,7 +76,7 @@ class SimulatedPspCaptureGatewayAdapter(
 
     override fun refund(paymentIntentId: PaymentIntentId): CompletableFuture<PspModificationStatus> {
         return CompletableFuture.supplyAsync({
-            val roll = Random.nextInt(100)
+            val roll = Random.nextInt(PERCENT)
             val sc = activeRefund.response
 
             val resultStatus = when {
@@ -88,5 +88,9 @@ class SimulatedPspCaptureGatewayAdapter(
             pspRefundCallsTotal.add(1, Attributes.of(AttributeKey.stringKey("result"), resultStatus.name))
             resultStatus
         }, pspExecutor)
+    }
+
+    private companion object {
+        const val PERCENT = 100 // a roll is a percentage
     }
 }

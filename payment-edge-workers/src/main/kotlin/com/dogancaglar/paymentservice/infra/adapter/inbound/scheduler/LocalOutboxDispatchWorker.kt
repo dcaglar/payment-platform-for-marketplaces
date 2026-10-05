@@ -44,7 +44,7 @@ class LocalOutboxDispatchWorker(
 
     @Transactional(transactionManager = "outboxTxManager", timeout = 5)
     fun reclaimStuck(): Int {
-        return localOutboxStoreAndForwardPort.reclaimStuck(60 * 10)
+        return localOutboxStoreAndForwardPort.reclaimStuck(STUCK_AFTER_SECONDS)
     }
 
     @Transactional(transactionManager = "outboxTxManager", timeout = 5)
@@ -128,7 +128,7 @@ class LocalOutboxDispatchWorker(
             if (!completed) {
                 dispatchFailedTotal.add(1)
             }
-            dispatcherDuration.record((System.nanoTime() - startNs) / 1_000_000_000.0)
+            dispatcherDuration.record((System.nanoTime() - startNs) / NANOS_PER_SECOND)
         }
     }
 
@@ -147,5 +147,10 @@ class LocalOutboxDispatchWorker(
             unclaimFailedNow(workerId, events)
             return -1
         }
+    }
+
+    private companion object {
+        const val STUCK_AFTER_SECONDS = 600 // 10 minutes in PROCESSING: reclaimed
+        const val NANOS_PER_SECOND = 1_000_000_000.0
     }
 }

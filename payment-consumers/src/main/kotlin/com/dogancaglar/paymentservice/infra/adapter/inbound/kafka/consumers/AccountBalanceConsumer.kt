@@ -42,7 +42,8 @@ class AccountBalanceConsumer(
             val exists = dedupe.exists(ConsumerGroups.ACCOUNT_BALANCE_CONSUMER, singleDedupeKey)
             if (exists) {
                 logger.warn(
-                    "⚠️ Event is processed already, skipping deterministing eventid $singleDedupeKey eventId=${record.value().eventId}, aggregateId=${record.value().aggregateId}"
+                    "⚠️ Event is processed already, skipping deterministing eventid $singleDedupeKey " +
+                        "eventId=${record.value().eventId}, aggregateId=${record.value().aggregateId}"
                 )
             }
             !exists
@@ -53,7 +54,8 @@ class AccountBalanceConsumer(
             .flatMap { it.value().data.ledgerEntries }
             .map {
                 logger.debug(
-                    "🎬 Processing  journal ${it.journalType.name} with journal entry id ${it.journalEntryId}  global journal entry id ${it.globalJournalEntryId} "
+                    "🎬 Processing  journal ${it.journalType.name} with journal entry id ${it.journalEntryId} " +
+                        " global journal entry id ${it.globalJournalEntryId} "
                 )
                 LedgerDomainEventEntityMapper.toDomain(it)
             }
@@ -64,7 +66,11 @@ class AccountBalanceConsumer(
         newRecords.forEach {
             val currentEventEnvelope = it.value()
             val currentDedupeKey = currentEventEnvelope.data.deterministicEventId()
-            dedupe.markProcessed(ConsumerGroups.ACCOUNT_BALANCE_CONSUMER, currentDedupeKey, 3600)
+            dedupe.markProcessed(
+                ConsumerGroups.ACCOUNT_BALANCE_CONSUMER,
+                currentDedupeKey,
+                EventDeduplicationPort.PROCESSED_EVENT_TTL_SECONDS
+            )
         }
 
         logger.info("Account balance consumer executed successfully for batch size=${records.size}")

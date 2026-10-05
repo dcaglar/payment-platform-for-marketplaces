@@ -62,10 +62,21 @@ data class MerchantAccount private constructor(
             }
             require(platformFee.fixed.currency == currency) {
                 AccountDomainException.InvariantViolationException(
-                    "Platform fee currency ${platformFee.fixed.currency.currencyCode} must be the merchant currency ${currency.currencyCode}"
+                    "Platform fee currency ${platformFee.fixed.currency.currencyCode} must be the merchant currency " +
+                        "${currency.currencyCode}"
                 )
             }
-            return MerchantAccount(accountCode, status, legalName, address, industry, currency, isAutoCaptured, isAutoSettled, platformFee)
+            return MerchantAccount(
+                accountCode,
+                status,
+                legalName,
+                address,
+                industry,
+                currency,
+                isAutoCaptured,
+                isAutoSettled,
+                platformFee
+            )
         }
 
         /** Rebuilds from persisted state. Trusts the stored data. */
@@ -80,7 +91,17 @@ data class MerchantAccount private constructor(
             isAutoSettled: Boolean,
             platformFee: PlatformFee
         ): MerchantAccount =
-            MerchantAccount(accountCode, status, legalName, address, industry, currency, isAutoCaptured, isAutoSettled, platformFee)
+            MerchantAccount(
+                accountCode,
+                status,
+                legalName,
+                address,
+                industry,
+                currency,
+                isAutoCaptured,
+                isAutoSettled,
+                platformFee
+            )
     }
 }
 
@@ -125,10 +146,11 @@ data class PlatformFee private constructor(
     fun feeFor(amount: Amount): Amount {
         require(amount.currency == fixed.currency) {
             PaymentDomainException.CurrencyMismatchException(
-                "Payment currency ${amount.currency.currencyCode} differs from the platform fee currency ${fixed.currency.currencyCode}"
+                "Payment currency ${amount.currency.currencyCode} differs from the platform fee currency " +
+                    "${fixed.currency.currencyCode}"
             )
         }
-        val cents = fixed.quantity + amount.quantity * basisPoints / 10_000
+        val cents = fixed.quantity + amount.quantity * basisPoints / BASIS_POINTS_PER_WHOLE
         if (cents == 0L) {
             return Amount.zero(amount.currency)
         }
@@ -136,10 +158,11 @@ data class PlatformFee private constructor(
     }
 
     companion object {
+        /** 100% in basis points. */
+        const val BASIS_POINTS_PER_WHOLE = 10_000
+
         fun of(fixed: Amount, basisPoints: Int): PlatformFee {
-            require(
-                basisPoints in 0..10_000
-            ) {
+            require(basisPoints in 0..BASIS_POINTS_PER_WHOLE) {
                 AccountDomainException.InvariantViolationException(
                     "Platform fee basis points must be between 0 and 10000, was $basisPoints"
                 )

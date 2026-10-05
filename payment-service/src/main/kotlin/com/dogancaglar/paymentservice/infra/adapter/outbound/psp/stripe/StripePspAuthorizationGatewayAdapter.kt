@@ -31,7 +31,8 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.stereotype.Component
-import java.util.concurrent.*
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.RejectedExecutionException
 
 @Component
 @ConditionalOnProperty(name = ["psp.gateway.type"], havingValue = "STRIPE", matchIfMissing = true)
@@ -47,15 +48,19 @@ class StripePspAuthorizationGatewayAdapter(
 
     override fun createPaymentIntent(paymentIntent: PaymentIntent): CompletableFuture<PaymentIntent> {
         // do not execute this in request thread, but hand the task to be executed in pspAuthExecutor
-        /*Returns a new CompletableFuture that is asynchronously completed by a task( callCreatePaymentIntentApi(paymentIntent)) running in the given
-         executor(pspAuthExecutor) with the value obtained by calling the given Supplier.
+        /*Returns a new CompletableFuture that is asynchronously completed by a task
+         ( callCreatePaymentIntentApi(paymentIntent)) running in the given executor(pspAuthExecutor) with the value
+         obtained by calling the given Supplier.
          */
         return submit(createPaymentIntentExecutor, PspOperation.CREATE_INTENT, paymentIntent.paymentIntentId.value) {
             callCreatePaymentIntentApi(paymentIntent)
         }
     }
 
-    override fun authorizePaymentIntent(paymentIntent: PaymentIntent, token: PaymentMethod?): CompletableFuture<PaymentIntent> {
+    override fun authorizePaymentIntent(
+        paymentIntent: PaymentIntent,
+        token: PaymentMethod?
+    ): CompletableFuture<PaymentIntent> {
         return submit(authorizePaymentIntentExecutor, PspOperation.AUTHORIZE, paymentIntent.paymentIntentId.value) {
             callConfirmPaymentIntentApi(paymentIntent, token)
         }
@@ -209,7 +214,10 @@ class StripePspAuthorizationGatewayAdapter(
         return paramsBuilder.build()
     }
 
-    private fun updatePaymentIntentStatus(paymentIntent: PaymentIntent, confirmed: com.stripe.model.PaymentIntent): PaymentIntent =
+    private fun updatePaymentIntentStatus(
+        paymentIntent: PaymentIntent,
+        confirmed: com.stripe.model.PaymentIntent
+    ): PaymentIntent =
         when (confirmed.status?.uppercase()) {
             "REQUIRES_CAPTURE", "SUCCEEDED" -> paymentIntent.markAuthorized(cardSummaryOf(confirmed))
             "CANCELED", "CANCELLED" -> paymentIntent.markCancelled()

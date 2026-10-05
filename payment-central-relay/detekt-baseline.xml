@@ -4,21 +4,7 @@
   <CurrentIssues>
     <ID>LongParameterList:CentralOutboxDataSourceConfig.kt$CentralOutboxDataSourceConfig$( @Value("\${app.datasource.central-outbox.jdbc-url}") jdbcUrl: String, @Value("\${app.datasource.central-outbox.username}") username: String, @Value("\${app.datasource.central-outbox.password}") password: String, @Value("\${app.datasource.central-outbox.pool-name:\${spring.application.name}-central-outbox-pool}") poolName: String, @Value("\${app.datasource.central-outbox.maximum-pool-size:5}") maxPoolSize: Int, @Value("\${app.datasource.central-outbox.minimum-idle:2}") minIdle: Int, @Value("\${app.datasource.central-outbox.connection-timeout:15000}") cTimeout: Long, @Value("\${app.datasource.central-outbox.validation-timeout:10000}") vTimeout: Long, @Value("\${app.datasource.central-outbox.idle-timeout:120000}") iTimeout: Long, @Value("\${app.datasource.central-outbox.max-lifetime:180000}") mLife: Long, openTelemetry: OpenTelemetry )</ID>
     <ID>LongParameterList:CentralOutboxDataSourceConfig.kt$CentralOutboxDataSourceConfig$( @Value("\${app.datasource.maintenance.jdbc-url}") jdbcUrl: String, @Value("\${app.datasource.maintenance.username}") username: String, @Value("\${app.datasource.maintenance.password}") password: String, @Value( "\${app.datasource.maintenance.pool-name:\${spring.application.name}-central-maintenance-pool}" ) poolName: String, @Value("\${app.datasource.maintenance.maximum-pool-size:2}") maxPoolSize: Int, @Value("\${app.datasource.maintenance.minimum-idle:0}") minIdle: Int, @Value("\${app.datasource.maintenance.connection-timeout:15000}") cTimeout: Long, @Value("\${app.datasource.maintenance.validation-timeout:10000}") vTimeout: Long, @Value("\${app.datasource.maintenance.idle-timeout:120000}") iTimeout: Long, @Value("\${app.datasource.maintenance.max-lifetime:180000}") mLife: Long, openTelemetry: OpenTelemetry )</ID>
-    <ID>MagicNumber:CentralOutboxDataSourceConfig.kt$CentralOutboxDataSourceConfig$60</ID>
-    <ID>MagicNumber:CentralOutboxRelayJobThreadPoolConfig.kt$CentralOutboxRelayJobThreadPoolConfig$32</ID>
-    <ID>MagicNumber:CentralOutboxRelayJobThreadPoolConfig.kt$CentralOutboxRelayJobThreadPoolConfig$500</ID>
-    <ID>MagicNumber:KafkaProducerConfig.kt$KafkaProducerConfig$120_000</ID>
-    <ID>MagicNumber:KafkaProducerConfig.kt$KafkaProducerConfig$20</ID>
-    <ID>MagicNumber:KafkaProducerConfig.kt$KafkaProducerConfig$262_144</ID>
-    <ID>MagicNumber:KafkaProducerConfig.kt$KafkaProducerConfig$30_000</ID>
-    <ID>MagicNumber:KafkaProducerConfig.kt$KafkaProducerConfig$5</ID>
-    <ID>MagicNumber:KafkaProducerConfig.kt$KafkaProducerConfig$5_242_880</ID>
-    <ID>MagicNumber:KafkaProducerConfig.kt$KafkaProducerConfig$60_000</ID>
-    <ID>MagicNumber:KafkaProducerConfig.kt$KafkaProducerConfig$67_108_864</ID>
     <ID>NestedBlockDepth:CentralOutboxRelayMapperIntegrationTest.kt$CentralOutboxRelayMapperIntegrationTest$private fun scalar(sql: String): Any?</ID>
     <ID>SpreadOperator:PaymentCentralRelayApplication.kt$(*args)</ID>
-    <ID>WildcardImport:CentralOutboxRelayMapperIntegrationTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
-    <ID>WildcardImport:KafkaProducerConfigTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
-    <ID>WildcardImport:RawEventPublisherTest.kt$import org.junit.jupiter.api.Assertions.*</ID>
   </CurrentIssues>
 </SmellBaseline>

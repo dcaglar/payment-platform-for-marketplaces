@@ -2,130 +2,23 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>CommentSpacing:CreateAccountRequestDTO.kt$CreateAccountRequestDTO$//todo explain me what is thos</ID>
-    <ID>FunctionStartOfBodySpacing:PaymentConsumerConfig.kt$PaymentConsumerConfig$@Bean fun getAccountBalanceReadService(cachePort: AccountBalanceCachePort,snapshotPort: AccountBalanceSnapshotPort): AccountBalanceReadService</ID>
-    <ID>FunctionStartOfBodySpacing:PaymentConsumerConfig.kt$PaymentConsumerConfig$@Bean fun outboxEventFactoryPort(serializationPort: SerializationPort, idGeneratorPort: IdGeneratorPort): OutboxEventFactoryPort</ID>
-    <ID>FunctionStartOfBodySpacing:PaymentConsumerConfig.kt$PaymentConsumerConfig$@Bean fun pspResultProcessingService( centralDbTransactionalFacadePort: CentralDbTransactionalFacadePort, @Qualifier("accountDirectoryImpl") accountDirectoryImpl: AccountDirectoryPort, paymentTxPort: PaymentTxPort, idGeneratorPort: IdGeneratorPort, paymentRepository: PaymentRepository, transferRepository: com.dogancaglar.paymentservice.ports.outbound.TransferRepository, outboxEventFactoryPort: OutboxEventFactoryPort, merchantAccountRepository: com.dogancaglar.paymentservice.ports.outbound.MerchantAccountRepository ): ProcessPspResultUseCase</ID>
-    <ID>ImportOrdering:PaymentConsumerConfig.kt$import com.dogancaglar.paymentservice.ports.outbound.AccountCreationTransactionalFacadePort import com.dogancaglar.paymentservice.application.service.TransactionService import com.dogancaglar.paymentservice.application.service.CreateAccountService import com.dogancaglar.paymentservice.ports.outbound.TransactionRepository import com.dogancaglar.paymentservice.application.service.RequestAccountCreationService import com.dogancaglar.paymentservice.application.service.ProcessPspResultProcessingService import com.dogancaglar.paymentservice.application.service.ProcessCaptureService import com.dogancaglar.paymentservice.application.events.CaptureRequested import com.dogancaglar.paymentservice.ports.outbound.RetryQueuePort import com.dogancaglar.paymentservice.ports.outbound.PspCaptureGatewayPort import com.dogancaglar.paymentservice.application.service.AccountBalanceService import com.dogancaglar.paymentservice.application.service.AccountBalanceReadService import com.dogancaglar.paymentservice.application.service.RecordCaptureSubmissionService import com.dogancaglar.paymentservice.infra.adapter.outbound.serialization.OutboxEventEventFactory import com.dogancaglar.paymentservice.ports.inbound.usecases.ProcessPspResultUseCase import com.dogancaglar.paymentservice.ports.outbound.AccountBalanceCachePort import com.dogancaglar.paymentservice.ports.outbound.AccountBalanceSnapshotPort import com.dogancaglar.paymentservice.ports.outbound.AccountDirectoryPort import com.dogancaglar.paymentservice.ports.outbound.IdGeneratorPort import com.dogancaglar.paymentservice.ports.outbound.CentralDbTransactionalFacadePort import com.dogancaglar.paymentservice.ports.outbound.PaymentRepository import com.dogancaglar.paymentservice.ports.outbound.SerializationPort import com.dogancaglar.paymentservice.ports.outbound.PaymentTxPort import org.springframework.beans.factory.annotation.Qualifier import org.springframework.context.annotation.Bean import org.springframework.context.annotation.Configuration import com.dogancaglar.paymentservice.ports.outbound.CentralOutboxWriterPort import com.dogancaglar.paymentservice.ports.outbound.OutboxEventFactoryPort</ID>
     <ID>LongMethod:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$@KafkaListener( topics = [Topics.JOURNAL_ENTRIES_RECORDED], containerFactory = ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR + "-factory", groupId = ConsumerGroups.WEBHOOK_CAPTURE_CONFIRMED_PROCESSOR ) fun onLedgerEntriesRecorded( record: ConsumerRecord&lt;String, EventEnvelope&lt;JournalEntriesRecorded&gt;&gt; )</ID>
     <ID>LongMethod:KafkaTypedConsumerFactoryConfig.kt$KafkaTypedConsumerFactoryConfig$@Bean fun errorHandler( @Qualifier("dlqKafkaTemplate") dlqTemplate: KafkaTemplate&lt;String, ByteArray&gt;, kafkaExponentialBackOff: ExponentialBackOffWithMaxRetries ): DefaultErrorHandler</ID>
     <ID>LongMethod:PspAuthorizationResultWireTest.kt$PspAuthorizationResultWireTest$@Test fun `the AUTHORIZATION journal event carries who and what the payment is, other bookings carry none`()</ID>
     <ID>LongMethod:TxApiResponseTest.kt$TxApiResponseTest$@Test fun `a payment shows its txs in order and its journal entries, with their postings and totals`()</ID>
     <ID>LongParameterList:AccountSeedGenerator.kt$AccountSeedGenerator$( code: String, kind: String, status: String, parent: String?, ledgerType: String?, currency: String?, autoCaptured: String?, autoSettled: String?, feeFixed: String?, feeBps: String?, profileJson: String? )</ID>
     <ID>LongParameterList:KafkaTypedConsumerFactoryConfig.kt$KafkaTypedConsumerFactoryConfig$( clientId: String, concurrency: Int, interceptor: RecordInterceptor&lt;String, EventEnvelope&lt;*&gt;&gt;, consumerFactory: DefaultKafkaConsumerFactory&lt;String, EventEnvelope&lt;*&gt;&gt;, errorHandler: DefaultErrorHandler, expectedEventType: String? = null, ackDiscarded: Boolean = true, batchListener: Boolean = false )</ID>
-    <ID>LongParameterList:PaymentConsumerConfig.kt$PaymentConsumerConfig$( centralDbTransactionalFacadePort: CentralDbTransactionalFacadePort, @Qualifier("accountDirectoryImpl") accountDirectoryImpl: AccountDirectoryPort, paymentTxPort: PaymentTxPort, idGeneratorPort: IdGeneratorPort, paymentRepository: PaymentRepository, transferRepository: com.dogancaglar.paymentservice.ports.outbound.TransferRepository, outboxEventFactoryPort: OutboxEventFactoryPort, merchantAccountRepository: com.dogancaglar.paymentservice.ports.outbound.MerchantAccountRepository )</ID>
-    <ID>LongParameterList:PaymentConsumerConfig.kt$PaymentConsumerConfig$( centralDbTransactionalFacadePort: CentralDbTransactionalFacadePort, paymentRepository: PaymentRepository, paymentTxPort: PaymentTxPort, idGeneratorPort: IdGeneratorPort, outboxEventFactoryPort : OutboxEventFactoryPort, merchantAccountRepository: com.dogancaglar.paymentservice.ports.outbound.MerchantAccountRepository )</ID>
+    <ID>LongParameterList:PaymentConsumerConfig.kt$PaymentConsumerConfig$( centralDbTransactionalFacadePort: CentralDbTransactionalFacadePort, @Qualifier("accountDirectoryImpl") accountDirectoryImpl: AccountDirectoryPort, paymentTxPort: PaymentTxPort, idGeneratorPort: IdGeneratorPort, paymentRepository: PaymentRepository, transferRepository: TransferRepository, outboxEventFactoryPort: OutboxEventFactoryPort, merchantAccountRepository: MerchantAccountRepository )</ID>
+    <ID>LongParameterList:PaymentConsumerConfig.kt$PaymentConsumerConfig$( centralDbTransactionalFacadePort: CentralDbTransactionalFacadePort, paymentRepository: PaymentRepository, paymentTxPort: PaymentTxPort, idGeneratorPort: IdGeneratorPort, outboxEventFactoryPort: OutboxEventFactoryPort, merchantAccountRepository: MerchantAccountRepository )</ID>
     <ID>LongParameterList:TransactionController.kt$TransactionController$( @PathVariable merchantAccount: String, @RequestParam(defaultValue = "0") page: Int, @RequestParam(defaultValue = "20") size: Int, @RequestParam(required = false) orderId: String?, @RequestParam(required = false) paymentId: Long?, @RequestParam(required = false) sellerId: String?, @RequestParam(required = false) status: PaymentStatus?, @RequestParam(required = false) from: Instant?, @RequestParam(required = false) to: Instant?, @RequestParam(required = false) processingModel: ProcessingModel? )</ID>
     <ID>LongParameterList:TransactionController.kt$TransactionController$( @RequestParam(defaultValue = "0") page: Int, @RequestParam(defaultValue = "20") size: Int, @RequestParam(required = false) orderId: String?, @RequestParam(required = false) paymentId: Long?, @RequestParam(required = false) sellerId: String?, @RequestParam(required = false) status: PaymentStatus?, @RequestParam(required = false) from: Instant?, @RequestParam(required = false) to: Instant?, @RequestParam(required = false) processingModel: ProcessingModel?, @AuthenticationPrincipal jwt: Jwt )</ID>
     <ID>LongParameterList:TransactionMapper.kt$TransactionMapper$( @Param("merchantAccount") merchantAccount: String?, @Param("orderId") orderId: String?, @Param("paymentId") paymentId: Long?, @Param("sellerId") sellerId: String?, @Param("status") status: String?, @Param("authorizedFrom") authorizedFrom: Instant?, @Param("authorizedTo") authorizedTo: Instant?, @Param("processingModel") processingModel: String? )</ID>
     <ID>LongParameterList:TransactionMapper.kt$TransactionMapper$( @Param("merchantAccount") merchantAccount: String?, @Param("orderId") orderId: String?, @Param("paymentId") paymentId: Long?, @Param("sellerId") sellerId: String?, @Param("status") status: String?, @Param("authorizedFrom") authorizedFrom: Instant?, @Param("authorizedTo") authorizedTo: Instant?, @Param("processingModel") processingModel: String?, @Param("offset") offset: Int, @Param("limit") limit: Int )</ID>
-    <ID>MagicNumber:AccountApiExceptionHandler.kt$AccountApiExceptionHandler$400</ID>
-    <ID>MagicNumber:AccountBalanceConsumer.kt$AccountBalanceConsumer$3600</ID>
-    <ID>MagicNumber:AccountCreationCommandExecutor.kt$AccountCreationCommandExecutor$3600</ID>
-    <ID>MagicNumber:AccountProfileRedisCache.kt$AccountProfileRedisCache$24</ID>
-    <ID>MagicNumber:BalanceApiExceptionHandler.kt$BalanceApiExceptionHandler$400</ID>
-    <ID>MagicNumber:BalanceApiExceptionHandler.kt$BalanceApiExceptionHandler$404</ID>
-    <ID>MagicNumber:BalanceService.kt$BalanceService$100</ID>
-    <ID>MagicNumber:CaptureCommandExecutor.kt$CaptureCommandExecutor$3600</ID>
-    <ID>MagicNumber:CapturePspPerformedConsumer.kt$CapturePspPerformedConsumer$3600</ID>
-    <ID>MagicNumber:CaptureSimulationProperties.kt$CaptureSimulationProperties.ResponseDistribution$17</ID>
-    <ID>MagicNumber:CaptureSimulationProperties.kt$CaptureSimulationProperties.ResponseDistribution$3</ID>
-    <ID>MagicNumber:CaptureSimulationProperties.kt$CaptureSimulationProperties.ResponseDistribution$80</ID>
-    <ID>MagicNumber:CaptureSimulationProperties.kt$CaptureSimulationProperties.TimeoutConfig$5</ID>
-    <ID>MagicNumber:ConsumerThreadPoolConfig.kt$ConsumerThreadPoolConfig$1000</ID>
-    <ID>MagicNumber:ConsumerThreadPoolConfig.kt$ConsumerThreadPoolConfig$32</ID>
-    <ID>MagicNumber:ConsumerThreadPoolConfig.kt$ConsumerThreadPoolConfig$50</ID>
-    <ID>MagicNumber:ConsumerThreadPoolConfig.kt$ConsumerThreadPoolConfig$500</ID>
-    <ID>MagicNumber:CreateAccountRequestDTO.kt$CreateAccountRequestDTO$10_000</ID>
-    <ID>MagicNumber:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$3600</ID>
-    <ID>MagicNumber:KafkaTypedConsumerFactoryConfig.kt$KafkaTypedConsumerFactoryConfig$1000</ID>
-    <ID>MagicNumber:KafkaTypedConsumerFactoryConfig.kt$KafkaTypedConsumerFactoryConfig$16_000</ID>
-    <ID>MagicNumber:KafkaTypedConsumerFactoryConfig.kt$KafkaTypedConsumerFactoryConfig$250</ID>
-    <ID>MagicNumber:KafkaTypedConsumerFactoryConfig.kt$KafkaTypedConsumerFactoryConfig$2_000L</ID>
-    <ID>MagicNumber:KafkaTypedConsumerFactoryConfig.kt$KafkaTypedConsumerFactoryConfig$30_000L</ID>
-    <ID>MagicNumber:KafkaTypedConsumerFactoryConfig.kt$KafkaTypedConsumerFactoryConfig$5</ID>
-    <ID>MagicNumber:KafkaTypedConsumerFactoryConfig.kt$KafkaTypedConsumerFactoryConfig$8_000</ID>
-    <ID>MagicNumber:PspResultConsumer.kt$PspResultConsumer$3600</ID>
-    <ID>MagicNumber:RefundSimulationProperties.kt$RefundSimulationProperties.ResponseDistribution$17</ID>
-    <ID>MagicNumber:RefundSimulationProperties.kt$RefundSimulationProperties.ResponseDistribution$3</ID>
-    <ID>MagicNumber:RefundSimulationProperties.kt$RefundSimulationProperties.ResponseDistribution$80</ID>
-    <ID>MagicNumber:RefundSimulationProperties.kt$RefundSimulationProperties.TimeoutConfig$5</ID>
-    <ID>MagicNumber:SimulatedPspCaptureGatewayAdapter.kt$SimulatedPspCaptureGatewayAdapter$100</ID>
-    <ID>MagicNumber:TransactionConsumer.kt$TransactionConsumer$3600</ID>
-    <ID>MagicNumber:TransactionController.kt$TransactionController$400</ID>
-    <ID>MagicNumber:TransactionController.kt$TransactionController$404</ID>
-    <ID>MagicNumber:TxController.kt$TxController$404</ID>
-    <ID>MaxLineLength:AccountBalanceConsumer.kt$AccountBalanceConsumer$"⚠️ Event is processed already, skipping deterministing eventid $singleDedupeKey eventId=${record.value().eventId}, aggregateId=${record.value().aggregateId}"</ID>
-    <ID>MaxLineLength:AccountBalanceConsumer.kt$AccountBalanceConsumer$"🎬 Processing journal ${it.journalType.name} with journal entry id ${it.journalEntryId} global journal entry id ${it.globalJournalEntryId} "</ID>
-    <ID>MaxLineLength:AccountCreationTransactionalFacadeAdapterIntegrationTest.kt$AccountCreationTransactionalFacadeAdapterIntegrationTest$"SELECT count(*) FROM ledger_account_directory WHERE master_account_code = 'GLOBAL' AND currency = 'USD'"</ID>
-    <ID>MaxLineLength:AccountDirectoryImpl.kt$AccountDirectoryImpl$?:</ID>
-    <ID>MaxLineLength:AccountDirectoryImpl.kt$AccountDirectoryImpl$override</ID>
-    <ID>MaxLineLength:AccountDirectoryMapperIntegrationTest.kt$AccountDirectoryMapperIntegrationTest$"INSERT INTO accounts (account_code, kind, parent_code) VALUES (?, 'SELLER', ?) ON CONFLICT (account_code) DO NOTHING"</ID>
-    <ID>MaxLineLength:AccountDirectoryMapperIntegrationTest.kt$AccountDirectoryMapperIntegrationTest$"INSERT INTO accounts (account_code, kind, parent_code, ledger_type) VALUES ('SELLER-A-1', 'SELLER', 'MERCHANT-A', 'SELLER_PAYABLE')"</ID>
-    <ID>MaxLineLength:AccountDirectoryMapperIntegrationTest.kt$AccountDirectoryMapperIntegrationTest$"INSERT INTO accounts (account_code, kind, parent_code, ledger_type, currency) VALUES (?, 'LEDGER', ?, ?, ?)"</ID>
-    <ID>MaxLineLength:AccountDirectoryMapperIntegrationTest.kt$AccountDirectoryMapperIntegrationTest$fun</ID>
-    <ID>MaxLineLength:AccountProfileRedisCache.kt$AccountProfileRedisCache$fun</ID>
-    <ID>MaxLineLength:AccountProfileRedisCache.kt$AccountProfileRedisCache$private</ID>
-    <ID>MaxLineLength:AccountSeedGenerator.kt$AccountSeedGenerator$*</ID>
-    <ID>MaxLineLength:AccountSeedGenerator.kt$AccountSeedGenerator$return insert(l.accountCode, "LEDGER", l.status.name, parent, l.type.name, l.currency.currencyCode, null, null, null, null, null)</ID>
-    <ID>MaxLineLength:BalanceController.kt$BalanceController$*</ID>
-    <ID>MaxLineLength:BalanceService.kt$BalanceService$*</ID>
-    <ID>MaxLineLength:BalanceServiceTest.kt$BalanceServiceTest$/** One rule of BalanceService: a balance has one currency and one total, so two currencies are refused, not added up. */</ID>
-    <ID>MaxLineLength:CaptureCommandExecutor.kt$CaptureCommandExecutor$"Capture command executor executed successfully for paymentIntentId=${captureRequested.publicPaymentIntentId}"</ID>
-    <ID>MaxLineLength:CapturePspPerformedConsumer.kt$CapturePspPerformedConsumer$"Capture PSP performed consumer executed successfully for paymentIntentId=${eventData.publicPaymentIntentId}"</ID>
-    <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$"Gross capture allocation consumer executed successfully for paymentIntentId=${event.publicPaymentIntentId}"</ID>
-    <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$"🌿 Marketplace multi-party transaction identified. Executing clearing transfers for ${payment.splits.size} split definitions."</ID>
-    <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$"💾 Suspense account cleanly cleared. Staged 100% allocation to direct payable for merchant: ${payment.merchantAccount}"</ID>
-    <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$"💾 Suspense account cleanly cleared. Staged split ledger allocations across all ${payment.splits.size} distribution paths."</ID>
-    <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$// A2. Charge Mor-DC's infrastructure processing fee from the merchant's direct payable account (none if 0)</ID>
-    <ID>MaxLineLength:GrossCaptureAllocationConsumer.kt$GrossCaptureAllocationConsumer$// B2. Charge Mor-DC's infrastructure fee straight from the operator's commission payable account (none if 0)</ID>
-    <ID>MaxLineLength:KafkaTopicsConfig.kt$TopicAdminConfig$"🛠️ TopicAdminConfig: Explicitly initializing KafkaAdmin bean to force auto-creation of topics on broker startup!"</ID>
-    <ID>MaxLineLength:KafkaTopicsConfig.kt$TopicAdminConfig$configs[org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = bootKafkaProps.bootstrapServers.joinToString(",")</ID>
-    <ID>MaxLineLength:LedgerMapperIntegrationTest.kt$LedgerMapperIntegrationTest$private</ID>
-    <ID>MaxLineLength:PaymentConsumerConfig.kt$PaymentConsumerConfig$fun</ID>
-    <ID>MaxLineLength:PaymentTxMapperIntegrationTest.kt$PaymentTxMapperIntegrationTest$private</ID>
-    <ID>MaxLineLength:PspResultConsumer.kt$PspResultConsumer$"🎬 Processing SettlementReceived event from simulated SDR line for paymentIntentId: ${event.publicPaymentIntentId}"</ID>
-    <ID>MaxLineLength:RealmSeedFileTest.kt$RealmSeedFileTest$"keycloak/realm/merchants-seed.json is out of date; regenerate it from merchants.json (see RealmSeedGenerator)"</ID>
-    <ID>MaxLineLength:RealmSeedGenerator.kt$RealmSeedGenerator$*</ID>
-    <ID>MaxLineLength:SecurityConfig.kt$SecurityConfig$"""{"timestamp":"${Utc.nowInstant()}","status":401,"error":"Unauthorized","message":"Authentication required. Please provide a valid JWT token.","path":"${request.requestURI}"}"""</ID>
-    <ID>MaxLineLength:SecurityConfig.kt$SecurityConfig$"""{"timestamp":"${Utc.nowInstant()}","status":403,"error":"Forbidden","message":"Access denied. You do not have the required permissions.","path":"${request.requestURI}"}"""</ID>
-    <ID>MaxLineLength:SecurityConfig.kt$SecurityConfig$// the permission per URL; who may call each endpoint (merchant claim or staff) is in its @PreAuthorize.</ID>
-    <ID>MaxLineLength:TransactionApiResponseTest.kt$TransactionApiResponseTest$// only the MARKETPLACE-5 question has an answer: if the controller passed MARKETPLACE-1 on, the list would be empty</ID>
-    <ID>MaxLineLength:TransactionController.kt$TransactionController$*</ID>
-    <ID>MaxLineLength:TransactionMapper.kt$TransactionMapper$/** Filter arguments: null = do not filter on it. [status] is AUTHORIZED, CAPTURED or SETTLED; [processingModel] MARKETPLACE or DIRECT_MERCHANT. */</ID>
-    <ID>MaxLineLength:TransactionRepositoryAdapterIntegrationTest.kt$TransactionRepositoryAdapterIntegrationTest$"1001|pi_AzaXVnPCAAA|MARKETPLACE-5|BUYER-1450|ORDER-1450|psp_ref_1|MARKETPLACE|3000|EUR|2026-10-02 10:00:00|$captured|$settled"</ID>
-    <ID>MaxLineLength:TransactionRepositoryAdapterIntegrationTest.kt$TransactionRepositoryAdapterIntegrationTest$"SELECT line_no || '|' || account_type || '|' || account || '|' || amount FROM transaction_splits ORDER BY line_no"</ID>
-    <ID>MaxLineLength:TransactionRepositoryAdapterIntegrationTest.kt$TransactionRepositoryAdapterIntegrationTest$"SELECT payment_id || '|' || public_payment_intent_id || '|' || merchant_account || '|' || buyer_id || '|' || "</ID>
-    <ID>MaxLineLength:TransactionRepositoryAdapterIntegrationTest.kt$TransactionRepositoryAdapterIntegrationTest$"order_id || '|' || psp_reference || '|' || processing_model || '|' || total_amount || '|' || currency || '|' || "</ID>
-    <ID>MaxLineLength:TransactionRepositoryAdapterIntegrationTest.kt$TransactionRepositoryAdapterIntegrationTest$"to_char(authorized_at, 'YYYY-MM-DD HH24:MI:SS') || '|' || to_char(captured_at, 'YYYY-MM-DD HH24:MI:SS') || '|' || "</ID>
-    <ID>MaxLineLength:TransactionRepositoryAdapterIntegrationTest.kt$TransactionRepositoryAdapterIntegrationTest$fun</ID>
-    <ID>MaxLineLength:TxController.kt$TxController$val tx = txUseCase.getTx(TxId(txId), merchantAccount) ?: throw TxNotFoundException("No tx $txId of $merchantAccount")</ID>
-    <ID>NoConsecutiveBlankLines:PaymentConsumerConfig.kt$ </ID>
-    <ID>NoConsecutiveBlankLines:PaymentConsumerConfig.kt$PaymentConsumerConfig$ </ID>
-    <ID>ParameterListWrapping:PaymentConsumerConfig.kt$PaymentConsumerConfig$(cachePort: AccountBalanceCachePort,snapshotPort: AccountBalanceSnapshotPort)</ID>
-    <ID>ParameterListWrapping:PaymentConsumerConfig.kt$PaymentConsumerConfig$(serializationPort: SerializationPort, idGeneratorPort: IdGeneratorPort)</ID>
-    <ID>ParameterListWrapping:PaymentTxMapper.kt$PaymentTxMapper$(@Param( "txId" ) txId: Long, @Param("merchantAccount") merchantAccount: String)</ID>
-    <ID>SpacingAroundColon:PaymentConsumerConfig.kt$PaymentConsumerConfig$:</ID>
-    <ID>SpacingAroundComma:PaymentConsumerConfig.kt$PaymentConsumerConfig$,</ID>
-    <ID>SpacingAroundCurly:PaymentConsumerConfig.kt$PaymentConsumerConfig${</ID>
-    <ID>SpacingAroundOperators:PaymentConsumerConfig.kt$PaymentConsumerConfig$=</ID>
     <ID>SpreadOperator:AccountSnapshotJobDataSourceConfig.kt$AccountSnapshotJobDataSourceConfig$(*resolver.getResources("classpath*:mapper/snapshotmapper/*.xml"))</ID>
     <ID>SpreadOperator:KafkaTopicsConfig.kt$TopicAdminConfig$(*topics.toTypedArray())</ID>
     <ID>SpreadOperator:PaymentConsumerDataSourceConfig.kt$PaymentConsumerDataSourceConfig$(*resources)</ID>
     <ID>SpreadOperator:PaymentConsumersApplication.kt$(*args)</ID>
     <ID>TooManyFunctions:KafkaTypedConsumerFactoryConfig.kt$KafkaTypedConsumerFactoryConfig</ID>
     <ID>TooManyFunctions:PaymentConsumerConfig.kt$PaymentConsumerConfig</ID>
-    <ID>TooManyFunctions:TransactionController.kt$TransactionController</ID>
-    <ID>WildcardImport:AccountBalanceSnapshotJobTest.kt$import io.mockk.*</ID>
-    <ID>WildcardImport:KafkaTypedConsumerFactoryConfig.kt$import org.springframework.kafka.core.*</ID>
-    <ID>Wrapping:PaymentTxMapper.kt$PaymentTxMapper$(</ID>
-    <ID>Wrapping:PaymentTxMapper.kt$PaymentTxMapper$(@Param( "txId" ) txId: Long, @Param("merchantAccount") merchantAccount: String)</ID>
-    <ID>Wrapping:TransactionApiAccessTest.kt$TransactionApiAccessTest$( paymentId = PaymentId(1002), paymentIntentId = PaymentIntentId(1102), publicPaymentIntentId = "pi_1002", merchantAccount = "MARKETPLACE-5", buyerId = BuyerId( "BUYER-1" ), orderId = OrderId("ORDER-2"), pspReference = "psp_1002", processingModel = ProcessingModel.MARKETPLACE, totalAmount = Amount.of( 3000, Currency("EUR") ), splits = emptyList(), authorizedAt = Instant.parse("2026-10-02T10:00:02Z") )</ID>
-    <ID>Wrapping:TransactionApiAccessTest.kt$TransactionApiAccessTest$( paymentId = PaymentId(2001), paymentIntentId = PaymentIntentId(2101), publicPaymentIntentId = "pi_2001", merchantAccount = "MARKETPLACE-1", buyerId = BuyerId( "BUYER-1" ), orderId = OrderId("ORDER-9"), pspReference = "psp_2001", processingModel = ProcessingModel.MARKETPLACE, totalAmount = Amount.of( 3000, Currency("EUR") ), splits = emptyList(), authorizedAt = Instant.parse("2026-10-02T10:00:03Z") )</ID>
-    <ID>Wrapping:TransactionApiAccessTest.kt$TransactionApiAccessTest$it.claim( "seller_id", "SELLER-5-1" )</ID>
-    <ID>Wrapping:TransactionRepositoryAdapterIntegrationTest.kt$TransactionRepositoryAdapterIntegrationTest$( paymentId = PaymentId(3001L), paymentIntentId = PaymentIntentId(3101L), publicPaymentIntentId = "pi_3001", merchantAccount = "MARKETPLACE-5", buyerId = BuyerId( "BUYER-1" ), orderId = OrderId("ORDER-3001"), pspReference = "psp_3001", processingModel = ProcessingModel.MARKETPLACE, totalAmount = Amount.of(3000, Currency("EUR")), splits = listOf( PaymentSplit.of(LedgerAccountType.SELLER_PAYABLE, "SELLER-5-1", Amount.of(3000, Currency("EUR"))) ), authorizedAt = Instant.parse("2026-10-02T11:00:00Z"), cardSummary = CardSummary.of(CardBrand.VISA, "4242") )</ID>
-    <ID>Wrapping:TransactionRepositoryAdapterIntegrationTest.kt$TransactionRepositoryAdapterIntegrationTest$( paymentId = PaymentId(3002L), paymentIntentId = PaymentIntentId(3102L), publicPaymentIntentId = "pi_3002", merchantAccount = "MARKETPLACE-5", buyerId = BuyerId( "BUYER-2" ), orderId = OrderId("ORDER-3002"), pspReference = "psp_3002", processingModel = ProcessingModel.DIRECT_MERCHANT, totalAmount = Amount.of(5000, Currency("EUR")), splits = emptyList(), authorizedAt = Instant.parse("2026-10-02T11:01:00Z"), cardSummary = null )</ID>
-    <ID>Wrapping:TransactionRepositoryAdapterIntegrationTest.kt$TransactionRepositoryAdapterIntegrationTest$repository.markCaptured( paymentId, capturedAt )</ID>
-    <ID>Wrapping:TransactionRepositoryAdapterIntegrationTest.kt$TransactionRepositoryAdapterIntegrationTest$repository.markSettled( paymentId, settledAt )</ID>
   </CurrentIssues>
 </SmellBaseline>

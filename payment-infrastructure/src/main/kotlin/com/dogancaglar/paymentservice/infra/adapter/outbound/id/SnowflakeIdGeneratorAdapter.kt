@@ -21,8 +21,12 @@ class SnowflakeIdGeneratorAdapter(
         val ordinal = lastPart.toIntOrNull()
         if (ordinal == null) {
             // Fallback for non-StatefulSet pods (hashCode)
-            return (podName.hashCode() and Int.MAX_VALUE) % 32
+            return (podName.hashCode() and Int.MAX_VALUE) % MAX_NODE_IDS
         }
-        return ordinal % 32
+        return ordinal % MAX_NODE_IDS
+    }
+
+    private companion object {
+        const val MAX_NODE_IDS = 32
     }
 }

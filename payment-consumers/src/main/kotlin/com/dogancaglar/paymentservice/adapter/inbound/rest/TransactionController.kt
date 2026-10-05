@@ -1,6 +1,5 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
-import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.AmountDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CardDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PageDto
@@ -8,19 +7,16 @@ import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.TransactionDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.TransactionSplitDto
 import com.dogancaglar.paymentservice.application.transaction.Transaction
 import com.dogancaglar.paymentservice.application.transaction.TransactionFilter
-import com.dogancaglar.paymentservice.domain.exception.NonRetryableException
+import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.payment.CardSummary
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentStatus
 import com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
 import com.dogancaglar.paymentservice.ports.inbound.usecases.TransactionUseCase
-import jakarta.servlet.http.HttpServletRequest
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
-import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
@@ -29,7 +25,8 @@ import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 
 /**
- * The back office's transactions (base URL .../api/v1/transactions), permission transaction:read. Each endpoint has one kind of caller:
+ * The back office's transactions (base URL .../api/v1/transactions), permission transaction:read. Each endpoint has
+ * one kind of caller:
  *   - a merchant (claim merchant_id): /transactions/merchants/me…, always its own;
  *   - staff (merchant:all): /transactions/merchants/{merchantAccount}…, the merchant named in the path.
  * A payment id is always looked up together with its merchant: another merchant's payment is not found (404).
@@ -78,7 +75,7 @@ class TransactionController(
     ): ResponseEntity<TransactionDto> {
         // looked up together with the merchant: another merchant's payment is not found
         val transaction = transactionUseCase.getTransaction(PaymentId(paymentId), jwt.getClaimAsString("merchant_id"))
-            ?: throw TransactionNotFoundException("No transaction for payment $paymentId")
+            ?: throw PaymentDomainException.PaymentNotFoundException("paymentId=$paymentId")
         return ResponseEntity.ok(
             toDto(transaction, withDetails = true, detailPrefix = "/api/v1/transactions/merchants/me/")
         )
@@ -120,7 +117,9 @@ class TransactionController(
         @PathVariable paymentId: Long
     ): ResponseEntity<TransactionDto> {
         val transaction = transactionUseCase.getTransaction(PaymentId(paymentId), merchantAccount)
-            ?: throw TransactionNotFoundException("No transaction for payment $paymentId of $merchantAccount")
+            ?: throw PaymentDomainException.PaymentNotFoundException(
+                "paymentId=$paymentId, merchantAccount=$merchantAccount"
+            )
         return ResponseEntity.ok(
             toDto(transaction, withDetails = true, detailPrefix = "/api/v1/transactions/merchants/$merchantAccount/")
         )
@@ -141,36 +140,6 @@ class TransactionController(
             return null
         }
         return PaymentId(paymentId)
-    }
-
-    @ExceptionHandler(TransactionNotFoundException::class)
-    fun handleNotFound(
-        ex: TransactionNotFoundException,
-        request: HttpServletRequest
-    ): ResponseEntity<Map<String, Any?>> {
-        val body = mapOf(
-            "timestamp" to Utc.nowInstant().toString(),
-            "status" to 404,
-            "error" to "Not Found",
-            "code" to "NOT_FOUND",
-            "message" to ex.message,
-            "path" to request.requestURI
-        )
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body)
-    }
-
-    // e.g. page below 0 or size outside 1..100
-    @ExceptionHandler(IllegalArgumentException::class)
-    fun handleInvalid(ex: IllegalArgumentException, request: HttpServletRequest): ResponseEntity<Map<String, Any?>> {
-        val body = mapOf(
-            "timestamp" to Utc.nowInstant().toString(),
-            "status" to 400,
-            "error" to "Bad Request",
-            "code" to "VALIDATION_ERROR",
-            "message" to ex.message,
-            "path" to request.requestURI
-        )
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
     }
 
     /** [detailPrefix]: where the same caller reads one transaction (the merchant's or the staff URL). */
@@ -218,6 +187,3 @@ class TransactionController(
         return CardDto(cardSummary.brand.name, cardSummary.last4)
     }
 }
-
-/** No transaction for the requested payment id (404). */
-class TransactionNotFoundException(message: String) : NonRetryableException(message)

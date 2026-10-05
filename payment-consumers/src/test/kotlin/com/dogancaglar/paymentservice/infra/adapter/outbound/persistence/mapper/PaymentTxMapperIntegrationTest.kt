@@ -346,7 +346,12 @@ class PaymentTxMapperIntegrationTest {
         )
     }
 
-    private fun capture(status: String, settleStatus: String, acquirerBatchRef: String?, settledAmountValue: Long?): PaymentTxEntity {
+    private fun capture(
+        status: String,
+        settleStatus: String,
+        acquirerBatchRef: String?,
+        settledAmountValue: Long?
+    ): PaymentTxEntity {
         return PaymentTxEntity(
             txId = captureTxId,
             txType = "CAPTURE",

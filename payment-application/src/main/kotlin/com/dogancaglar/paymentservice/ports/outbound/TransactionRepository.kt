@@ -11,7 +11,10 @@ interface TransactionRepository {
     /** Saves the transaction with its splits, unless it is already saved. */
     fun save(transaction: Transaction)
 
-    /** Sets the capture time unless already set. Fails if the transaction is not saved yet (it is saved at authorization). */
+    /**
+     * Sets the capture time unless already set. Fails if the transaction is not saved yet (it is saved at
+     * authorization).
+     */
     fun markCaptured(paymentId: PaymentId, capturedAt: Instant)
 
     /** Sets the settlement time unless already set. Fails if the transaction is not saved yet. */

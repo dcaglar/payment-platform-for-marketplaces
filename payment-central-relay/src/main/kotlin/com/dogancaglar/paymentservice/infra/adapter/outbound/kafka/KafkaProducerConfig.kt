@@ -47,17 +47,17 @@ class KafkaProducerConfig(
 
             // reliability
             put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true)
-            put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5)
+            put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, MAX_IN_FLIGHT_REQUESTS)
 
             // timeouts
-            put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30_000)
-            put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120_000)
-            put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 60_000)
+            put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, REQUEST_TIMEOUT_MS)
+            put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, DELIVERY_TIMEOUT_MS)
+            put(ProducerConfig.MAX_BLOCK_MS_CONFIG, MAX_BLOCK_MS)
 
-            put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 5_242_880) // 5MB (Default is 1MB)
-            put(ProducerConfig.BUFFER_MEMORY_CONFIG, 67_108_864) // 64MB (Default is 32MB)
-            put(ProducerConfig.BATCH_SIZE_CONFIG, 262_144) // 256KB for heavy batching (Default is 16KB)
-            put(ProducerConfig.LINGER_MS_CONFIG, 20)
+            put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, MAX_REQUEST_SIZE_BYTES)
+            put(ProducerConfig.BUFFER_MEMORY_CONFIG, BUFFER_MEMORY_BYTES)
+            put(ProducerConfig.BATCH_SIZE_CONFIG, BATCH_SIZE_BYTES)
+            put(ProducerConfig.LINGER_MS_CONFIG, LINGER_MS)
 
             // compression
             put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "zstd")
@@ -98,5 +98,16 @@ class KafkaProducerConfig(
         configs[AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG] = bootKafkaProps.bootstrapServers.joinToString(",")
         // Include any SASL/SSL credentials here if needed for cluster admin tasks
         return KafkaAdmin(configs)
+    }
+
+    private companion object {
+        const val MAX_IN_FLIGHT_REQUESTS = 5
+        const val REQUEST_TIMEOUT_MS = 30_000
+        const val DELIVERY_TIMEOUT_MS = 120_000
+        const val MAX_BLOCK_MS = 60_000
+        const val MAX_REQUEST_SIZE_BYTES = 5_242_880 // 5MB (default 1MB)
+        const val BUFFER_MEMORY_BYTES = 67_108_864 // 64MB (default 32MB)
+        const val BATCH_SIZE_BYTES = 262_144 // 256KB for heavy batching (default 16KB)
+        const val LINGER_MS = 20
     }
 }

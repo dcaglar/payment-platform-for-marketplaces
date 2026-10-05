@@ -7,8 +7,8 @@ import com.dogancaglar.paymentservice.domain.exception.AccountDomainException
 import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
+import com.dogancaglar.paymentservice.domain.model.ledger.JournalType
 import com.dogancaglar.paymentservice.domain.model.ledger.Tx
-import com.dogancaglar.paymentservice.domain.model.ledger.TxStatus.PENDING
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import com.dogancaglar.paymentservice.domain.model.vo.TxId
@@ -42,7 +42,7 @@ open class RecordCaptureSubmissionService(
 
         // 2. Link parent Authorization transaction context
         val txs = paymentTxPort.findByPaymentId(payment.paymentId.value)
-        val authTx = txs.find { it.txType == com.dogancaglar.paymentservice.domain.model.ledger.JournalType.AUTHORIZATION }
+        val authTx = txs.find { it.txType == JournalType.AUTHORIZATION }
         val authTxIdValue = authTx?.txId ?: TxId(0L)
 
         // 3. Setup transaction tracking metadata record
@@ -51,12 +51,10 @@ open class RecordCaptureSubmissionService(
 
         val captureTx = Tx.createCaptureTx(
             txId = newTxId,
-            paymentId = payment.paymentId,
-            paymentIntentId = paymentIntentId,
+            payment = payment,
             authorizationTxId = authTxIdValue,
             acquirerReference = event.pspReference,
-            amount = amount,
-            status = PENDING
+            amount = amount
         )
 
         // 4. An auto-settled merchant has no acquirer: its capture confirmation and settlement are simulated here
@@ -98,7 +96,8 @@ open class RecordCaptureSubmissionService(
 
         // 5. Commit atomic units through outbound database gateways
         logger.debug(
-            "Atomically persisting pending state modifications and transaction outbox event for track ref=${event.pspReference}"
+            "Atomically persisting pending state modifications and transaction outbox event for track " +
+                "ref=${event.pspReference}"
         )
         centralDbTransactionalFacadePort.recordPaymentOperationInLedger(
             updatedPayment,
@@ -114,9 +113,10 @@ open class RecordCaptureSubmissionService(
      * E.g. 3000 cents: 3000 × 150 / 10,000 + 25 = 45 + 25 = 70.
      */
     private fun simulatedPspFee(grossAmountValue: Long): Long =
-        grossAmountValue * SIMULATED_PSP_FEE_BPS / 10_000 + SIMULATED_PSP_FEE_FIXED
+        grossAmountValue * SIMULATED_PSP_FEE_BPS / BASIS_POINTS_PER_WHOLE + SIMULATED_PSP_FEE_FIXED
 
     private companion object {
+        const val BASIS_POINTS_PER_WHOLE = 10_000L
         const val SIMULATED_PSP_FEE_BPS = 150L // 1.5%
         const val SIMULATED_PSP_FEE_FIXED = 25L // €0.25 in cents
     }

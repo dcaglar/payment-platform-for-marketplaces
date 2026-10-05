@@ -49,14 +49,16 @@ class TransactionApiAccessTest {
         }.authorities(SimpleGrantedAuthority("transaction:read"))
         // MARKETPLACE-5 has transaction 1002; 1001 does not exist
         val transaction1002 = Transaction(
-            paymentId = PaymentId(1002), paymentIntentId = PaymentIntentId(1102), publicPaymentIntentId = "pi_1002",
-            merchantAccount = "MARKETPLACE-5", buyerId = BuyerId(
-                "BUYER-1"
-            ), orderId = OrderId("ORDER-2"), pspReference = "psp_1002",
-            processingModel = ProcessingModel.MARKETPLACE, totalAmount = Amount.of(
-                3000,
-                Currency("EUR")
-            ), splits = emptyList(),
+            paymentId = PaymentId(1002),
+            paymentIntentId = PaymentIntentId(1102),
+            publicPaymentIntentId = "pi_1002",
+            merchantAccount = "MARKETPLACE-5",
+            buyerId = BuyerId("BUYER-1"),
+            orderId = OrderId("ORDER-2"),
+            pspReference = "psp_1002",
+            processingModel = ProcessingModel.MARKETPLACE,
+            totalAmount = Amount.of(3000, Currency("EUR")),
+            splits = emptyList(),
             authorizedAt = Instant.parse("2026-10-02T10:00:02Z")
         )
         `when`(transactionUseCase.getTransaction(PaymentId(1002), "MARKETPLACE-5")).thenReturn(transaction1002)
@@ -90,14 +92,16 @@ class TransactionApiAccessTest {
         )
         // MARKETPLACE-1 has transaction 2001; 1001 does not exist
         val transaction2001 = Transaction(
-            paymentId = PaymentId(2001), paymentIntentId = PaymentIntentId(2101), publicPaymentIntentId = "pi_2001",
-            merchantAccount = "MARKETPLACE-1", buyerId = BuyerId(
-                "BUYER-1"
-            ), orderId = OrderId("ORDER-9"), pspReference = "psp_2001",
-            processingModel = ProcessingModel.MARKETPLACE, totalAmount = Amount.of(
-                3000,
-                Currency("EUR")
-            ), splits = emptyList(),
+            paymentId = PaymentId(2001),
+            paymentIntentId = PaymentIntentId(2101),
+            publicPaymentIntentId = "pi_2001",
+            merchantAccount = "MARKETPLACE-1",
+            buyerId = BuyerId("BUYER-1"),
+            orderId = OrderId("ORDER-9"),
+            pspReference = "psp_2001",
+            processingModel = ProcessingModel.MARKETPLACE,
+            totalAmount = Amount.of(3000, Currency("EUR")),
+            splits = emptyList(),
             authorizedAt = Instant.parse("2026-10-02T10:00:03Z")
         )
         `when`(transactionUseCase.getTransaction(PaymentId(2001), "MARKETPLACE-1")).thenReturn(transaction2001)
@@ -142,10 +146,9 @@ class TransactionApiAccessTest {
 
     @Test
     fun `a seller can neither list nor read transactions`() {
-        val seller = jwt().jwt { it.claim(
-            "seller_id",
-            "SELLER-5-1"
-        ) }.authorities(SimpleGrantedAuthority("balance:read"))
+        val seller = jwt()
+            .jwt { it.claim("seller_id", "SELLER-5-1") }
+            .authorities(SimpleGrantedAuthority("balance:read"))
 
         val ownList = mockMvc.get("/api/v1/transactions/merchants/me") { with(seller) }.andReturn().response.status
         val staffList = mockMvc.get(

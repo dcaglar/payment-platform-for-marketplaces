@@ -70,7 +70,8 @@ class PspResultConsumer(
 
                 is SettlementReceived -> {
                     logger.debug(
-                        "🎬 Processing SettlementReceived event from simulated SDR line for paymentIntentId: ${event.publicPaymentIntentId}"
+                        "🎬 Processing SettlementReceived event from simulated SDR line for paymentIntentId: " +
+                            "${event.publicPaymentIntentId}"
                     )
                     processPspResultUseCase.processSettlementLineReconciled(event)
                 }
@@ -81,7 +82,11 @@ class PspResultConsumer(
             }
 
             logger.info("PSP result consumer executed successfully for event type=${event.javaClass.simpleName}")
-            dedupe.markProcessed(ConsumerGroups.PSP_RESULT_CONSUMER, eventId, 3600)
+            dedupe.markProcessed(
+                ConsumerGroups.PSP_RESULT_CONSUMER,
+                eventId,
+                EventDeduplicationPort.PROCESSED_EVENT_TTL_SECONDS
+            )
         }
     }
 }

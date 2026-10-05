@@ -1,10 +1,13 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
+import com.dogancaglar.common.db.converter.OutboxEventEntityMapper
 import com.dogancaglar.common.db.converter.PaymentEntityMapper
 import com.dogancaglar.common.db.converter.PaymentTxEntityMapper
+import com.dogancaglar.common.db.converter.TransferEntityMapper
 import com.dogancaglar.paymentservice.application.dto.PaymentSplitDto
 import com.dogancaglar.paymentservice.domain.model.ledger.JournalEntry
 import com.dogancaglar.paymentservice.domain.model.ledger.Tx
+import com.dogancaglar.paymentservice.domain.model.payment.InternalTransfer
 import com.dogancaglar.paymentservice.domain.model.payment.OutboxEvent
 import com.dogancaglar.paymentservice.domain.model.payment.Payment
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.converter.LedgerEntityMapper
@@ -72,11 +75,11 @@ open class CentralDbTransactionalFacadeAdapter(
 
     @Transactional(timeout = 5)
     override fun recordInternalTransferOperationInLedger(
-        internalTransfer: com.dogancaglar.paymentservice.domain.model.payment.InternalTransfer,
+        internalTransfer: InternalTransfer,
         journalEntries: List<JournalEntry>,
         outboxEvents: List<OutboxEvent>
     ) {
-        val transferEntity = com.dogancaglar.common.db.converter.TransferEntityMapper.toEntity(internalTransfer)
+        val transferEntity = TransferEntityMapper.toEntity(internalTransfer)
         transferMapper.upsert(transferEntity)
         saveJournalAndOutbox(journalEntries, outboxEvents)
     }
@@ -107,7 +110,7 @@ open class CentralDbTransactionalFacadeAdapter(
 
         if (outboxEvents.isNotEmpty()) {
             val outboxEntities = outboxEvents.map {
-                com.dogancaglar.common.db.converter.OutboxEventEntityMapper.toEntity(
+                OutboxEventEntityMapper.toEntity(
                     it
                 )
             }

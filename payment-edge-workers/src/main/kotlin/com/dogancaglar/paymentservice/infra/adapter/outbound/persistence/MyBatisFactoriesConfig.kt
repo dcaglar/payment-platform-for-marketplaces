@@ -1,6 +1,7 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.persistence
 
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.CentralOutboxForwarderMapper
+import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.LocalOutboxMapperForEdgeWorker
 import org.apache.ibatis.session.ExecutorType
 import org.apache.ibatis.session.SqlSessionFactory
 import org.mybatis.spring.SqlSessionFactoryBean
@@ -64,9 +65,9 @@ class MyBatisFactoriesConfig {
     @Bean
     fun localOutboxMapperForEdgeWorker(
         @Qualifier("outboxSqlSessionTemplate") template: SqlSessionTemplate
-    ): MapperFactoryBean<com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.LocalOutboxMapperForEdgeWorker> {
+    ): MapperFactoryBean<LocalOutboxMapperForEdgeWorker> {
         val factory = MapperFactoryBean(
-            com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.LocalOutboxMapperForEdgeWorker::class.java
+            LocalOutboxMapperForEdgeWorker::class.java
         )
         factory.setSqlSessionTemplate(template)
         return factory

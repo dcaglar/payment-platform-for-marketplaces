@@ -16,7 +16,7 @@ abstract class AbstractOutboxPartitionCreator(
 
     fun ensureCurrentAndNext() {
         val now = Utc.nowLocalDateTime()
-        val start = now.withMinute((now.minute / 30) * 30).withSecond(0).withNano(0)
+        val start = windowStart(now)
         // current window
         ensurePartitionExists(start, start.plusMinutes(PARTITION_SIZE_MIN))
         // next window
@@ -45,7 +45,7 @@ abstract class AbstractOutboxPartitionCreator(
 
     fun pruneOldPartitions() {
         val now = Utc.nowLocalDateTime()
-        val currWindowStart = now.withMinute((now.minute / 30) * 30).withSecond(0).withNano(0)
+        val currWindowStart = windowStart(now)
 
         val sql = """
         DO ${'$'}${'$'}
@@ -86,7 +86,7 @@ abstract class AbstractOutboxPartitionCreator(
 
     fun vacuumOldPartitionsWithNewRows() {
         val now = Utc.nowLocalDateTime()
-        val currWindowStart = now.withMinute((now.minute / 30) * 30).withSecond(0).withNano(0)
+        val currWindowStart = windowStart(now)
         val nextWindowStart = currWindowStart.plusMinutes(PARTITION_SIZE_MIN)
 
         val currPartitionName = "outbox_event_${currWindowStart.format(partitionFormatter)}"
@@ -120,6 +120,12 @@ abstract class AbstractOutboxPartitionCreator(
                 }
             }
         }
+    }
+
+    /** The start of the partition window [now] falls in (windows of PARTITION_SIZE_MIN minutes). */
+    private fun windowStart(now: LocalDateTime): LocalDateTime {
+        val windowMinutes = PARTITION_SIZE_MIN.toInt()
+        return now.withMinute((now.minute / windowMinutes) * windowMinutes).withSecond(0).withNano(0)
     }
 
     private companion object {

@@ -4,6 +4,15 @@ import com.dogancaglar.common.event.EventEnvelope
 import com.dogancaglar.common.event.EventEnvelopeFactory
 import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.application.events.CaptureRequested
+import com.dogancaglar.paymentservice.domain.model.common.Amount
+import com.dogancaglar.paymentservice.domain.model.common.Currency
+import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
+import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
+import com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit
+import com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel
+import com.dogancaglar.paymentservice.domain.model.vo.BuyerId
+import com.dogancaglar.paymentservice.domain.model.vo.OrderId
+import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test
 import org.slf4j.MDC
@@ -17,30 +26,30 @@ class DomainEventFactoryTest {
         try {
             val now = Utc.nowInstant()
             val event = CaptureRequested.from(
-                paymentIntent = com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent.createNew(
-                    paymentIntentId = com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId(1001L),
-                    buyerId = com.dogancaglar.paymentservice.domain.model.vo.BuyerId("buyer_1"),
-                    orderId = com.dogancaglar.paymentservice.domain.model.vo.OrderId("order_1"),
-                    processingModel = com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel.DIRECT_MERCHANT,
+                paymentIntent = PaymentIntent.createNew(
+                    paymentIntentId = PaymentIntentId(1001L),
+                    buyerId = BuyerId("buyer_1"),
+                    orderId = OrderId("order_1"),
+                    processingModel = ProcessingModel.DIRECT_MERCHANT,
                     merchantAccount = "m_1",
-                    totalAmount = com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                    totalAmount = Amount.of(
                         1000L,
-                        com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                        Currency("EUR")
                     ),
                     splits = listOf(
-                        com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit.of(
-                            com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType.SELLER_PAYABLE,
+                        PaymentSplit.of(
+                            LedgerAccountType.SELLER_PAYABLE,
                             "m_1",
-                            com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                            Amount.of(
                                 1000L,
-                                com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                                Currency("EUR")
                             )
                         )
                     )
                 ),
-                captureAmount = com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                captureAmount = Amount.of(
                     1000L,
-                    com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                    Currency("EUR")
                 ),
                 timestamp = now
             )
@@ -64,30 +73,30 @@ class DomainEventFactoryTest {
         try {
             val now = Utc.nowInstant()
             val event1 = CaptureRequested.from(
-                paymentIntent = com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent.createNew(
-                    paymentIntentId = com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId(1001L),
-                    buyerId = com.dogancaglar.paymentservice.domain.model.vo.BuyerId("buyer_1"),
-                    orderId = com.dogancaglar.paymentservice.domain.model.vo.OrderId("order_1"),
-                    processingModel = com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel.DIRECT_MERCHANT,
+                paymentIntent = PaymentIntent.createNew(
+                    paymentIntentId = PaymentIntentId(1001L),
+                    buyerId = BuyerId("buyer_1"),
+                    orderId = OrderId("order_1"),
+                    processingModel = ProcessingModel.DIRECT_MERCHANT,
                     merchantAccount = "m_1",
-                    totalAmount = com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                    totalAmount = Amount.of(
                         1000L,
-                        com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                        Currency("EUR")
                     ),
                     splits = listOf(
-                        com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit.of(
-                            com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType.SELLER_PAYABLE,
+                        PaymentSplit.of(
+                            LedgerAccountType.SELLER_PAYABLE,
                             "m_1",
-                            com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                            Amount.of(
                                 1000L,
-                                com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                                Currency("EUR")
                             )
                         )
                     )
                 ),
-                captureAmount = com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                captureAmount = Amount.of(
                     1000L,
-                    com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                    Currency("EUR")
                 ),
                 timestamp = now
             )
@@ -97,30 +106,30 @@ class DomainEventFactoryTest {
             )
 
             val event2 = CaptureRequested.from(
-                paymentIntent = com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent.createNew(
-                    paymentIntentId = com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId(1002L),
-                    buyerId = com.dogancaglar.paymentservice.domain.model.vo.BuyerId("buyer_1"),
-                    orderId = com.dogancaglar.paymentservice.domain.model.vo.OrderId("order_1"),
-                    processingModel = com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel.DIRECT_MERCHANT,
+                paymentIntent = PaymentIntent.createNew(
+                    paymentIntentId = PaymentIntentId(1002L),
+                    buyerId = BuyerId("buyer_1"),
+                    orderId = OrderId("order_1"),
+                    processingModel = ProcessingModel.DIRECT_MERCHANT,
                     merchantAccount = "m_1",
-                    totalAmount = com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                    totalAmount = Amount.of(
                         1000L,
-                        com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                        Currency("EUR")
                     ),
                     splits = listOf(
-                        com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit.of(
-                            com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType.SELLER_PAYABLE,
+                        PaymentSplit.of(
+                            LedgerAccountType.SELLER_PAYABLE,
                             "m_1",
-                            com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                            Amount.of(
                                 1000L,
-                                com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                                Currency("EUR")
                             )
                         )
                     )
                 ),
-                captureAmount = com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                captureAmount = Amount.of(
                     1000L,
-                    com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                    Currency("EUR")
                 ),
                 timestamp = now
             )
@@ -140,30 +149,30 @@ class DomainEventFactoryTest {
         try {
             val now = Utc.nowInstant()
             val event = CaptureRequested.from(
-                paymentIntent = com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent.createNew(
-                    paymentIntentId = com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId(1001L),
-                    buyerId = com.dogancaglar.paymentservice.domain.model.vo.BuyerId("buyer_1"),
-                    orderId = com.dogancaglar.paymentservice.domain.model.vo.OrderId("order_1"),
-                    processingModel = com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel.DIRECT_MERCHANT,
+                paymentIntent = PaymentIntent.createNew(
+                    paymentIntentId = PaymentIntentId(1001L),
+                    buyerId = BuyerId("buyer_1"),
+                    orderId = OrderId("order_1"),
+                    processingModel = ProcessingModel.DIRECT_MERCHANT,
                     merchantAccount = "m_1",
-                    totalAmount = com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                    totalAmount = Amount.of(
                         1000L,
-                        com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                        Currency("EUR")
                     ),
                     splits = listOf(
-                        com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit.of(
-                            com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType.SELLER_PAYABLE,
+                        PaymentSplit.of(
+                            LedgerAccountType.SELLER_PAYABLE,
                             "m_1",
-                            com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                            Amount.of(
                                 1000L,
-                                com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                                Currency("EUR")
                             )
                         )
                     )
                 ),
-                captureAmount = com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                captureAmount = Amount.of(
                     1000L,
-                    com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                    Currency("EUR")
                 ),
                 timestamp = now
             )
@@ -188,30 +197,30 @@ class DomainEventFactoryTest {
             val parentId = UUID.randomUUID().toString()
             val now = Utc.nowInstant()
             val event = CaptureRequested.from(
-                paymentIntent = com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent.createNew(
-                    paymentIntentId = com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId(1001L),
-                    buyerId = com.dogancaglar.paymentservice.domain.model.vo.BuyerId("buyer_1"),
-                    orderId = com.dogancaglar.paymentservice.domain.model.vo.OrderId("order_1"),
-                    processingModel = com.dogancaglar.paymentservice.domain.model.payment.ProcessingModel.DIRECT_MERCHANT,
+                paymentIntent = PaymentIntent.createNew(
+                    paymentIntentId = PaymentIntentId(1001L),
+                    buyerId = BuyerId("buyer_1"),
+                    orderId = OrderId("order_1"),
+                    processingModel = ProcessingModel.DIRECT_MERCHANT,
                     merchantAccount = "m_1",
-                    totalAmount = com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                    totalAmount = Amount.of(
                         1000L,
-                        com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                        Currency("EUR")
                     ),
                     splits = listOf(
-                        com.dogancaglar.paymentservice.domain.model.payment.PaymentSplit.of(
-                            com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType.SELLER_PAYABLE,
+                        PaymentSplit.of(
+                            LedgerAccountType.SELLER_PAYABLE,
                             "m_1",
-                            com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                            Amount.of(
                                 1000L,
-                                com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                                Currency("EUR")
                             )
                         )
                     )
                 ),
-                captureAmount = com.dogancaglar.paymentservice.domain.model.common.Amount.of(
+                captureAmount = Amount.of(
                     1000L,
-                    com.dogancaglar.paymentservice.domain.model.common.Currency("EUR")
+                    Currency("EUR")
                 ),
                 timestamp = now
             )

@@ -46,7 +46,7 @@ class AccountApiExceptionHandler {
     private fun badRequest(message: String?, request: HttpServletRequest): ResponseEntity<Map<String, Any?>> {
         val body = LinkedHashMap<String, Any?>()
         body["timestamp"] = Utc.nowInstant().toString()
-        body["status"] = 400
+        body["status"] = HttpStatus.BAD_REQUEST.value()
         body["error"] = "Bad Request"
         body["code"] = "VALIDATION_ERROR"
         body["message"] = message

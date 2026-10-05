@@ -2,7 +2,8 @@ package com.dogancaglar.paymentservice.infra.adapter.outbound.kafka
 
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringSerializer
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties
 

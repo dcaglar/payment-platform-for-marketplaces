@@ -3,7 +3,7 @@ package com.dogancaglar.paymentservice.application.service
 import com.dogancaglar.common.time.Utc
 import com.dogancaglar.paymentservice.application.command.AuthorizePaymentIntentCommand
 import com.dogancaglar.paymentservice.application.events.PaymentAuthorized
-import com.dogancaglar.paymentservice.domain.exception.PaymentIntentNotFoundException
+import com.dogancaglar.paymentservice.domain.exception.PaymentIntentDomainException
 import com.dogancaglar.paymentservice.domain.exception.PaymentNotReadyException
 import com.dogancaglar.paymentservice.domain.exception.PaymentPlatformException
 import com.dogancaglar.paymentservice.domain.exception.PspInvalidPaymentException
@@ -13,7 +13,11 @@ import com.dogancaglar.paymentservice.domain.exception.PspUnknownException
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntentStatus
 import com.dogancaglar.paymentservice.ports.inbound.usecases.AuthorizePaymentIntentUseCase
-import com.dogancaglar.paymentservice.ports.outbound.*
+import com.dogancaglar.paymentservice.ports.outbound.OutboxEventFactoryPort
+import com.dogancaglar.paymentservice.ports.outbound.PaymentIntentRepository
+import com.dogancaglar.paymentservice.ports.outbound.PaymentTransactionalFacadePort
+import com.dogancaglar.paymentservice.ports.outbound.PspAuthorizationGatewayPort
+import com.dogancaglar.paymentservice.ports.outbound.ResilientExecutionPort
 import org.slf4j.LoggerFactory
 
 /**
@@ -42,7 +46,9 @@ class AuthorizePaymentIntentService(
     override fun authorize(cmd: AuthorizePaymentIntentCommand): PaymentIntent {
         // only the caller's own intent: another merchant's is "not found" (404)
         val paymentIntent = paymentIntentRepository.findByIdForMerchant(cmd.paymentIntentId, cmd.merchantAccount)
-            ?: throw PaymentIntentNotFoundException("PaymentIntent ${cmd.paymentIntentId.value} not found")
+            ?: throw PaymentIntentDomainException.PaymentIntentNotFoundException(
+                "PaymentIntent ${cmd.paymentIntentId.value} not found"
+            )
         // 1) Idempotent behavior first (NO domain transition before this)
         when (paymentIntent.status) {
             PaymentIntentStatus.CREATED_PENDING -> {
@@ -67,7 +73,9 @@ class AuthorizePaymentIntentService(
         if (!won) {
             // someone else started authorization; return latest state
             return paymentIntentRepository.findById(cmd.paymentIntentId)
-                ?: throw PaymentIntentNotFoundException("PaymentIntent ${cmd.paymentIntentId.value} not found")
+                ?: throw PaymentIntentDomainException.PaymentIntentNotFoundException(
+                    "PaymentIntent ${cmd.paymentIntentId.value} not found"
+                )
         }
 
         // 3) We "own" the authorization attempt; update in-memory state before psp call

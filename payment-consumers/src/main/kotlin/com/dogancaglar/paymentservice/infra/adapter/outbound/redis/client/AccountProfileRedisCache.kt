@@ -19,7 +19,12 @@ class AccountProfileRedisCache(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    fun getProfile(accountType: LedgerAccountType, masterAccountCode: String, subEntityId: String?, currency: Currency): AccountProfile? {
+    fun getProfile(
+        accountType: LedgerAccountType,
+        masterAccountCode: String,
+        subEntityId: String?,
+        currency: Currency
+    ): AccountProfile? {
         val key = buildKey(accountType, masterAccountCode, subEntityId, currency)
         val json = redisTemplate.opsForValue().get(key)
         return if (json != null) {
@@ -35,7 +40,7 @@ class AccountProfileRedisCache(
         }
     }
 
-    fun saveProfile(profile: AccountProfile, ttl: Duration = Duration.ofHours(24)) {
+    fun saveProfile(profile: AccountProfile, ttl: Duration = Duration.ofHours(PROFILE_TTL_HOURS)) {
         val key = buildKey(profile.type, profile.masterAccountCode, profile.subEntityId, profile.currency)
         // the cache is best effort: a failure to fill it is logged, never fails the caller
         val json = try {
@@ -51,10 +56,19 @@ class AccountProfileRedisCache(
         }
     }
 
-    private fun buildKey(accountType: LedgerAccountType, masterAccountCode: String, subEntityId: String?, currency: Currency): String {
+    private fun buildKey(
+        accountType: LedgerAccountType,
+        masterAccountCode: String,
+        subEntityId: String?,
+        currency: Currency
+    ): String {
         if (subEntityId == null) {
             return "account:profile:${accountType.name}:$masterAccountCode:${currency.currencyCode}"
         }
         return "account:profile:${accountType.name}:$masterAccountCode:$subEntityId:${currency.currencyCode}"
+    }
+
+    private companion object {
+        const val PROFILE_TTL_HOURS = 24L
     }
 }

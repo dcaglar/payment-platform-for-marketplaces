@@ -32,6 +32,8 @@ data class LedgerAccount private constructor(
     fun isCreditAccount() = type.normalBalance == NormalBalance.CREDIT
 
     companion object {
+        private const val CODE_PARTS_WITHOUT_SELLER = 3 // TYPE.OWNER.CURRENCY
+        private const val CODE_PARTS_WITH_SELLER = 4 // TYPE.OWNER.SELLER.CURRENCY
 
         /**
          * A new ledger account. The owner must match the type's owner level: platform types belong to GLOBAL,
@@ -109,7 +111,7 @@ data class LedgerAccount private constructor(
          */
         fun fromCode(type: LedgerAccountType, accountCode: String): LedgerAccount {
             val parts = accountCode.split(".")
-            require(parts.size == 3 || parts.size == 4) {
+            require(parts.size == CODE_PARTS_WITHOUT_SELLER || parts.size == CODE_PARTS_WITH_SELLER) {
                 LedgerDomainException.InvariantViolationException("Not a ledger account code: $accountCode")
             }
             require(parts[0] == type.name) {
@@ -118,13 +120,18 @@ data class LedgerAccount private constructor(
                 )
             }
             var sellerCode: String? = null
-            if (parts.size == 4) {
+            if (parts.size == CODE_PARTS_WITH_SELLER) {
                 sellerCode = parts[2]
             }
             return LedgerAccount(type, parts[1], sellerCode, Currency(parts[parts.size - 1]), AccountStatus.ACTIVE)
         }
 
-        private fun buildCode(type: LedgerAccountType, ownerCode: String, sellerCode: String?, currency: Currency): String {
+        private fun buildCode(
+            type: LedgerAccountType,
+            ownerCode: String,
+            sellerCode: String?,
+            currency: Currency
+        ): String {
             if (sellerCode == null) {
                 return "${type.name}.$ownerCode.${currency.currencyCode}"
             }

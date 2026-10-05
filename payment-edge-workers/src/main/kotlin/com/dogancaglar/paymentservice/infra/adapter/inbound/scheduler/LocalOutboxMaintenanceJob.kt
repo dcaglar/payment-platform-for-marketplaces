@@ -48,7 +48,7 @@ class LocalOutboxMaintenanceJob(
 
     private fun waitForParentTable() {
         var attempts = 0
-        while (attempts < 20) {
+        while (attempts < MAX_TABLE_CHECK_ATTEMPTS) {
             try {
                 val exists = jdbcTemplate.queryForObject(
                     "SELECT count(1) FROM pg_tables WHERE tablename = 'outbox_event'",
@@ -66,7 +66,7 @@ class LocalOutboxMaintenanceJob(
             logger.info(
                 "Waiting for payment-service to create outbox_event table via Liquibase... (Attempt ${'$'}attempts/20)"
             )
-            Thread.sleep(3000)
+            Thread.sleep(TABLE_CHECK_INTERVAL_MS)
         }
         logger.error("Timed out waiting for outbox_event table to be created!")
     }
@@ -106,6 +106,11 @@ class LocalOutboxMaintenanceJob(
                 maintenanceErrorCounter.add(1, Attributes.of(AttributeKey.stringKey("job"), job))
             }
         }
+    }
+
+    private companion object {
+        const val MAX_TABLE_CHECK_ATTEMPTS = 20
+        const val TABLE_CHECK_INTERVAL_MS = 3000L
     }
 }
 

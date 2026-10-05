@@ -75,12 +75,13 @@ List what's left (same command as in step 1) and work through it. Per rule:
 |---|---|
 | `UnusedImports`, `UnusedPrivateMember`, `UnusedPrivateProperty`, `UnusedParameter` | delete it (check it's really unused: IntelliJ greys it out too) |
 | `InvalidPackageDeclaration` | the `package` line doesn't match the folder: move the file (IntelliJ: F6 Move) or fix the `package` line |
-| `MaxLineLength` (over 120 characters) | break the line where it reads best, e.g. one argument per line |
+| `MaxLineLength` (over 120 characters) | break the line where it reads best, e.g. one argument per line. Break only at a space, `+` or comma: never inside a name, a number or a `${…}` template. A long string: split it into `"…" +` parts at a space. A one-line `/** … */`: make it a multi-line KDoc. A fully qualified class name in code: import it instead |
 | `MagicNumber` | give the number a name: a `const val` in a `companion object`, e.g. `SIMULATED_PSP_FEE_BPS = 150L` |
 | `UseCheckOrError`, `UseRequire` | in `payment-domain`: our `require(x) { PaymentDomainException.… }` from `domain/model/common/Preconditions.kt` (import it explicitly, or Kotlin's own `require` is used silently); elsewhere `throw IllegalStateException("...")` → `error("...")`, `if (!x) throw IllegalStateException(...)` → `check(x) { "..." }`. Messages name the payment (`paymentId=…`). See [code-health/exception-hierarchy.md](code-health/exception-hierarchy.md) |
 | `TooGenericExceptionCaught` | root `CLAUDE.md` §5: catch only where you can do something useful. Then: **narrow** to the real type (`DataAccessException`, `IOException`, `JsonProcessingException`, `ExecutionException`, `KafkaException`); **log and rethrow** → remove the catch (the handling layer logs once, e.g. the Kafka recoverer); **count a metric and rethrow** → `try/finally` with a success flag, no catch; **react per subtype** → catch the sealed family once, exhaustive `when (e) { is A, is B -> … }` |
 | `SwallowedException` | log it **with** the exception where it's handled, or let it propagate; if dropping it is the point (a timeout that is the expected outcome, "not a UUID" = invalid), keep it and suppress (below) |
-| `LongParameterList`, `LongMethod`, `TooManyFunctions`, `ReturnCount`, `ThrowsCount` | refactor if it makes the code clearer; if the size is natural (e.g. an aggregate's `rehydrate` with all its fields), keep it and suppress (below) |
+| `LongParameterList` | first check the callers: if several arguments come from one object they already have (`payment.paymentId`, `payment.paymentIntentId`, `captureTx.txId`, …), pass that object instead (e.g. `Tx.createSettleTx(txId, captureTx, …)`). Don't invent a new class to group arguments. If the size is natural (an aggregate's constructor / `rehydrate` with all its fields, Spring `@Value` config), keep it |
+| `LongMethod`, `TooManyFunctions`, `ReturnCount`, `ThrowsCount` | refactor if it makes the code clearer; if the size is natural, keep it and suppress (below) |
 
 ### c. Suppressing a finding on purpose
 When a finding is not a problem in that place, say so in the code, with the reason, instead of keeping it in

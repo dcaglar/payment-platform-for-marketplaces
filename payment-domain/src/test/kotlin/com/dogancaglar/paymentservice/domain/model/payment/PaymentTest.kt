@@ -4,8 +4,12 @@ import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
-import com.dogancaglar.paymentservice.domain.model.vo.*
-import kotlin.test.*
+import com.dogancaglar.paymentservice.domain.model.vo.BuyerId
+import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
+import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class PaymentTest {
 

@@ -47,21 +47,26 @@ RuntimeException
     │   └── PaymentNotReadyException
     └── NonRetryableException (abstract)
         ├── PspPermanentException                           (also ExternalPspException)
-        ├── IdempotencyKeyReusedException, PaymentIntentNotFoundException (+ back-office not-found)
+        ├── IdempotencyKeyReusedException
         ├── RequestValidationException (sealed)             → PspInvalidPaymentException
-        ├── PaymentDomainException (sealed)                 Payment, PaymentIntent, Amount, Currency, PaymentSplit,
-        │       InvariantViolationException, InvalidStateTransitionException,   CardSummary, Tx (capture reconciliation)
+        ├── PaymentDomainException (sealed)                 Payment, Amount, Currency, PaymentSplit, CardSummary,
+        │       InvariantViolationException, InvalidStateTransitionException,   Tx (capture reconciliation)
         │       CaptureLimitExceededException, RefundLimitExceededException,
         │       InvalidCaptureAmountException, InvalidRefundAmountException, CurrencyMismatchException,
         │       InvalidAmountException, InvalidCurrencyException, SplitValidationException,
         │       PaymentNotFoundException, CaptureTxNotFoundException
+        ├── PaymentIntentDomainException (sealed)           PaymentIntent
+        │       PaymentIntentNotFoundException (→ 404), InvariantViolationException,
+        │       InvalidStateTransitionException, SplitValidationException, SplitCurrencyMismatchException
         ├── InternalTransferDomainException (sealed)        InternalTransfer
         │       TransferNotFoundException, InvariantViolationException, InvalidStateTransitionException
         ├── AccountDomainException (sealed)                 MerchantAccount, Address, PlatformFee, SellerAccount
-        │       MerchantAccountNotFoundException, InvariantViolationException (→ 400 in the account API)
+        │       MerchantAccountNotFoundException, SellerAccountNotFoundException (→ 404 in the balance API),
+        │       InvariantViolationException (→ 400 in the account API)
         ├── LedgerDomainException (sealed)                  JournalEntry, LedgerAccount
         │       UnbalancedJournalEntryException, LessThanTwoPostingsInJournalException,
-        │       DuplicateAccountInJournalException, InvariantViolationException
+        │       DuplicateAccountInJournalException, InvariantViolationException,
+        │       TxNotFoundException (→ 404 in the tx API)
         └── OutboxEventDomainException (sealed)             OutboxEvent
                 InvalidStateTransitionException
 ```
@@ -115,7 +120,7 @@ to the DLQ by itself (below).
 |---|---|---|
 | `RetryableException` | 409 or 503 + `Retry-After` (status per type) | retried |
 | `RequestValidationException` | 400 | not retried |
-| `PaymentIntentNotFoundException` (and other not-found) | 404 | not retried |
+| `PaymentIntentDomainException.PaymentIntentNotFoundException` (and other not-found) | 404 | not retried |
 | `IdempotencyKeyReusedException` | 422 | not retried |
 | `PaymentDomainException`, `LedgerException`, `PspPermanentException` | 500 + logged as error | not retried → DLQ with the error class, message and stack trace as headers |
 
@@ -127,7 +132,7 @@ The Kafka error handler needs one line for all of them: `addNotRetryableExceptio
 | Rules | Thrown by | Exception | Status |
 |---|---|---|---|
 | all `init` rules, transitions, captures, refunds, reconciliation | `Payment` | `PaymentDomainException` subtypes | **done** |
-| all `init` / `createNew` rules, transitions, `pspReferenceOrThrow` | `PaymentIntent` | `PaymentDomainException` subtypes | **done** |
+| all `init` / `createNew` rules, transitions, `pspReferenceOrThrow` | `PaymentIntent` | `PaymentIntentDomainException` subtypes | **done** |
 | quantity ≤ 0, currency format, currency mismatch | `Amount`, `Currency` | `InvalidAmountException`, `InvalidCurrencyException`, `CurrencyMismatchException` | **done** |
 | transitions | `InternalTransfer`, `Tx.CaptureTx`, `OutboxEvent` | `PaymentDomainException.InvalidStateTransitionException` | phase 3 |
 | account fields (blank names / address, country, codes, fee bps / currency) | `MerchantAccount`, `SellerAccount`, `Address`, `PlatformFee` (built from `POST /accounts`) | `RequestValidationException` subtypes | phase 2 |
@@ -148,6 +153,8 @@ The Kafka error handler needs one line for all of them: `addNotRetryableExceptio
 
 ## Open
 
-- The not-found exceptions (`PaymentIntentNotFoundException`, `TransactionNotFoundException`, `TxNotFoundException`,
-  `BalanceOwnerNotFoundException`): keep as they are, or merge into one?
 - `RequestValidationException` subtypes for the account rules (phase 2).
+
+Back-office APIs (`payment-consumers`, one `@RestControllerAdvice` per controller): a missing payment, tx or account is
+the domain's own not-found (`PaymentDomainException.PaymentNotFoundException`, `LedgerDomainException.TxNotFoundException`,
+`AccountDomainException.MerchantAccountNotFoundException` / `SellerAccountNotFoundException`) → 404.

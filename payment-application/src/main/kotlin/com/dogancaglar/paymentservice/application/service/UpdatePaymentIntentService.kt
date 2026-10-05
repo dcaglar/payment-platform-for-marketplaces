@@ -1,7 +1,7 @@
 package com.dogancaglar.paymentservice.application.service
 
 import com.dogancaglar.paymentservice.application.command.ProcessPaymentIntentUpdateCommand
-import com.dogancaglar.paymentservice.domain.exception.PaymentIntentNotFoundException
+import com.dogancaglar.paymentservice.domain.exception.PaymentIntentDomainException
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntentStatus
 import com.dogancaglar.paymentservice.ports.inbound.usecases.UpdatePaymentIntentUseCase
@@ -18,7 +18,9 @@ class UpdatePaymentIntentService(
         logger.debug("Processing payment intent update: id={}, status={}", cmd.paymentIntentId.value, cmd.status)
 
         val paymentIntent = paymentIntentRepository.findById(cmd.paymentIntentId)
-            ?: throw PaymentIntentNotFoundException("PaymentIntent ${cmd.paymentIntentId.value} not found")
+            ?: throw PaymentIntentDomainException.PaymentIntentNotFoundException(
+                "PaymentIntent ${cmd.paymentIntentId.value} not found"
+            )
 
         return when (paymentIntent.status) {
             PaymentIntentStatus.CREATED_PENDING -> {

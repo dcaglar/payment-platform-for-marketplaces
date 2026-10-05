@@ -48,7 +48,11 @@ object PaymentRequestMapper {
             } ?: emptyList()
         )
 
-    fun toAuthorizePaymentIntentCommand(publicPaymentIntentId: String, dto: AuthorizationRequestDTO, merchantAccount: String): AuthorizePaymentIntentCommand =
+    fun toAuthorizePaymentIntentCommand(
+        publicPaymentIntentId: String,
+        dto: AuthorizationRequestDTO,
+        merchantAccount: String
+    ): AuthorizePaymentIntentCommand =
         AuthorizePaymentIntentCommand(
             paymentIntentId = PaymentIntentId(PublicIdFactory.toInternalId(publicPaymentIntentId)),
             merchantAccount = merchantAccount,

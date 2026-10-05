@@ -33,7 +33,10 @@ interface TransactionMapper {
 
     fun findSplits(@Param("paymentId") paymentId: Long): List<TransactionSplitEntity>
 
-    /** Filter arguments: null = do not filter on it. [status] is AUTHORIZED, CAPTURED or SETTLED; [processingModel] MARKETPLACE or DIRECT_MERCHANT. */
+    /**
+     * Filter arguments: null = do not filter on it. [status] is AUTHORIZED, CAPTURED or SETTLED; [processingModel]
+     * MARKETPLACE or DIRECT_MERCHANT.
+     */
     fun findPage(
         @Param("merchantAccount") merchantAccount: String?,
         @Param("orderId") orderId: String?,
