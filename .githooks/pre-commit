@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# gitleaks on what is being committed (the staged changes only): stops a secret before it reaches the history.
+# Same tool and ignore file (.gitleaksignore) as infra/scripts/security-scan.sh and CI; this is just the early check.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+# Skip once (e.g. a known false positive you are about to add to .gitleaksignore):  git commit --no-verify
+set -uo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git "$REPO_ROOT" --pre-commit --staged --redact --no-banner
+  status=$?
+elif docker info >/dev/null 2>&1; then
+  docker run --rm -v "$REPO_ROOT:/repo" zricethezav/gitleaks:latest \
+    git /repo --pre-commit --staged --redact --no-banner
+  status=$?
+else
+  # no way to scan here: say so loudly, don't block the commit (CI's security-scan job still checks it)
+  echo "⚠️  gitleaks pre-commit check skipped: neither gitleaks nor a running Docker found."
+  exit 0
+fi
+
+if [ "$status" -ne 0 ]; then
+  echo "❌ gitleaks found a secret in the staged changes (above). Remove it, or if it is a false positive, add its"
+  echo "   fingerprint to .gitleaksignore. Commit not made."
+  exit 1
+fi
