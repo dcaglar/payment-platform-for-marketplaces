@@ -98,8 +98,7 @@ function authorizePayment(paymentId) {
     const payload = JSON.stringify({
         paymentMethod: {
             type: "CardToken", // Matches your Sealed Class @JsonTypeInfo
-            token: "tok_visa",
-            cvc: "123"
+            token: "tok_visa"
         }
     });
 

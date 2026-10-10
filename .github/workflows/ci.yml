@@ -102,8 +102,9 @@ jobs:
 
   # 🌐 3. End-to-End Acceptance (full platform via Testcontainers)
   # Runs the e2e-tests module: builds the 4 service images from THIS PR's code, then boots the whole
-  # topology (Keycloak + Postgres x2 + Kafka + Redis + the 4 services) as real containers and drives
-  # createPayment -> authorize, asserting the flow to Payment.status=SETTLED.
+  # topology (Keycloak + Postgres x2 + Kafka + Redis + the 4 services) as real containers and runs every
+  # *E2EIntegrationTest there: the payment flow to SETTLED, balance amounts, account creation, the merchant
+  # API rules, back-office access, finance txs.
   # PR-to-main only: the e2e-tests module is not a reactor module, so it needs its own -f invocation,
   # and it must build the images itself (ci.yml does not 1push :latest — that only happens on Azure deploy).
   e2e-acceptance:
@@ -134,7 +135,7 @@ jobs:
       - name: Install shared modules to local repo (skip tests)
         run: mvn -B -q -pl common,payment-domain -am install -Dmaven.test.skip=true
 
-      - name: Run E2E flow (createPayment -> authorize -> SETTLED)
+      - name: Run all E2E tests (e2e-tests module)
         run: mvn -B -f e2e-tests/pom.xml verify
 
       - name: Archive E2E Test Results

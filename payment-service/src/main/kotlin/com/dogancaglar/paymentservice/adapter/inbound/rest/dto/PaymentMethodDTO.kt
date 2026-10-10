@@ -13,8 +13,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 )
 sealed class PaymentMethodDTO {
 
+    /** The PSP's token for the card (e.g. pm_...). Never a card number or CVC: the PSP checked those when it
+     * tokenized the card. */
     data class CardToken(
-        val token: String,
-        val cvc: String? = null // Optional, depending on PSP config
+        val token: String
     ) : PaymentMethodDTO()
 }

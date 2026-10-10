@@ -364,6 +364,8 @@ The platform internally uses:
 - **Shopper** — end-user paying for a multi-seller basket (never calls our APIs directly).
 - **Seller** — marketplace participant who receives a share of each payment and later payouts.
 - **Internal services** — Checkout/Order, Finance: the actual API callers.
+- **Merchant user** — a marketplace's own staff, in the back office: its payments, its sellers, its balances.
+- **Platform staff** — our support, finance and admin, in the back office: any merchant they name (see "Back Office & Access Control").
 
 ### Persistence model (ER) — derived from the Liquibase changelogs
 > Source of truth: charts/central-db/db + charts/payment-edge-cell/db changelogs.
@@ -443,6 +445,31 @@ erDiagram
         bigint balance "projection, eventually consistent"
         bigint last_applied_entry_id
     }
+    transactions {
+        bigint payment_id PK "one authorized payment, denormalized for the back office"
+        bigint payment_intent_id "logical (no FK)"
+        varchar public_payment_intent_id
+        varchar merchant_account
+        varchar buyer_id
+        varchar order_id
+        varchar psp_reference
+        varchar processing_model
+        bigint total_amount
+        char currency
+        varchar card_brand "brand + last 4 only"
+        char card_last4
+        timestamp authorized_at
+        timestamp captured_at "NULL until captured"
+        timestamp settled_at "NULL until settled"
+    }
+    transaction_splits {
+        bigint payment_id PK,FK
+        int line_no PK
+        varchar account_type "SELLER_PAYABLE/MERCHANT_COMMISSION_PAYABLE"
+        varchar account
+        bigint amount
+        char currency
+    }
     transfers {
         bigint transfer_id PK
         bigint payment_id "logical (no FK)"
@@ -472,6 +499,8 @@ erDiagram
     accounts ||..o{ postings : "logical (no FK)"
     accounts ||--o| account_balances : "projection"
     payments ||..o{ transfers : "allocation fan-out"
+    payments ||..o| transactions : "back-office projection"
+    transactions ||--o{ transaction_splits : "its splits"
 
 ```
 
@@ -488,6 +517,7 @@ erDiagram
 | **Posting** | With its journal entry | One DR/CR leg against one account |
 | **Account** (`accounts`) | `POST /api/v1/accounts` (ADMIN, async): one request creates the merchant, its sellers and all their ledger accounts in one transaction (idempotent: an existing merchant writes nothing). Test seed: `accounts-seed.sql`, generated from `charts/central-db/seed/merchants.json` by the same domain code | One table, four kinds. **Merchant** (what a payment's `merchantAccount` refers to; settings `isAutoCaptured`, `isAutoSettled`, platform fee) and **seller** (under one merchant) carry no ledger meaning. **Ledger accounts** are generated per owner from `LedgerAccountType`'s owner level — money moves between them, never free variables. Platform (once per currency): `PLATFORM_CASH`, `PSP_RECEIVABLE`, `PSP_FEE_EXPENSE`, `PLATFORM_REVENUE`. Per merchant: `AUTH_RECEIVABLE`, `AUTH_LIABILITY`, `CAPTURE_SUSPENSE`, `MERCHANT_COMMISSION_PAYABLE`, `MERCHANT_DIRECT_PAYABLE`, `PLATFORM_FEE_RESERVE`. Per seller: `SELLER_PAYABLE` |
 | **Balance** | Projection from applied entries (Redis deltas + snapshot job) | Reporting/payouts; **eventually consistent by design** — the sync path never waits on it |
+| **Transaction** (`transactions` + `transaction_splits`) | `TransactionConsumer`, from `journal_entries_recorded`: saved on the AUTHORIZATION journal, `captured_at` / `settled_at` set on CAPTURE / SETTLEMENT | The back office's payment list and detail, read without touching the ledger. Only authorized payments appear. Status is derived, not stored (settled → SETTLED, captured → CAPTURED, else AUTHORIZED). Not the same as **Tx** (one PSP interaction) |
 
 # 🟦 System Design & Modular Architecture
 
@@ -533,9 +563,14 @@ The platform follows a **Hexagonal (Ports & Adapters)** pattern to separate busi
 
 ### **9. `payment-consumers` (Asynchronous Workers & Ledger Processors)**
 - **Role**: Central asynchronous consumer engine.
-- **Kafka Listeners**: Hosts all `@KafkaListener` components: `PspResultConsumer`, `CaptureCommandExecutor`, `CapturePspPerformedConsumer`, `GrossCaptureAllocationConsumer`, `AccountBalanceConsumer`, `AccountCreationCommandExecutor` (topic `account.creation.requested`).
-- **REST**: Also serves the balance API (base URL `…/api/v1`, routed by the ingress): `GET /balances/sellers/me` (a seller's own balance, from the token's `seller_id`), `GET /balances/merchants/me` (a merchant's own, from `merchant_id`: its `MERCHANT_DIRECT_PAYABLE` and `MERCHANT_COMMISSION_PAYABLE` with a total) `GET /balances/merchants/me/sellers` and `/balances/merchants/me/sellers/{sellerId}` (a merchant's own sellers), and for staff `GET /balances/merchants/{merchantAccount}/sellers` and `/balances/sellers/{sellerId}`. The back office's transactions: `GET /transactions/merchants/me[/{paymentId}]` (a merchant, its own) and `GET /transactions/merchants/{merchantAccount}[/{paymentId}]` (staff, the merchant they name). And account onboarding: `POST /accounts` (`ADMIN`) validates the request, writes `outbox<account_creation_requested>` and answers `202`; `AccountCreationCommandExecutor` then creates the accounts.
+- **Kafka Listeners**: Hosts all `@KafkaListener` components: `PspResultConsumer`, `CaptureCommandExecutor`, `CapturePspPerformedConsumer`, `GrossCaptureAllocationConsumer`, `AccountBalanceConsumer`, `TransactionConsumer` (the back office's `transactions`), `AccountCreationCommandExecutor` (topic `account.creation.requested`).
+- **REST**: Also serves the balance API (base URL `…/api/v1`, routed by the ingress): `GET /balances/sellers/me` (a seller's own balance, from the token's `seller_id`), `GET /balances/merchants/me` (a merchant's own, from `merchant_id`: its `MERCHANT_DIRECT_PAYABLE` and `MERCHANT_COMMISSION_PAYABLE` with a total) `GET /balances/merchants/me/sellers` and `/balances/merchants/me/sellers/{sellerId}` (a merchant's own sellers), and for staff `GET /balances/merchants/{merchantAccount}/sellers` and `/balances/sellers/{sellerId}`. The back office's transactions: `GET /transactions/merchants/me[/{paymentId}]` (a merchant, its own) and `GET /transactions/merchants/{merchantAccount}[/{paymentId}]` (staff, the merchant they name). And account onboarding: `POST /accounts` (`ADMIN`) validates the request, writes `outbox<account_creation_requested>` and answers `202`; `AccountCreationCommandExecutor` then creates the accounts. Finance's ledger view: `GET /txs/merchants/{merchantAccount}/payments/{paymentId}` and `/txs/merchants/{merchantAccount}/{txId}` (`ledger:read`).
 - **Workloads**: Coordinates heavy asynchronous tasks like calling external PSP Gateways and executing double-entry ledger bookkeeping.
+
+### **10. `mor-backoffice` (Back Office Web App)**
+- **Role**: The web app where sellers, merchant users and platform staff log in and see balances and transactions. Read-only for now.
+- **Parts**: a React page (`src/`, Vite, port 3100) and its own small Node server (`server/`, Express, port 3101): a backend for frontend.
+- **Traits**: The browser never holds a token. The server logs people in with Keycloak, keeps their tokens in the session, and passes `GET /api/v1/…` on to payment-consumers with the user's token. Not a Maven module; runs locally (`npm run dev`), no image or chart yet. Details: "Back Office & Access Control" below.
 
 
 ## 🟦 Outbox Pattern Implementation (Two-Stage Edge-to-Central)
@@ -724,6 +759,7 @@ The chain after an authorization:
 | 6 | `internal_transfer_command` (`payment.psp.results`) | `PspResultConsumer` → `processInternalTransferCommand` | INTERNAL_TRANSFER / COMMISSION_FEE journal + `transfers` row | `journal_entries_recorded` |
 | 7 | `settlement_received` (`payment.psp.results`) | `PspResultConsumer` → `processSettlementLineReconciled` | reconciles against the capture (MATCHED / DISCREPANCY), `Payment` → SETTLED, SETTLEMENT journal | `journal_entries_recorded` |
 | — | `journal_entries_recorded` (`journal.entries.recorded`) | `AccountBalanceConsumer` | applies the postings to the Redis balance cache; `AccountBalanceSnapshotJob` writes `account_balances` every minute | — |
+| — | `journal_entries_recorded` (`journal.entries.recorded`) | `TransactionConsumer` → `TransactionService` | the back office's `transactions`: saves it on AUTHORIZATION, sets `captured_at` / `settled_at` on CAPTURE / SETTLEMENT | — |
 
 > **Simulated by design (no acquirer connection):** in production, `capture_confirmed` comes from the PSP's webhook and `settlement_received` from parsing the PSP settlement file. This project has no acquirer connection, so to show the full chain working, `RecordCaptureSubmissionService` fakes both PSP answers for the simulation merchant `MARKETPLACE-5` and appends them to the outbox exactly as the real inputs would. Everything downstream (capture journal, allocation, settlement, reconciliation) is the real logic. Payments of other merchants wait at SENT_FOR_SETTLE for a PSP confirmation.
 
@@ -791,6 +827,134 @@ flowchart TB
 
 > ⚠️ **Known gaps in B4 (settlement):** the updated CaptureTx (`settle_status`) is saved *after* the ledger commit, in a separate write — so B4 is not one atomic commit. A DISCREPANCY is recorded but nothing acts on it yet (no correction path).
 
+
+## 🟦 Back Office & Access Control
+The back office is three pieces: a **page** (`mor-backoffice/src`, React), its own **server** (`mor-backoffice/server`, Node/Express), and the **read API in payment-consumers** (`BalanceController`, `TransactionController`, `TxController`, plus `AccountController` for onboarding). **Keycloak** says who the person is; **payment-consumers** decides what they may read, on every call. The page and the server only decide what to *show*.
+
+**The back office reads a read model, not the ledger.** Its screens read **denormalized tables** built for display: `transactions` + `transaction_splits` (one row per authorized payment, with its buyer, order, card summary and splits) and the balances (`account_balances` + the Redis delta). Nothing writes them on the request path. They are produced by the same consumer structure as everything else in central: consumers listen to **`journal_entries_recorded`** (`journal.entries.recorded`, every booking the ledger records) and project it, each in its own consumer group: `TransactionConsumer` → `transactions`, `AccountBalanceConsumer` → balances. A new screen needs a new projection, i.e. one more consumer on the same event; the ledger and the payment flow do not change. The price: a payment appears a moment after its AUTHORIZATION journal is recorded (eventually consistent). Only finance's ledger view reads the ledger tables directly.
+
+### Back office (L2 — numbered edges 1→6 tell the flow)
+```mermaid
+flowchart TB
+    classDef webapi fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef consumer fill:#ede9fe,stroke:#6d28d9,stroke-width:2px
+    classDef db fill:#dcfce7,stroke:#15803d,stroke-width:2px
+    classDef cache fill:#fce7f3,stroke:#be185d,stroke-width:2px
+    classDef topic fill:#fef9c3,stroke:#a16207,stroke-width:2px
+    classDef external fill:#f3f4f6,stroke:#6b7280,stroke-width:2px,stroke-dasharray:5 5
+    classDef infra fill:#ccfbf1,stroke:#0f766e,stroke-width:2px
+
+    U(["«external»<br/>browser: page (React)<br/>session cookie only"]):::external
+    KC(["«external»<br/>Keycloak<br/>realm ecommerce-platform"]):::external
+    BFF["«web-api»<br/>mor-backoffice server<br/>(Node; holds the tokens)"]:::webapi
+    ING[/"«edge-infra»<br/>NGINX ingress<br/>/api/v1/balances · transactions · txs · accounts"/]:::infra
+    PC["«kafka-consumer»<br/>payment-consumers<br/>BalanceController · TransactionController · TxController"]:::consumer
+    T{{"«topic»<br/>journal.entries.recorded"}}:::topic
+    DB[("«database»<br/>central-db<br/>transactions · accounts · account_balances<br/>payment_tx · journal_entries · postings")]:::db
+    R[("«cache»<br/>redis<br/>balance deltas")]:::cache
+
+    U -->|"1 · /auth/*, GET /api/v1/* (one origin)"| BFF
+    BFF -->|"2 · login: authorization code + PKCE<br/>(client backoffice-ui)"| KC
+    BFF -->|"3 · GET /api/v1/… + the user's access token"| ING
+    ING -->|4| PC
+    PC -->|"5 · transactions (list/detail) · accounts + account_balances + redis delta (balances)<br/>· payment_tx, journal_entries, postings (finance)"| DB
+    PC -.-> R
+    T -->|"6 · TransactionConsumer, AccountBalanceConsumer<br/>keep transactions and balances up to date"| PC
+```
+
+### Who sees which screens (the page)
+After login the page calls `GET /auth/me` (username, `merchant_id`, `seller_id`, permissions, read from the access token) and picks the kind of caller (`callerOf`, `src/features/session/session.tsx`), in this order:
+
+| Caller | Rule | Start page | Screens |
+|---|---|---|---|
+| staff | permissions contain `merchant:all` | type a merchant code (no merchant list endpoint) | that merchant's Transactions and Balances, under `/merchants/{code}/…` |
+| merchant | token has `merchant_id` | `/merchants/me/transactions` | its own Transactions and Balances, under `/merchants/me/…` |
+| seller | token has `seller_id` | its own balance | nothing else, no menu |
+| none | none of the above | — | "This login has no back office access" |
+
+The menu items follow the permissions: **Transactions** needs `transaction:read`, **Balances** needs `balance:read`. On the payment detail, the journal-entries table appears only for staff with `ledger:read` (finance, admin).
+
+**Every API call the page makes** (`src/api.ts`; `{m}` = `me` for a merchant, the merchant code for staff):
+
+| Screen | Call |
+|---|---|
+| seller: my balance | `GET /api/v1/balances/sellers/me` |
+| Transactions (list) | `GET /api/v1/transactions/merchants/{m}?page&size=…&orderId&processingModel&status&from&to` (dates become `from = day T00:00Z`, `to = the day after`) |
+| payment detail | `GET /api/v1/transactions/merchants/{m}/{paymentId}` |
+| payment detail, finance part | `GET /api/v1/txs/merchants/{code}/payments/{paymentId}` |
+| Balances | `GET /api/v1/balances/merchants/{m}` and `GET /api/v1/balances/merchants/{m}/sellers?page&size` |
+| one seller | merchant: `GET /api/v1/balances/merchants/me/sellers/{sellerId}`; staff: `GET /api/v1/balances/sellers/{sellerId}` |
+
+A `401` from any `/api/` call sends the browser to `/auth/login` (the session is gone).
+
+### Back-office server (backend for frontend, `mor-backoffice/server/`)
+It logs people in with Keycloak, keeps their tokens, and calls the payment API for them. It stores no data and makes no access decisions.
+
+| Route | Does |
+|---|---|
+| `GET /auth/login` | stores a PKCE code verifier + `state` in the session, redirects to Keycloak's login page (client `backoffice-ui`, scope `openid`, `S256`) |
+| `GET /auth/callback` | exchanges the code for tokens (checks `state` and the verifier), **regenerates the session id**, keeps access, refresh and id token in the session |
+| `GET /auth/me` | who is logged in, decoded from the access token (`401` = nobody) |
+| `GET /auth/logout` | destroys the session and the cookie, then Keycloak's end-session URL with `id_token_hint` |
+| `GET /api/v1/*` | forwards to the payment API with `Authorization: Bearer <user's token>`, path and query unchanged, 10 s timeout; status and body come back unchanged. **Only GET** is forwarded |
+
+- **Tokens never reach the browser**: it only has the session cookie `mor-backoffice.sid` (`httpOnly`, `sameSite=lax` so it survives Keycloak's redirect back, `secure` when `PUBLIC_URL` is https).
+- **Renewal**: access tokens live 5 min (realm `accessTokenLifespan` 300). 30 s before expiry the server renews with the refresh token; if that fails, it drops the tokens and the next call is `401` (log in again).
+- **Errors**: one handler logs once and answers `502` (Keycloak or the payment API unreachable, a failed login). The API's own `401/403/404` pass through.
+- **Where things are**: the payment API is `PAYMENT_API_BASE_URL`, or else the ingress controller's LoadBalancer IP via `kubectl`, cached 60 s. Keycloak is reached by the name it calls itself (its `KC_HOSTNAME`), so login page and token issuer match; its OpenID metadata is read once.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PUBLIC_URL` | `http://localhost:3100` | where the browser reaches the back office; callback = `PUBLIC_URL/auth/callback` |
+| `SERVER_PORT` | `3101` | the server (Vite on 3100 forwards `/auth` and `/api` here) |
+| `KEYCLOAK_URL` | `http://keycloak.payment.svc.cluster.local:8080` | Keycloak |
+| `KEYCLOAK_REALM` / `KEYCLOAK_CLIENT_ID` | `ecommerce-platform` / `backoffice-ui` | realm and the people's client |
+| `PAYMENT_API_BASE_URL` | — (ingress IP via `kubectl`) | the payment API |
+| `SESSION_SECRET` | random per start | signs the cookie; a new one logs everybody out |
+
+**Limits today:** sessions are in the server's memory (express-session's default store): one instance only, a restart logs everybody out. Runs locally (`npm run dev`); no image or Helm chart.
+
+### Read API in payment-consumers: three checks on every call
+1. **The token becomes authorities** (`SecurityConfig`): every Keycloak realm role in `realm_access.roles` becomes an authority as-is (`balance:read`, `merchant:all`, …). A composite role like `FINANCE` arrives already expanded, so endpoints check permissions, never role names.
+2. **URL filter**: `GET /api/v1/balances/**` needs `balance:read`, `GET /api/v1/transactions/**` `transaction:read`, `GET /api/v1/txs/**` `ledger:read`, `POST /api/v1/accounts` `account:write`; everything else (except `/actuator/**`) is denied. No token → `401`, not allowed → `403`.
+3. **Per endpoint `@PreAuthorize`**: one kind of caller per endpoint. `/merchants/me…` requires the `merchant_id` claim and always uses it (the merchant can't name another one); `/merchants/{merchantAccount}…` and `/sellers/{sellerId}` require `merchant:all` (staff).
+
+**Whose data**: ids are looked up **together with the merchant** (`(paymentId, merchant)`, `(txId, merchant)`, a seller's account must belong to the merchant), so another merchant's record is a `404`, the same as an unknown id.
+
+| Endpoint (`/api/v1`) | Allowed | Reads |
+|---|---|---|
+| `GET /balances/sellers/me` | `balance:read` + `seller_id` | the seller's `SELLER_PAYABLE` |
+| `GET /balances/merchants/me` · `/{merchantAccount}` | `balance:read` + `merchant_id` · + `merchant:all` | `MERCHANT_DIRECT_PAYABLE` + `MERCHANT_COMMISSION_PAYABLE`, with a total |
+| `GET /balances/merchants/me/sellers` · `/{merchantAccount}/sellers` | same | the merchant's sellers, each with its `SELLER_PAYABLE`; paged, items carry `detailUrl` |
+| `GET /balances/merchants/me/sellers/{sellerId}` · `/balances/sellers/{sellerId}` | same | one seller (merchant: only its own, else `404`) |
+| `GET /transactions/merchants/me` · `/{merchantAccount}` | `transaction:read` + `merchant_id` · + `merchant:all` | `transactions`, newest first, paged; filters `orderId`, `paymentId`, `sellerId` (via `transaction_splits`), `status`, `from`/`to` (authorized time), `processingModel` |
+| `GET /transactions/merchants/me/{paymentId}` · `/{merchantAccount}/{paymentId}` | same | one transaction with buyer, PSP reference and its splits |
+| `GET /txs/merchants/{merchantAccount}/payments/{paymentId}` | `ledger:read` + `merchant:all` | the payment's txs and all its journal entries with postings (debit/credit totals) |
+| `GET /txs/merchants/{merchantAccount}/{txId}` | same | one tx with its journal entries |
+| `POST /accounts` | `account:write` | onboarding, see below |
+
+What the reads are built on:
+- **Transactions** come from the `transactions` / `transaction_splits` read model, written by `TransactionConsumer` from `journal_entries_recorded`: saved on the AUTHORIZATION journal (buyer, order, PSP reference, card brand + last 4, splits), `captured_at` / `settled_at` set once on CAPTURE / SETTLEMENT. Only authorized payments exist there. The **status is derived**, not stored: `settled_at` set → SETTLED, `captured_at` set → CAPTURED, else AUTHORIZED. Page size 1–100.
+- **Balances**: accounts are found through `ledger_account_directory` (a seller by its id, a merchant's by its code); each balance is real-time = `account_balances` snapshot + the Redis delta. One response has one currency: an owner with accounts in two currencies is refused.
+- **Finance** reads the ledger itself (`payment_tx`, `journal_entries`, `postings`); a payment with no tx for that merchant is a `404`.
+
+### Roles and permissions (Keycloak realm `ecommerce-platform`)
+**Permissions** are plain realm roles: `payment:read`, `payment:write`, `balance:read`, `transaction:read`, `ledger:read`, `account:write`, `merchant:all`. **Roles** are composite realm roles that bundle them:
+
+| Role | Contains | Identity | Who |
+|---|---|---|---|
+| `MERCHANT` | `payment:read`, `payment:write`, `balance:read`, `transaction:read` | claim `merchant_id` | a marketplace's backend (client `merchant-api-<MERCHANT>`, client credentials, `merchant_id` hardcoded by a mapper) and its people (user `<merchant>`, attribute `merchant_id`) |
+| `SELLER` | `balance:read` | claim `seller_id` | a seller's person (user `<seller>`, attribute `seller_id`); no API client |
+| `SUPPORT` | `balance:read`, `transaction:read`, `merchant:all` | — | `support-ops` |
+| `FINANCE` | `SUPPORT` + `ledger:read` | — | `finance-ops` |
+| `ADMIN` | `FINANCE` + `account:write` | — | `backoffice-admin` |
+
+- **`backoffice-ui`**: the people's client: public, authorization code + PKCE `S256`, redirect URIs `http://localhost:*`; mappers copy the user attributes `merchant_id` / `seller_id` into the token. Password grant is on for the local test scripts (`keycloak/get-access-token.sh`).
+- **payment-service** (checkout API) uses the same token rules: `POST /payments` needs `payment:write` **and** the body's `merchantAccount` equal to the token's `merchant_id`; reading and authorizing an intent look it up by `(id, merchant_id)`.
+- **Where it is defined**: `keycloak/realm/ecommerce-platform.json` (permissions, roles, `backoffice-ui`, staff users) and `keycloak/realm/merchants-seed.json` (per merchant: its client and user; per seller: its user), generated from `charts/central-db/seed/merchants.json` by `RealmSeedGenerator` (a test), loaded by `keycloak/setup-keycloak.sh`.
+
+### Onboarding (`POST /api/v1/accounts`, `ADMIN`)
+The request (merchant code, legal name, address, industry, currency, platform fee fixed + basis points, `isAutoCaptured`, `isAutoSettled`, its sellers) is validated, written as `account_creation_requested` to the central outbox, and answered `202 ACCEPTED`. `AccountCreationCommandExecutor` then creates the merchant, its sellers and their ledger accounts in one transaction (see **Account** in the entity table). It does **not** create Keycloak identities: a new merchant gets its `merchant-api-<MERCHANT>` client and users only through the realm files.
 
 ## 🟦 Kafka Event Typology & Type Verification
 

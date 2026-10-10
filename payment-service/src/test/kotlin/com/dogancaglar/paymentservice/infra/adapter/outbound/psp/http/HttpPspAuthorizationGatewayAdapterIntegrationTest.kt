@@ -78,7 +78,7 @@ class HttpPspAuthorizationGatewayAdapterIntegrationTest {
             try {
                 adapter.authorizePaymentIntent(
                     pendingIntent(attempt),
-                    PaymentMethod.CardToken("pm_card_visa", null)
+                    PaymentMethod.CardToken("pm_card_visa")
                 ).get()
                 outcomes.add("answered")
             } catch (e: ExecutionException) {
@@ -172,14 +172,14 @@ class HttpPspAuthorizationGatewayAdapterIntegrationTest {
             status = PaymentIntentStatus.PENDING_AUTH, createdAt = now, updatedAt = now
         )
 
-        val visa = fastAdapter.authorizePaymentIntent(visaIntent, PaymentMethod.CardToken("pm_card_visa", null)).get()
+        val visa = fastAdapter.authorizePaymentIntent(visaIntent, PaymentMethod.CardToken("pm_card_visa")).get()
         val mastercard = fastAdapter.authorizePaymentIntent(
             mastercardIntent,
-            PaymentMethod.CardToken("pm_card_mastercard", null)
+            PaymentMethod.CardToken("pm_card_mastercard")
         ).get()
         val noCard = fastAdapter.authorizePaymentIntent(
             noCardIntent,
-            PaymentMethod.CardToken("pm_card_visa", null)
+            PaymentMethod.CardToken("pm_card_visa")
         ).get()
 
         assertThat(visa.status).isEqualTo(PaymentIntentStatus.AUTHORIZED)
