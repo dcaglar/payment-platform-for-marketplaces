@@ -292,7 +292,7 @@ export default function () {
 
         const authUrl = `${AUTHORIZE_ENDPOINT}/${paymentIntentId}/authorize`;
         const authPayload = JSON.stringify({
-            paymentMethod: { type: 'CardToken', token: 'tok_visa', cvc: '123' }
+            paymentMethod: { type: 'CardToken', token: 'tok_visa' }
         });
 
         const authParams = {

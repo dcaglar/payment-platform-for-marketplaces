@@ -1,674 +1,714 @@
 [
-{
-"type": "cameraUpdate",
-"width": 800,
-"height": 600,
-"x": 0,
-"y": -40
-},
-{
-"type": "text",
-"id": "title",
-"x": 30,
-"y": -10,
-"text": "Persistence model (ER) — from the Liquibase changelogs",
-"fontSize": 28,
-"strokeColor": "#1e1e1e"
-},
-{
-"type": "rectangle",
-"id": "edgeZone",
-"x": 30,
-"y": 50,
-"width": 460,
-"height": 800,
-"roundness": {
-"type": 3
-},
-"backgroundColor": "#dbe4ff",
-"fillStyle": "solid",
-"strokeColor": "#4a9eed",
-"strokeWidth": 1,
-"opacity": 35
-},
-{
-"type": "text",
-"id": "edgeT",
-"x": 50,
-"y": 58,
-"text": "edge-db (one per cell)",
-"fontSize": 22,
-"strokeColor": "#1d4ed8"
-},
-{
-"type": "rectangle",
-"id": "pi",
-"x": 45,
-"y": 105,
-"width": 430,
-"height": 220,
-"backgroundColor": "#ebfbee",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"label": {
-"text": "payment_intents\nPK payment_intent_id (snowflake)\npsp_reference · buyer_id · order_id\nmerchant_account · processing_model\ntotal_amount_value · currency\nstatus CREATED_PENDING … CANCELLED\nsplits_json (MARKETPLACE only)",
-"fontSize": 18
-}
-},
-{
-"type": "rectangle",
-"id": "ik",
-"x": 45,
-"y": 400,
-"width": 430,
-"height": 180,
-"backgroundColor": "#ebfbee",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"label": {
-"text": "idempotency_keys\nPK id\nUK idempotency_key (UUIDv7)\nrequest_hash · status\nresponse_payload (jsonb, replayed)\npayment_intent_id (no FK)",
-"fontSize": 18
-}
-},
-{
-"type": "arrow",
-"id": "piik",
-"x": 260,
-"y": 325,
-"width": 0,
-"height": 75,
-"points": [
-[
-0,
-0
-],
-[
-0,
-75
-]
-],
-"endArrowhead": "arrow",
-"startBinding": {
-"elementId": "pi",
-"fixedPoint": [
-0.5,
-1
-]
-},
-"endBinding": {
-"elementId": "ik",
-"fixedPoint": [
-0.5,
-0
-]
-},
-"strokeStyle": "dashed",
-"label": {
-"text": "replay guard",
-"fontSize": 16
-}
-},
-{
-"type": "rectangle",
-"id": "lob",
-"x": 45,
-"y": 635,
-"width": 430,
-"height": 195,
-"backgroundColor": "#ebfbee",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"label": {
-"text": "outbox_event (LOCAL)\nPK (oeid, created_at), partitioned\npartition_key · event_type · event_id\nparent_event_id · aggregate_id\npayload · status NEW/PROCESSING/SENT",
-"fontSize": 18
-}
-},
-{
-"type": "cameraUpdate",
-"width": 1200,
-"height": 900,
-"x": 400,
-"y": -40
-},
-{
-"type": "rectangle",
-"id": "cenZone",
-"x": 520,
-"y": 50,
-"width": 1080,
-"height": 800,
-"roundness": {
-"type": 3
-},
-"backgroundColor": "#d3f9d8",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"strokeWidth": 1,
-"opacity": 35
-},
-{
-"type": "text",
-"id": "cenT",
-"x": 540,
-"y": 58,
-"text": "central-db",
-"fontSize": 22,
-"strokeColor": "#15803d"
-},
-{
-"type": "rectangle",
-"id": "pay",
-"x": 540,
-"y": 105,
-"width": 310,
-"height": 195,
-"backgroundColor": "#ebfbee",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"label": {
-"text": "payments\nPK payment_id\npayment_intent_id (logical)\nmerchant_account\nprocessing_model · status\ntotal / captured / refunded",
-"fontSize": 18
-}
-},
-{
-"type": "arrow",
-"id": "pipay",
-"x": 475,
-"y": 202,
-"width": 65,
-"height": 0,
-"points": [
-[
-0,
-0
-],
-[
-65,
-0
-]
-],
-"endArrowhead": "arrow",
-"startBinding": {
-"elementId": "pi",
-"fixedPoint": [
-1,
-0.44
-]
-},
-"endBinding": {
-"elementId": "pay",
-"fixedPoint": [
-0,
-0.5
-]
-},
-"strokeStyle": "dashed",
-"label": {
-"text": "cross-DB",
-"fontSize": 16
-}
-},
-{
-"type": "rectangle",
-"id": "tx",
-"x": 890,
-"y": 105,
-"width": 350,
-"height": 195,
-"backgroundColor": "#ebfbee",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"label": {
-"text": "payment_tx\nPK tx_id\nFK parent_tx_id → payment_tx\n(AUTH → CAPTURE → SETTLE)\npayment_id · tx_type · status\nsettle_status\nacquirer_reference",
-"fontSize": 18
-}
-},
-{
-"type": "arrow",
-"id": "paytx",
-"x": 850,
-"y": 202,
-"width": 40,
-"height": 0,
-"points": [
-[
-0,
-0
-],
-[
-40,
-0
-]
-],
-"endArrowhead": "arrow",
-"startBinding": {
-"elementId": "pay",
-"fixedPoint": [
-1,
-0.5
-]
-},
-"endBinding": {
-"elementId": "tx",
-"fixedPoint": [
-0,
-0.5
-]
-},
-"strokeStyle": "dashed"
-},
-{
-"type": "rectangle",
-"id": "je",
-"x": 1280,
-"y": 105,
-"width": 305,
-"height": 195,
-"backgroundColor": "#ebfbee",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"label": {
-"text": "journal_entries\nPK id (e.g. AUTH:…)\njournal_type\npayment_id (logical)\nFK tx_id → payment_tx",
-"fontSize": 18
-}
-},
-{
-"type": "arrow",
-"id": "jetx",
-"x": 1280,
-"y": 202,
-"width": -40,
-"height": 0,
-"points": [
-[
-0,
-0
-],
-[
--40,
-0
-]
-],
-"endArrowhead": "arrow",
-"startBinding": {
-"elementId": "je",
-"fixedPoint": [
-0,
-0.5
-]
-},
-"endBinding": {
-"elementId": "tx",
-"fixedPoint": [
-1,
-0.5
-]
-}
-},
-{
-"type": "cameraUpdate",
-"width": 1200,
-"height": 900,
-"x": 400,
-"y": 0
-},
-{
-"type": "rectangle",
-"id": "tr",
-"x": 540,
-"y": 380,
-"width": 310,
-"height": 190,
-"backgroundColor": "#ebfbee",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"label": {
-"text": "transfers\nPK transfer_id\npayment_id (logical)\nsource_account\ntarget_account\ntransfer_type · status",
-"fontSize": 18
-}
-},
-{
-"type": "arrow",
-"id": "paytr",
-"x": 695,
-"y": 300,
-"width": 0,
-"height": 80,
-"points": [
-[
-0,
-0
-],
-[
-0,
-80
-]
-],
-"endArrowhead": "arrow",
-"startBinding": {
-"elementId": "pay",
-"fixedPoint": [
-0.5,
-1
-]
-},
-"endBinding": {
-"elementId": "tr",
-"fixedPoint": [
-0.5,
-0
-]
-},
-"strokeStyle": "dashed",
-"label": {
-"text": "allocation",
-"fontSize": 16
-}
-},
-{
-"type": "rectangle",
-"id": "ad",
-"x": 890,
-"y": 380,
-"width": 350,
-"height": 190,
-"backgroundColor": "#ebfbee",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"label": {
-"text": "account_directory\nPK account_code\nTYPE.MERCHANT[.SELLER]\n.CURRENCY\naccount_type\nmaster_account_code\nsub_entity_id · currency",
-"fontSize": 18
-}
-},
-{
-"type": "rectangle",
-"id": "po",
-"x": 1280,
-"y": 380,
-"width": 305,
-"height": 190,
-"backgroundColor": "#ebfbee",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"label": {
-"text": "postings\nPK id\nFK journal_id →\njournal_entries\naccount_code\ndirection · amount\nΣ DR = Σ CR per journal",
-"fontSize": 18
-}
-},
-{
-"type": "arrow",
-"id": "poje",
-"x": 1432,
-"y": 380,
-"width": 0,
-"height": -80,
-"points": [
-[
-0,
-0
-],
-[
-0,
--80
-]
-],
-"endArrowhead": "arrow",
-"startBinding": {
-"elementId": "po",
-"fixedPoint": [
-0.5,
-0
-]
-},
-"endBinding": {
-"elementId": "je",
-"fixedPoint": [
-0.5,
-1
-]
-}
-},
-{
-"type": "arrow",
-"id": "poad",
-"x": 1280,
-"y": 475,
-"width": -40,
-"height": 0,
-"points": [
-[
-0,
-0
-],
-[
--40,
-0
-]
-],
-"endArrowhead": "arrow",
-"startBinding": {
-"elementId": "po",
-"fixedPoint": [
-0,
-0.5
-]
-},
-"endBinding": {
-"elementId": "ad",
-"fixedPoint": [
-1,
-0.5
-]
-},
-"strokeStyle": "dashed"
-},
-{
-"type": "rectangle",
-"id": "ab",
-"x": 890,
-"y": 640,
-"width": 350,
-"height": 140,
-"backgroundColor": "#ebfbee",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"label": {
-"text": "account_balances\nPK account_code\nbalance (projection)\nlast_applied_entry_id",
-"fontSize": 18
-}
-},
-{
-"type": "arrow",
-"id": "adab",
-"x": 1065,
-"y": 570,
-"width": 0,
-"height": 70,
-"points": [
-[
-0,
-0
-],
-[
-0,
-70
-]
-],
-"endArrowhead": "arrow",
-"startBinding": {
-"elementId": "ad",
-"fixedPoint": [
-0.5,
-1
-]
-},
-"endBinding": {
-"elementId": "ab",
-"fixedPoint": [
-0.5,
-0
-]
-},
-"strokeStyle": "dashed",
-"label": {
-"text": "projection",
-"fontSize": 16
-}
-},
-{
-"type": "rectangle",
-"id": "cob",
-"x": 540,
-"y": 640,
-"width": 310,
-"height": 190,
-"backgroundColor": "#ebfbee",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"label": {
-"text": "outbox_event (CENTRAL)\nsame columns as LOCAL\nsame oeid travels\nLOCAL → CENTRAL → Kafka",
-"fontSize": 18
-}
-},
-{
-"type": "arrow",
-"id": "lobcob",
-"x": 475,
-"y": 733,
-"width": 65,
-"height": 0,
-"points": [
-[
-0,
-0
-],
-[
-65,
-0
-]
-],
-"endArrowhead": "arrow",
-"startBinding": {
-"elementId": "lob",
-"fixedPoint": [
-1,
-0.5
-]
-},
-"endBinding": {
-"elementId": "cob",
-"fixedPoint": [
-0,
-0.49
-]
-},
-"strokeStyle": "dashed",
-"label": {
-"text": "forwarded",
-"fontSize": 16
-}
-},
-{
-"type": "rectangle",
-"id": "wm",
-"x": 1280,
-"y": 640,
-"width": 305,
-"height": 140,
-"backgroundColor": "#ebfbee",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"label": {
-"text": "edge_watermarks\nPK edge_node_id\nforwarded_up_to\nT_safe =\nMIN(forwarded_up_to)",
-"fontSize": 18
-}
-},
-{
-"type": "cameraUpdate",
-"width": 1600,
-"height": 1200,
-"x": -10,
-"y": -40
-},
-{
-"type": "arrow",
-"id": "lgFk",
-"x": 50,
-"y": 895,
-"width": 110,
-"height": 0,
-"points": [
-[
-0,
-0
-],
-[
-110,
-0
-]
-],
-"endArrowhead": "arrow"
-},
-{
-"type": "text",
-"id": "lgFkT",
-"x": 175,
-"y": 883,
-"text": "real foreign key",
-"fontSize": 20,
-"strokeColor": "#1e1e1e"
-},
-{
-"type": "arrow",
-"id": "lgLg",
-"x": 410,
-"y": 895,
-"width": 110,
-"height": 0,
-"points": [
-[
-0,
-0
-],
-[
-110,
-0
-]
-],
-"endArrowhead": "arrow",
-"strokeStyle": "dashed"
-},
-{
-"type": "text",
-"id": "lgLgT",
-"x": 535,
-"y": 883,
-"text": "logical link, no FK",
-"fontSize": 20,
-"strokeColor": "#1e1e1e"
-},
-{
-"type": "rectangle",
-"id": "lgTb",
-"x": 810,
-"y": 872,
-"width": 170,
-"height": 46,
-"backgroundColor": "#ebfbee",
-"fillStyle": "solid",
-"strokeColor": "#22c55e",
-"label": {
-"text": "table",
-"fontSize": 18
-}
-},
-{
-"type": "text",
-"id": "lgNote",
-"x": 1000,
-"y": 883,
-"text": "account_directory rows are test seed data",
-"fontSize": 20,
-"strokeColor": "#495057"
-}
+  {
+    "type": "cameraUpdate",
+    "width": 800,
+    "height": 600,
+    "x": 0,
+    "y": -40
+  },
+  {
+    "type": "text",
+    "id": "title",
+    "x": 30,
+    "y": -10,
+    "text": "Persistence model (ER) — from the Liquibase changelogs",
+    "fontSize": 28,
+    "strokeColor": "#1e1e1e"
+  },
+  {
+    "type": "rectangle",
+    "id": "edgeZone",
+    "x": 30,
+    "y": 50,
+    "width": 460,
+    "height": 800,
+    "roundness": {
+      "type": 3
+    },
+    "backgroundColor": "#dbe4ff",
+    "fillStyle": "solid",
+    "strokeColor": "#4a9eed",
+    "strokeWidth": 1,
+    "opacity": 35
+  },
+  {
+    "type": "text",
+    "id": "edgeT",
+    "x": 50,
+    "y": 58,
+    "text": "edge-db (one per cell)",
+    "fontSize": 22,
+    "strokeColor": "#1d4ed8"
+  },
+  {
+    "type": "rectangle",
+    "id": "pi",
+    "x": 45,
+    "y": 105,
+    "width": 430,
+    "height": 250,
+    "backgroundColor": "#ebfbee",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "label": {
+      "text": "payment_intents\nPK payment_intent_id (snowflake)\npsp_reference · buyer_id · order_id\nmerchant_account · processing_model\ntotal_amount_value · currency\nstatus CREATED_PENDING … CANCELLED\nsplits_json (MARKETPLACE only)",
+      "fontSize": 16
+    }
+  },
+  {
+    "type": "rectangle",
+    "id": "ik",
+    "x": 45,
+    "y": 400,
+    "width": 430,
+    "height": 180,
+    "backgroundColor": "#ebfbee",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "label": {
+      "text": "idempotency_keys\nPK id\nUK idempotency_key (UUIDv7)\nrequest_hash · status\nresponse_payload (jsonb, replayed)\npayment_intent_id (no FK)",
+      "fontSize": 18
+    }
+  },
+  {
+    "type": "arrow",
+    "id": "piik",
+    "x": 260,
+    "y": 355,
+    "width": 0,
+    "height": 45,
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        45
+      ]
+    ],
+    "endArrowhead": "arrow",
+    "startBinding": {
+      "elementId": "pi",
+      "fixedPoint": [
+        0.5,
+        1
+      ]
+    },
+    "endBinding": {
+      "elementId": "ik",
+      "fixedPoint": [
+        0.5,
+        0
+      ]
+    },
+    "strokeStyle": "dashed",
+    "label": {
+      "text": "replay guard",
+      "fontSize": 16
+    }
+  },
+  {
+    "type": "rectangle",
+    "id": "lob",
+    "x": 45,
+    "y": 635,
+    "width": 430,
+    "height": 195,
+    "backgroundColor": "#ebfbee",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "label": {
+      "text": "outbox_event (LOCAL)\nPK (oeid, created_at), partitioned\npartition_key · event_type · event_id\nparent_event_id · aggregate_id\npayload · status NEW/PROCESSING/SENT",
+      "fontSize": 18
+    }
+  },
+  {
+    "type": "cameraUpdate",
+    "width": 1200,
+    "height": 900,
+    "x": 400,
+    "y": -40
+  },
+  {
+    "type": "rectangle",
+    "id": "cenZone",
+    "x": 520,
+    "y": 50,
+    "width": 1080,
+    "height": 800,
+    "roundness": {
+      "type": 3
+    },
+    "backgroundColor": "#d3f9d8",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "strokeWidth": 1,
+    "opacity": 35
+  },
+  {
+    "type": "text",
+    "id": "cenT",
+    "x": 540,
+    "y": 58,
+    "text": "central-db",
+    "fontSize": 22,
+    "strokeColor": "#15803d"
+  },
+  {
+    "type": "rectangle",
+    "id": "pay",
+    "x": 540,
+    "y": 105,
+    "width": 310,
+    "height": 195,
+    "backgroundColor": "#ebfbee",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "label": {
+      "text": "payments\nPK payment_id\npayment_intent_id (logical)\nmerchant_account\nprocessing_model · status\ntotal / captured / refunded",
+      "fontSize": 18
+    }
+  },
+  {
+    "type": "arrow",
+    "id": "pipay",
+    "x": 475,
+    "y": 202,
+    "width": 65,
+    "height": 0,
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        65,
+        0
+      ]
+    ],
+    "endArrowhead": "arrow",
+    "startBinding": {
+      "elementId": "pi",
+      "fixedPoint": [
+        1,
+        0.44
+      ]
+    },
+    "endBinding": {
+      "elementId": "pay",
+      "fixedPoint": [
+        0,
+        0.5
+      ]
+    },
+    "strokeStyle": "dashed",
+    "label": {
+      "text": "cross-DB",
+      "fontSize": 16
+    }
+  },
+  {
+    "type": "rectangle",
+    "id": "tx",
+    "x": 890,
+    "y": 105,
+    "width": 350,
+    "height": 195,
+    "backgroundColor": "#ebfbee",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "label": {
+      "text": "payment_tx\nPK tx_id\nFK parent_tx_id → payment_tx\n(AUTH → CAPTURE → SETTLE)\npayment_id · tx_type · status\nsettle_status\nacquirer_reference",
+      "fontSize": 18
+    }
+  },
+  {
+    "type": "arrow",
+    "id": "paytx",
+    "x": 850,
+    "y": 202,
+    "width": 40,
+    "height": 0,
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        40,
+        0
+      ]
+    ],
+    "endArrowhead": "arrow",
+    "startBinding": {
+      "elementId": "pay",
+      "fixedPoint": [
+        1,
+        0.5
+      ]
+    },
+    "endBinding": {
+      "elementId": "tx",
+      "fixedPoint": [
+        0,
+        0.5
+      ]
+    },
+    "strokeStyle": "dashed"
+  },
+  {
+    "type": "rectangle",
+    "id": "je",
+    "x": 1280,
+    "y": 105,
+    "width": 305,
+    "height": 195,
+    "backgroundColor": "#ebfbee",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "label": {
+      "text": "journal_entries\nPK id (e.g. AUTH:…)\njournal_type\npayment_id (logical)\nFK tx_id → payment_tx",
+      "fontSize": 18
+    }
+  },
+  {
+    "type": "arrow",
+    "id": "jetx",
+    "x": 1280,
+    "y": 202,
+    "width": -40,
+    "height": 0,
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        -40,
+        0
+      ]
+    ],
+    "endArrowhead": "arrow",
+    "startBinding": {
+      "elementId": "je",
+      "fixedPoint": [
+        0,
+        0.5
+      ]
+    },
+    "endBinding": {
+      "elementId": "tx",
+      "fixedPoint": [
+        1,
+        0.5
+      ]
+    }
+  },
+  {
+    "type": "cameraUpdate",
+    "width": 1200,
+    "height": 900,
+    "x": 400,
+    "y": 0
+  },
+  {
+    "type": "rectangle",
+    "id": "tr",
+    "x": 540,
+    "y": 380,
+    "width": 310,
+    "height": 190,
+    "backgroundColor": "#ebfbee",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "label": {
+      "text": "transfers\nPK transfer_id\npayment_id (logical)\nsource_account\ntarget_account\ntransfer_type · status",
+      "fontSize": 18
+    }
+  },
+  {
+    "type": "arrow",
+    "id": "paytr",
+    "x": 695,
+    "y": 300,
+    "width": 0,
+    "height": 80,
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        80
+      ]
+    ],
+    "endArrowhead": "arrow",
+    "startBinding": {
+      "elementId": "pay",
+      "fixedPoint": [
+        0.5,
+        1
+      ]
+    },
+    "endBinding": {
+      "elementId": "tr",
+      "fixedPoint": [
+        0.5,
+        0
+      ]
+    },
+    "strokeStyle": "dashed",
+    "label": {
+      "text": "allocation",
+      "fontSize": 16
+    }
+  },
+  {
+    "type": "rectangle",
+    "id": "ad",
+    "x": 890,
+    "y": 380,
+    "width": 350,
+    "height": 230,
+    "backgroundColor": "#ebfbee",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "label": {
+      "text": "accounts\nPK account_code\nkind PLATFORM / MERCHANT /\nSELLER / LEDGER\nstatus · currency\nFK parent_code → accounts\nledger_type (LEDGER only)\nfee, auto-capture/settle,\nprofile (MERCHANT only)",
+      "fontSize": 16
+    }
+  },
+  {
+    "type": "rectangle",
+    "id": "po",
+    "x": 1280,
+    "y": 380,
+    "width": 305,
+    "height": 190,
+    "backgroundColor": "#ebfbee",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "label": {
+      "text": "postings\nPK id\nFK journal_id →\njournal_entries\naccount_code\ndirection · amount\nΣ DR = Σ CR per journal",
+      "fontSize": 18
+    }
+  },
+  {
+    "type": "arrow",
+    "id": "poje",
+    "x": 1432,
+    "y": 380,
+    "width": 0,
+    "height": -80,
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        -80
+      ]
+    ],
+    "endArrowhead": "arrow",
+    "startBinding": {
+      "elementId": "po",
+      "fixedPoint": [
+        0.5,
+        0
+      ]
+    },
+    "endBinding": {
+      "elementId": "je",
+      "fixedPoint": [
+        0.5,
+        1
+      ]
+    }
+  },
+  {
+    "type": "arrow",
+    "id": "poad",
+    "x": 1280,
+    "y": 475,
+    "width": -40,
+    "height": 0,
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        -40,
+        0
+      ]
+    ],
+    "endArrowhead": "arrow",
+    "startBinding": {
+      "elementId": "po",
+      "fixedPoint": [
+        0,
+        0.5
+      ]
+    },
+    "endBinding": {
+      "elementId": "ad",
+      "fixedPoint": [
+        1,
+        0.5
+      ]
+    },
+    "strokeStyle": "dashed"
+  },
+  {
+    "type": "rectangle",
+    "id": "ab",
+    "x": 890,
+    "y": 660,
+    "width": 350,
+    "height": 140,
+    "backgroundColor": "#ebfbee",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "label": {
+      "text": "account_balances\nPK account_code\nbalance (projection)\nlast_applied_entry_id",
+      "fontSize": 18
+    }
+  },
+  {
+    "type": "arrow",
+    "id": "adab",
+    "x": 1065,
+    "y": 610,
+    "width": 0,
+    "height": 50,
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        50
+      ]
+    ],
+    "endArrowhead": "arrow",
+    "startBinding": {
+      "elementId": "ad",
+      "fixedPoint": [
+        0.5,
+        1
+      ]
+    },
+    "endBinding": {
+      "elementId": "ab",
+      "fixedPoint": [
+        0.5,
+        0
+      ]
+    },
+    "strokeStyle": "dashed",
+    "label": {
+      "text": "projection",
+      "fontSize": 16
+    }
+  },
+  {
+    "type": "arrow",
+    "id": "adad",
+    "x": 905,
+    "y": 610,
+    "width": 35,
+    "height": 125,
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        25
+      ],
+      [
+        -35,
+        25
+      ],
+      [
+        -35,
+        -100
+      ],
+      [
+        -15,
+        -100
+      ]
+    ],
+    "startBinding": {
+      "elementId": "ad"
+    },
+    "endBinding": {
+      "elementId": "ad"
+    },
+    "label": {
+      "text": "parent",
+      "fontSize": 14
+    }
+  },
+  {
+    "type": "rectangle",
+    "id": "cob",
+    "x": 540,
+    "y": 640,
+    "width": 310,
+    "height": 190,
+    "backgroundColor": "#ebfbee",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "label": {
+      "text": "outbox_event (CENTRAL)\nsame columns as LOCAL\nsame oeid travels\nLOCAL → CENTRAL → Kafka",
+      "fontSize": 18
+    }
+  },
+  {
+    "type": "arrow",
+    "id": "lobcob",
+    "x": 475,
+    "y": 733,
+    "width": 65,
+    "height": 0,
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        65,
+        0
+      ]
+    ],
+    "endArrowhead": "arrow",
+    "startBinding": {
+      "elementId": "lob",
+      "fixedPoint": [
+        1,
+        0.5
+      ]
+    },
+    "endBinding": {
+      "elementId": "cob",
+      "fixedPoint": [
+        0,
+        0.49
+      ]
+    },
+    "strokeStyle": "dashed",
+    "label": {
+      "text": "forwarded",
+      "fontSize": 16
+    }
+  },
+  {
+    "type": "rectangle",
+    "id": "wm",
+    "x": 1280,
+    "y": 640,
+    "width": 305,
+    "height": 140,
+    "backgroundColor": "#ebfbee",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "label": {
+      "text": "edge_watermarks\nPK edge_node_id\nforwarded_up_to\nT_safe =\nMIN(forwarded_up_to)",
+      "fontSize": 18
+    }
+  },
+  {
+    "type": "cameraUpdate",
+    "width": 1600,
+    "height": 1200,
+    "x": -10,
+    "y": -40
+  },
+  {
+    "type": "arrow",
+    "id": "lgFk",
+    "x": 50,
+    "y": 895,
+    "width": 110,
+    "height": 0,
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        110,
+        0
+      ]
+    ],
+    "endArrowhead": "arrow"
+  },
+  {
+    "type": "text",
+    "id": "lgFkT",
+    "x": 175,
+    "y": 883,
+    "text": "real foreign key",
+    "fontSize": 20,
+    "strokeColor": "#1e1e1e"
+  },
+  {
+    "type": "arrow",
+    "id": "lgLg",
+    "x": 410,
+    "y": 895,
+    "width": 110,
+    "height": 0,
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        110,
+        0
+      ]
+    ],
+    "endArrowhead": "arrow",
+    "strokeStyle": "dashed"
+  },
+  {
+    "type": "text",
+    "id": "lgLgT",
+    "x": 535,
+    "y": 883,
+    "text": "logical link, no FK",
+    "fontSize": 20,
+    "strokeColor": "#1e1e1e"
+  },
+  {
+    "type": "rectangle",
+    "id": "lgTb",
+    "x": 810,
+    "y": 872,
+    "width": 170,
+    "height": 46,
+    "backgroundColor": "#ebfbee",
+    "fillStyle": "solid",
+    "strokeColor": "#22c55e",
+    "label": {
+      "text": "table",
+      "fontSize": 18
+    }
+  },
+  {
+    "type": "text",
+    "id": "lgNote",
+    "x": 1000,
+    "y": 883,
+    "text": "accounts: one table for every kind (PLATFORM / MERCHANT / SELLER / LEDGER)",
+    "fontSize": 20,
+    "strokeColor": "#495057"
+  }
 ]

@@ -4,7 +4,9 @@
 //   - shapes may carry a `label` ({ text, fontSize }) instead of a separate text element,
 //   - arrows may carry `startBinding` / `endBinding` with only an `elementId`,
 //   - `cameraUpdate` / `delete` / `restoreCheckpoint` entries only steer the MCP view and are skipped here.
-// Edit a spec, then run:  node docs/architecture/diagrams/generators/generate.mjs
+// Edit a spec, then run:  node docs/architecture/diagrams/generators/generate.mjs [name ...]
+// With names (e.g. `er-model l3-psp-result-branches`) only those are written, so a diagram edited by hand in
+// Excalidraw is not overwritten by regenerating the others.
 //
 // Shared style (same in every spec): «web-api» blue, «scheduled-job» orange, «kafka-consumer» purple,
 // «database» green ellipse, «cache» pink ellipse, «topic» yellow square box, «external» grey dashed,
@@ -186,7 +188,11 @@ function convert(specElements) {
   return out;
 }
 
-const specFiles = readdirSync(specsDir).filter((name) => name.endsWith(".json")).sort();
+const onlyNames = process.argv.slice(2);
+const specFiles = readdirSync(specsDir)
+  .filter((name) => name.endsWith(".json"))
+  .filter((name) => onlyNames.length === 0 || onlyNames.includes(basename(name, ".json")))
+  .sort();
 for (const file of specFiles) {
   const specElements = JSON.parse(readFileSync(join(specsDir, file), "utf8"));
   const scene = {

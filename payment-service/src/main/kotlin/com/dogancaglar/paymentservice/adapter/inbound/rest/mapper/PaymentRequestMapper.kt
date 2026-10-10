@@ -88,10 +88,7 @@ object PaymentRequestMapper {
     fun toPaymentMethod(dto: PaymentMethodDTO): PaymentMethod =
         when (dto) {
             is PaymentMethodDTO.CardToken ->
-                PaymentMethod.CardToken(
-                    token = dto.token,
-                    cvc = dto.cvc
-                )
+                PaymentMethod.CardToken(token = dto.token)
         }
 
     fun toPaymentMethodOrNull(dto: PaymentMethodDTO?): PaymentMethod? =

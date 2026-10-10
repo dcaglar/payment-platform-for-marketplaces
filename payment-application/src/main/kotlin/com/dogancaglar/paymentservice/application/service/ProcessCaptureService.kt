@@ -2,6 +2,7 @@ package com.dogancaglar.paymentservice.application.service
 
 import com.dogancaglar.paymentservice.application.events.CaptureRequested
 import com.dogancaglar.paymentservice.application.events.CaptureSubmitted
+import com.dogancaglar.paymentservice.application.util.RetrySchedulerUtil
 import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.exception.PaymentPlatformException
 import com.dogancaglar.paymentservice.domain.exception.PspOperation
@@ -22,9 +23,6 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import kotlin.math.min
-import kotlin.math.pow
-import kotlin.random.Random
 
 open class ProcessCaptureService(
     private val pspCaptureGatewayPort: PspCaptureGatewayPort,
@@ -37,6 +35,8 @@ open class ProcessCaptureService(
 
     companion object {
         const val MAX_RETRIES = 5
+        const val RETRY_MIN_DELAY_MS = 2000L
+        const val RETRY_MAX_DELAY_MS = 60000L
         const val GATEWAY_TIMEOUT_MS = 2000L
     }
 
@@ -124,15 +124,9 @@ open class ProcessCaptureService(
             )
             return
         }
-        val backoffMs = computeEqualJitterBackoff(nextAttempt)
+        val backoffMs = RetrySchedulerUtil.calculateNextAttemptInMs(nextAttempt, RETRY_MIN_DELAY_MS, RETRY_MAX_DELAY_MS)
         val retryEvent = event.withIncrementedAttempt()
         retryQueuePort.scheduleRetry(retryEvent, backoffMs)
-    }
-
-    private fun computeEqualJitterBackoff(attempt: Int, minDelayMs: Long = 2000L, maxDelayMs: Long = 60000L): Long {
-        val exp = (minDelayMs * 2.0.pow((attempt - 1).coerceAtLeast(0))).toLong()
-        val capped = min(exp, maxDelayMs)
-        return capped / 2 + Random.Default.nextLong(capped / 2 + 1)
     }
 
     private fun toOutboxCaptureSubmittedEvent(

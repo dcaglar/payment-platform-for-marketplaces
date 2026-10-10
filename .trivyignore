@@ -109,3 +109,9 @@ CVE-2026-91776
 CVE-2026-91777
 # payment-central-relay/Dockerfile: Image user should not be 'root'
 DS-0002
+# org.springframework:spring-webmvc 6.2.7 (fixed in 7.0.9): RCE via XsltView; we have no XSLT views (grep XsltView: none).
+# Fixing means Spring Framework 7 / Spring Boot 4, a separate upgrade; delete this line with it.
+CVE-2026-47884
+# org.springframework:spring-webmvc 6.2.7 (fixed in 7.0.9): SSE stream corruption with view fragments; we have no SSE endpoints
+# (grep SseEmitter / text/event-stream: none). Same Spring 7 upgrade as above; delete this line with it.
+CVE-2026-47890

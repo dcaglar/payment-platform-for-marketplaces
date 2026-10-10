@@ -8,7 +8,7 @@ from the baseline: the baselines only shrink.
 | Tool | Checks | Runs in | Baseline |
 |---|---|---|---|
 | **detekt** | Kotlin code: unused imports / private code, package not matching the folder, complexity, formatting | `mvn verify` (local + CI) | `<module>/detekt-baseline.xml` |
-| **gitleaks** | secrets (keys, tokens, passwords) in the git history and in uncommitted changes | `infra/scripts/security-scan.sh` (local + CI) | `.gitleaksignore` |
+| **gitleaks** | secrets (keys, tokens, passwords) in the git history and in uncommitted changes | every `git commit` (pre-commit hook, staged changes only); `infra/scripts/security-scan.sh` (local + CI) | `.gitleaksignore` |
 | **Trivy** | HIGH/CRITICAL vulnerabilities in dependencies (with a fix available); misconfigurations in Dockerfiles, Helm charts, Terraform | `infra/scripts/security-scan.sh` (local + CI) | `.trivyignore` |
 
 The whole flow (what runs when, in which order, existing vs new findings) as a diagram:
@@ -70,6 +70,19 @@ formatting of a file. The plugin takes a single baseline file, so it may also sh
 module's baseline (still to fix, but not failing the build). `mvn verify` decides what fails.
 
 ---
+
+## Secret check on every commit (gitleaks pre-commit hook)
+
+`.githooks/pre-commit` runs gitleaks on the **staged changes only**, so a secret is stopped before it enters the
+history (once a secret is in a commit that's pushed, it has to be rotated). About a second per commit. Enable it once
+per clone:
+```bash
+git config core.hooksPath .githooks
+```
+- Uses `gitleaks` if installed, else the Docker image (the same one `security-scan.sh` uses). With neither, it prints a
+  warning and lets the commit through; CI's security scan still checks it.
+- A false positive: add its fingerprint to `.gitleaksignore` (same file as the full scan). To commit before that,
+  once: `git commit --no-verify`.
 
 ## Security scan (gitleaks + Trivy)
 

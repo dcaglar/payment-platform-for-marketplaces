@@ -8,8 +8,7 @@ Prereqs (once):
 - OrbStack native Kubernetes, kubectl, helm installed
 - Troubleshooting connectivity? See docs/troubleshooting/connectivity.md
 
----s
- LOCAL ORB CLUSTER
+---
 ## 0️⃣ Start the infrastructure and services
 
 Pre-step: switch to the project root directory and make scripts executable
@@ -20,7 +19,7 @@ chmod +x infra/scripts/*.sh
 
 
 1) Build and push the docker images of all payment platform services to the remote image registry
-- What: Builds the latest source code of payment platform servcices into remote Docker images
+- What: Builds the latest source code of payment platform services into remote Docker images
 - Run:
 ```bash
 infra/scripts/build-all-payment-platform-images-and-push.sh
@@ -38,7 +37,7 @@ infra/scripts/deploy-payment-platform-services-local.sh
 - Payments go through **Stripe test mode**: `STRIPE_API_KEY` must be in `edge-cell-sops-secrets.yaml` (`sops -i edge-cell-sops-secrets.yaml`); the script warns if it is missing.
 
 
-4) Monitoring stack (optional)(Prometheus + Grafana) (Optional)
+4) Monitoring stack (Prometheus + Grafana) (optional)
 - What: Installs kube-prometheus-stack into monitoring.
 - Run:
 ```bash
@@ -66,6 +65,12 @@ kubectl get pods -n payment | grep exporter
 ## 1️⃣ Set up Keycloak (realm, roles, clients, users)
 
 Run every command from the repo root.
+
+**Where Keycloak is:** `http://keycloak.payment.svc.cluster.local:8080` (the port is required: nothing answers on 80).
+OrbStack resolves the name on the Mac, so it opens in a browser. Admin console: `…:8080/admin`, user `admin`,
+password `adminpassword` (`infra/helm-values/keycloak-values-local.yaml`). The realm after the next step: `ecommerce-platform`.
+The platform's own users (section "Who can log in" below) never open Keycloak directly: they log in through the back
+office, which sends them to Keycloak's login page and back.
 
 1) Load Keycloak
 - What: loads two files into Keycloak (the e2e tests load the same two):
@@ -148,6 +153,10 @@ curl -i -X POST "http://$(kubectl get svc ingress-nginx-controller -n ingress-co
   "status": "CREATED"
 }
 ```
+
+> If the PSP takes longer than 3 seconds (typically the very first call after the pods start) the answer is
+> `202 Accepted` with `"status": "CREATED_PENDING"`; the create finishes in the background and reading the intent
+> a moment later shows `CREATED`. Authorize only once it is `CREATED`.
 
 > **Idempotency-Key**: required on every create. Use the same key for retries of the same request; the line above generates a new UUIDv7 each time.
 
@@ -261,7 +270,7 @@ Same convention as balances: a merchant uses `/transactions/merchants/me…` (it
 `/transactions/merchants/{merchantAccount}…` (the merchant they name). A payment is found only under its own merchant
 (otherwise `404`). Each calls only its own endpoints (the other's → `403`).
 
-**A merchant's transactions, newest first, paged** (filters: `orderId`, `paymentId`, `sellerId`, `status`, `from`, `to`; each item has a `detailUrl`):
+**A merchant's transactions, newest first, paged** (filters: `orderId`, `paymentId`, `sellerId`, `status`, `from`, `to`, `processingModel`; each item has a `detailUrl`):
 ```bash
 curl -i "http://$(kubectl get svc ingress-nginx-controller -n ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')/api/v1/transactions/merchants/me?page=0&size=20" \
   -H "Authorization: Bearer $(cat keycloak/output/jwt/MARKETPLACE-5.token)"
@@ -291,7 +300,8 @@ cd mor-backoffice
 npm install   # once
 npm run dev   # http://localhost:3100
 ```
-Log in as any user from section 1 (e.g. `marketplace-5` / `merchant123`). Details: [`mor-backoffice/README.md`](../mor-backoffice/README.md).
+Click **Log in**: the back office sends you to Keycloak's sign-in page and back. Log in as any user from section 1
+(e.g. `marketplace-5` / `merchant123`; all passwords are in section 1, "Who can log in"). Details: [`mor-backoffice/README.md`](../mor-backoffice/README.md).
 
 ## 5️⃣ Create a merchant account (ADMIN)
 
