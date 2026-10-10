@@ -1,956 +1,956 @@
 [
-  {
-    "type": "text",
-    "id": "title",
-    "x": 40,
-    "y": -10,
-    "text": "L3 — PspResultConsumer branches (inside payment-consumers)",
-    "fontSize": 28,
-    "strokeColor": "#1e1e1e"
-  },
-  {
-    "type": "rectangle",
-    "id": "tin",
-    "x": 640,
-    "y": 60,
-    "width": 420,
-    "height": 60,
-    "strokeColor": "#ca8a04",
-    "backgroundColor": "#fff3bf",
-    "label": {
-      "text": "payment.psp.results «topic»",
-      "fontSize": 18
-    }
-  },
-  {
-    "type": "rectangle",
-    "id": "cons",
-    "x": 640,
-    "y": 170,
-    "width": 420,
-    "height": 80,
-    "strokeColor": "#8b5cf6",
-    "backgroundColor": "#d0bfff",
-    "roundness": {
-      "type": 3
-    },
-    "label": {
-      "text": "PspResultConsumer «kafka-consumer»\nroutes by eventType",
-      "fontSize": 18
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "a_tin",
-    "x": 850,
-    "y": 120,
-    "width": 0,
-    "height": 50,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        0,
-        50
-      ]
-    ],
-    "startBinding": {
-      "elementId": "tin"
-    },
-    "endBinding": {
-      "elementId": "cons"
-    }
-  },
-  {
-    "type": "rectangle",
-    "id": "pod",
-    "x": 20,
-    "y": 290,
-    "width": 1680,
-    "height": 530,
-    "strokeColor": "#495057",
-    "backgroundColor": "transparent",
-    "roundness": {
-      "type": 3
-    },
-    "strokeStyle": "dashed"
-  },
-  {
-    "type": "text",
-    "id": "podT",
-    "x": 35,
-    "y": 298,
-    "text": "pod: payment-consumers",
-    "fontSize": 18,
-    "strokeColor": "#495057"
-  },
-  {
-    "type": "rectangle",
-    "id": "b1",
-    "x": 40,
-    "y": 330,
-    "width": 390,
-    "height": 470,
-    "strokeColor": "#8b5cf6",
-    "backgroundColor": "#d0bfff",
-    "roundness": {
-      "type": 3
-    },
-    "opacity": 35
-  },
-  {
-    "type": "text",
-    "id": "b1T",
-    "x": 55,
-    "y": 338,
-    "text": "B1 · processAuthorized\n⟵ payment_authorized",
-    "fontSize": 17,
-    "strokeColor": "#6d28d9"
-  },
-  {
-    "type": "rectangle",
-    "id": "b1s1",
-    "x": 50,
-    "y": 400,
-    "width": 370,
-    "height": 70,
-    "strokeColor": "#868e96",
-    "backgroundColor": "#f8f9fa",
-    "roundness": {
-      "type": 3
-    },
-    "label": {
-      "text": "Payment: create, status AUTHORIZED",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "rectangle",
-    "id": "b1s2",
-    "x": 50,
-    "y": 490,
-    "width": 370,
-    "height": 80,
-    "strokeColor": "#868e96",
-    "backgroundColor": "#f8f9fa",
-    "roundness": {
-      "type": 3
-    },
-    "label": {
-      "text": "AuthTx: SUCCESS",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "b1s2l",
-    "x": 235.0,
-    "y": 470,
-    "width": 0.0,
-    "height": 20,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        0.0,
-        20
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b1s1"
-    },
-    "endBinding": {
-      "elementId": "b1s2"
-    },
-    "endArrowhead": null
-  },
-  {
-    "type": "rectangle",
-    "id": "b1s3",
-    "x": 50,
-    "y": 590,
-    "width": 370,
-    "height": 100,
-    "strokeColor": "#868e96",
-    "backgroundColor": "#f8f9fa",
-    "roundness": {
-      "type": 3
-    },
-    "label": {
-      "text": "Journal AUTHORIZATION\nDR AUTH_RECEIVABLE / CR AUTH_LIABILITY",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "b1s3l",
-    "x": 235.0,
-    "y": 570,
-    "width": 0.0,
-    "height": 20,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        0.0,
-        20
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b1s2"
-    },
-    "endBinding": {
-      "elementId": "b1s3"
-    },
-    "endArrowhead": null
-  },
-  {
-    "type": "rectangle",
-    "id": "b1s4",
-    "x": 50,
-    "y": 710,
-    "width": 370,
-    "height": 70,
-    "strokeColor": "#ca8a04",
-    "backgroundColor": "#fff3bf",
-    "label": {
-      "text": "append outbox:\ncapture_requested\n+ journal_entries_recorded",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "b1s4l",
-    "x": 235.0,
-    "y": 690,
-    "width": 0.0,
-    "height": 20,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        0.0,
-        20
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b1s3"
-    },
-    "endBinding": {
-      "elementId": "b1s4"
-    },
-    "endArrowhead": null
-  },
-  {
-    "type": "arrow",
-    "id": "a_cons_b1",
-    "x": 850,
-    "y": 250,
-    "width": -615.0,
-    "height": 80,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        -615.0,
-        80
-      ]
-    ],
-    "startBinding": {
-      "elementId": "cons"
-    },
-    "endBinding": {
-      "elementId": "b1"
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "a_b1_db",
-    "x": 235.0,
-    "y": 800,
-    "width": 625.0,
-    "height": 130,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        625.0,
-        130
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b1"
-    },
-    "endBinding": {
-      "elementId": "db"
-    }
-  },
-  {
-    "type": "rectangle",
-    "id": "b2",
-    "x": 455,
-    "y": 330,
-    "width": 390,
-    "height": 470,
-    "strokeColor": "#8b5cf6",
-    "backgroundColor": "#d0bfff",
-    "roundness": {
-      "type": 3
-    },
-    "opacity": 35
-  },
-  {
-    "type": "text",
-    "id": "b2T",
-    "x": 470,
-    "y": 338,
-    "text": "B2 · processCaptureConfirmed\n⟵ capture_confirmed",
-    "fontSize": 17,
-    "strokeColor": "#6d28d9"
-  },
-  {
-    "type": "rectangle",
-    "id": "b2s1",
-    "x": 465,
-    "y": 400,
-    "width": 370,
-    "height": 70,
-    "strokeColor": "#868e96",
-    "backgroundColor": "#f8f9fa",
-    "roundness": {
-      "type": 3
-    },
-    "label": {
-      "text": "Payment: applyCapture, status CAPTURED",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "rectangle",
-    "id": "b2s2",
-    "x": 465,
-    "y": 490,
-    "width": 370,
-    "height": 80,
-    "strokeColor": "#868e96",
-    "backgroundColor": "#f8f9fa",
-    "roundness": {
-      "type": 3
-    },
-    "label": {
-      "text": "CaptureTx: SUCCESS",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "b2s2l",
-    "x": 650.0,
-    "y": 470,
-    "width": 0.0,
-    "height": 20,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        0.0,
-        20
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b2s1"
-    },
-    "endBinding": {
-      "elementId": "b2s2"
-    },
-    "endArrowhead": null
-  },
-  {
-    "type": "rectangle",
-    "id": "b2s3",
-    "x": 465,
-    "y": 590,
-    "width": 370,
-    "height": 100,
-    "strokeColor": "#868e96",
-    "backgroundColor": "#f8f9fa",
-    "roundness": {
-      "type": 3
-    },
-    "label": {
-      "text": "Journal CAPTURE (compound)\nDR AUTH_LIABILITY / CR AUTH_RECEIVABLE\n+ DR PSP_RECEIVABLE / CR CAPTURE_SUSPENSE",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "b2s3l",
-    "x": 650.0,
-    "y": 570,
-    "width": 0.0,
-    "height": 20,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        0.0,
-        20
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b2s2"
-    },
-    "endBinding": {
-      "elementId": "b2s3"
-    },
-    "endArrowhead": null
-  },
-  {
-    "type": "rectangle",
-    "id": "b2s4",
-    "x": 465,
-    "y": 710,
-    "width": 370,
-    "height": 70,
-    "strokeColor": "#ca8a04",
-    "backgroundColor": "#fff3bf",
-    "label": {
-      "text": "append outbox:\njournal_entries_recorded",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "b2s4l",
-    "x": 650.0,
-    "y": 690,
-    "width": 0.0,
-    "height": 20,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        0.0,
-        20
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b2s3"
-    },
-    "endBinding": {
-      "elementId": "b2s4"
-    },
-    "endArrowhead": null
-  },
-  {
-    "type": "arrow",
-    "id": "a_cons_b2",
-    "x": 850,
-    "y": 250,
-    "width": -200.0,
-    "height": 80,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        -200.0,
-        80
-      ]
-    ],
-    "startBinding": {
-      "elementId": "cons"
-    },
-    "endBinding": {
-      "elementId": "b2"
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "a_b2_db",
-    "x": 650.0,
-    "y": 800,
-    "width": 210.0,
-    "height": 130,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        210.0,
-        130
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b2"
-    },
-    "endBinding": {
-      "elementId": "db"
-    }
-  },
-  {
-    "type": "rectangle",
-    "id": "b3",
-    "x": 870,
-    "y": 330,
-    "width": 390,
-    "height": 470,
-    "strokeColor": "#8b5cf6",
-    "backgroundColor": "#d0bfff",
-    "roundness": {
-      "type": 3
-    },
-    "opacity": 35
-  },
-  {
-    "type": "text",
-    "id": "b3T",
-    "x": 885,
-    "y": 338,
-    "text": "B3 · processInternalTransferCommand\n⟵ internal_transfer_command",
-    "fontSize": 17,
-    "strokeColor": "#6d28d9"
-  },
-  {
-    "type": "rectangle",
-    "id": "b3s1",
-    "x": 880,
-    "y": 400,
-    "width": 370,
-    "height": 70,
-    "strokeColor": "#868e96",
-    "backgroundColor": "#f8f9fa",
-    "roundness": {
-      "type": 3
-    },
-    "label": {
-      "text": "Transfer: TRANSFERRED",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "rectangle",
-    "id": "b3s2",
-    "x": 880,
-    "y": 490,
-    "width": 370,
-    "height": 80,
-    "strokeColor": "#868e96",
-    "backgroundColor": "#f8f9fa",
-    "roundness": {
-      "type": 3
-    },
-    "label": {
-      "text": "Journal INTERNAL_TRANSFER\nCAPTURE_SUSPENSE → SELLER_PAYABLE\n/ MERCHANT_*_PAYABLE",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "b3s2l",
-    "x": 1065.0,
-    "y": 470,
-    "width": 0.0,
-    "height": 20,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        0.0,
-        20
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b3s1"
-    },
-    "endBinding": {
-      "elementId": "b3s2"
-    },
-    "endArrowhead": null
-  },
-  {
-    "type": "rectangle",
-    "id": "b3s3",
-    "x": 880,
-    "y": 590,
-    "width": 370,
-    "height": 100,
-    "strokeColor": "#868e96",
-    "backgroundColor": "#f8f9fa",
-    "roundness": {
-      "type": 3
-    },
-    "label": {
-      "text": "or Journal COMMISSION_FEE\nMERCHANT_*_PAYABLE\n→ PLATFORM_FEE_RESERVE",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "b3s3l",
-    "x": 1065.0,
-    "y": 570,
-    "width": 0.0,
-    "height": 20,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        0.0,
-        20
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b3s2"
-    },
-    "endBinding": {
-      "elementId": "b3s3"
-    },
-    "endArrowhead": null
-  },
-  {
-    "type": "rectangle",
-    "id": "b3s4",
-    "x": 880,
-    "y": 710,
-    "width": 370,
-    "height": 70,
-    "strokeColor": "#ca8a04",
-    "backgroundColor": "#fff3bf",
-    "label": {
-      "text": "append outbox:\njournal_entries_recorded",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "b3s4l",
-    "x": 1065.0,
-    "y": 690,
-    "width": 0.0,
-    "height": 20,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        0.0,
-        20
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b3s3"
-    },
-    "endBinding": {
-      "elementId": "b3s4"
-    },
-    "endArrowhead": null
-  },
-  {
-    "type": "arrow",
-    "id": "a_cons_b3",
-    "x": 850,
-    "y": 250,
-    "width": 215.0,
-    "height": 80,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        215.0,
-        80
-      ]
-    ],
-    "startBinding": {
-      "elementId": "cons"
-    },
-    "endBinding": {
-      "elementId": "b3"
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "a_b3_db",
-    "x": 1065.0,
-    "y": 800,
-    "width": -205.0,
-    "height": 130,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        -205.0,
-        130
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b3"
-    },
-    "endBinding": {
-      "elementId": "db"
-    }
-  },
-  {
-    "type": "rectangle",
-    "id": "b4",
-    "x": 1285,
-    "y": 330,
-    "width": 390,
-    "height": 470,
-    "strokeColor": "#8b5cf6",
-    "backgroundColor": "#d0bfff",
-    "roundness": {
-      "type": 3
-    },
-    "opacity": 35
-  },
-  {
-    "type": "text",
-    "id": "b4T",
-    "x": 1300,
-    "y": 338,
-    "text": "B4 · processSettlementLineReconciled\n⟵ settlement_received",
-    "fontSize": 17,
-    "strokeColor": "#6d28d9"
-  },
-  {
-    "type": "rectangle",
-    "id": "b4s1",
-    "x": 1295,
-    "y": 400,
-    "width": 370,
-    "height": 70,
-    "strokeColor": "#868e96",
-    "backgroundColor": "#f8f9fa",
-    "roundness": {
-      "type": 3
-    },
-    "label": {
-      "text": "Payment: reconcile, status SETTLED",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "rectangle",
-    "id": "b4s2",
-    "x": 1295,
-    "y": 490,
-    "width": 370,
-    "height": 80,
-    "strokeColor": "#868e96",
-    "backgroundColor": "#f8f9fa",
-    "roundness": {
-      "type": 3
-    },
-    "label": {
-      "text": "SettleTx: SUCCESS\nCaptureTx settle_status\nMATCHED or DISCREPANCY",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "b4s2l",
-    "x": 1480.0,
-    "y": 470,
-    "width": 0.0,
-    "height": 20,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        0.0,
-        20
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b4s1"
-    },
-    "endBinding": {
-      "elementId": "b4s2"
-    },
-    "endArrowhead": null
-  },
-  {
-    "type": "rectangle",
-    "id": "b4s3",
-    "x": 1295,
-    "y": 590,
-    "width": 370,
-    "height": 100,
-    "strokeColor": "#868e96",
-    "backgroundColor": "#f8f9fa",
-    "roundness": {
-      "type": 3
-    },
-    "label": {
-      "text": "Journal SETTLEMENT\nDR PLATFORM_CASH + PSP_FEE_EXPENSE\n/ CR PSP_RECEIVABLE",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "b4s3l",
-    "x": 1480.0,
-    "y": 570,
-    "width": 0.0,
-    "height": 20,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        0.0,
-        20
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b4s2"
-    },
-    "endBinding": {
-      "elementId": "b4s3"
-    },
-    "endArrowhead": null
-  },
-  {
-    "type": "rectangle",
-    "id": "b4s4",
-    "x": 1295,
-    "y": 710,
-    "width": 370,
-    "height": 70,
-    "strokeColor": "#ca8a04",
-    "backgroundColor": "#fff3bf",
-    "label": {
-      "text": "append outbox:\njournal_entries_recorded",
-      "fontSize": 15
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "b4s4l",
-    "x": 1480.0,
-    "y": 690,
-    "width": 0.0,
-    "height": 20,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        0.0,
-        20
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b4s3"
-    },
-    "endBinding": {
-      "elementId": "b4s4"
-    },
-    "endArrowhead": null
-  },
-  {
-    "type": "arrow",
-    "id": "a_cons_b4",
-    "x": 850,
-    "y": 250,
-    "width": 630.0,
-    "height": 80,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        630.0,
-        80
-      ]
-    ],
-    "startBinding": {
-      "elementId": "cons"
-    },
-    "endBinding": {
-      "elementId": "b4"
-    }
-  },
-  {
-    "type": "arrow",
-    "id": "a_b4_db",
-    "x": 1480.0,
-    "y": 800,
-    "width": -620.0,
-    "height": 130,
-    "points": [
-      [
-        0,
-        0
-      ],
-      [
-        -620.0,
-        130
-      ]
-    ],
-    "startBinding": {
-      "elementId": "b4"
-    },
-    "endBinding": {
-      "elementId": "db"
-    }
-  },
-  {
-    "type": "ellipse",
-    "id": "db",
-    "x": 580,
-    "y": 930,
-    "width": 560,
-    "height": 140,
-    "strokeColor": "#22c55e",
-    "backgroundColor": "#b2f2bb",
-    "label": {
-      "text": "central-db «database»\none commit per consumed event\n(rows + journal + outbox together)",
-      "fontSize": 18
-    }
-  },
-  {
-    "type": "text",
-    "id": "gap",
-    "x": 40,
-    "y": 1100,
-    "text": "⚠ Known gaps in B4 (settlement): the updated CaptureTx (settle_status) is saved after the ledger commit,\nin a separate write, so B4 is not one atomic commit; a DISCREPANCY is recorded but nothing acts on it yet.",
-    "fontSize": 16,
-    "strokeColor": "#495057"
-  }
+{
+"type": "text",
+"id": "title",
+"x": 40,
+"y": -10,
+"text": "L3 — PspResultConsumer branches (inside payment-consumers)",
+"fontSize": 28,
+"strokeColor": "#1e1e1e"
+},
+{
+"type": "rectangle",
+"id": "tin",
+"x": 640,
+"y": 60,
+"width": 420,
+"height": 60,
+"strokeColor": "#ca8a04",
+"backgroundColor": "#fff3bf",
+"label": {
+"text": "payment.psp.results «topic»",
+"fontSize": 18
+}
+},
+{
+"type": "rectangle",
+"id": "cons",
+"x": 640,
+"y": 170,
+"width": 420,
+"height": 80,
+"strokeColor": "#8b5cf6",
+"backgroundColor": "#d0bfff",
+"roundness": {
+"type": 3
+},
+"label": {
+"text": "PspResultConsumer «kafka-consumer»\nroutes by eventType",
+"fontSize": 18
+}
+},
+{
+"type": "arrow",
+"id": "a_tin",
+"x": 850,
+"y": 120,
+"width": 0,
+"height": 50,
+"points": [
+[
+0,
+0
+],
+[
+0,
+50
+]
+],
+"startBinding": {
+"elementId": "tin"
+},
+"endBinding": {
+"elementId": "cons"
+}
+},
+{
+"type": "rectangle",
+"id": "pod",
+"x": 20,
+"y": 290,
+"width": 1680,
+"height": 530,
+"strokeColor": "#495057",
+"backgroundColor": "transparent",
+"roundness": {
+"type": 3
+},
+"strokeStyle": "dashed"
+},
+{
+"type": "text",
+"id": "podT",
+"x": 35,
+"y": 298,
+"text": "pod: payment-consumers",
+"fontSize": 18,
+"strokeColor": "#495057"
+},
+{
+"type": "rectangle",
+"id": "b1",
+"x": 40,
+"y": 330,
+"width": 390,
+"height": 470,
+"strokeColor": "#8b5cf6",
+"backgroundColor": "#d0bfff",
+"roundness": {
+"type": 3
+},
+"opacity": 35
+},
+{
+"type": "text",
+"id": "b1T",
+"x": 55,
+"y": 338,
+"text": "B1 · processAuthorized\n⟵ payment_authorized",
+"fontSize": 17,
+"strokeColor": "#6d28d9"
+},
+{
+"type": "rectangle",
+"id": "b1s1",
+"x": 50,
+"y": 400,
+"width": 370,
+"height": 70,
+"strokeColor": "#868e96",
+"backgroundColor": "#f8f9fa",
+"roundness": {
+"type": 3
+},
+"label": {
+"text": "Payment: create, status AUTHORIZED",
+"fontSize": 15
+}
+},
+{
+"type": "rectangle",
+"id": "b1s2",
+"x": 50,
+"y": 490,
+"width": 370,
+"height": 80,
+"strokeColor": "#868e96",
+"backgroundColor": "#f8f9fa",
+"roundness": {
+"type": 3
+},
+"label": {
+"text": "AuthTx: SUCCESS",
+"fontSize": 15
+}
+},
+{
+"type": "arrow",
+"id": "b1s2l",
+"x": 235.0,
+"y": 470,
+"width": 0.0,
+"height": 20,
+"points": [
+[
+0,
+0
+],
+[
+0.0,
+20
+]
+],
+"startBinding": {
+"elementId": "b1s1"
+},
+"endBinding": {
+"elementId": "b1s2"
+},
+"endArrowhead": null
+},
+{
+"type": "rectangle",
+"id": "b1s3",
+"x": 50,
+"y": 590,
+"width": 370,
+"height": 100,
+"strokeColor": "#868e96",
+"backgroundColor": "#f8f9fa",
+"roundness": {
+"type": 3
+},
+"label": {
+"text": "Journal AUTHORIZATION\nDR AUTH_RECEIVABLE / CR AUTH_LIABILITY",
+"fontSize": 15
+}
+},
+{
+"type": "arrow",
+"id": "b1s3l",
+"x": 235.0,
+"y": 570,
+"width": 0.0,
+"height": 20,
+"points": [
+[
+0,
+0
+],
+[
+0.0,
+20
+]
+],
+"startBinding": {
+"elementId": "b1s2"
+},
+"endBinding": {
+"elementId": "b1s3"
+},
+"endArrowhead": null
+},
+{
+"type": "rectangle",
+"id": "b1s4",
+"x": 50,
+"y": 710,
+"width": 370,
+"height": 70,
+"strokeColor": "#ca8a04",
+"backgroundColor": "#fff3bf",
+"label": {
+"text": "append outbox:\ncapture_requested\n+ journal_entries_recorded",
+"fontSize": 15
+}
+},
+{
+"type": "arrow",
+"id": "b1s4l",
+"x": 235.0,
+"y": 690,
+"width": 0.0,
+"height": 20,
+"points": [
+[
+0,
+0
+],
+[
+0.0,
+20
+]
+],
+"startBinding": {
+"elementId": "b1s3"
+},
+"endBinding": {
+"elementId": "b1s4"
+},
+"endArrowhead": null
+},
+{
+"type": "arrow",
+"id": "a_cons_b1",
+"x": 850,
+"y": 250,
+"width": -615.0,
+"height": 80,
+"points": [
+[
+0,
+0
+],
+[
+-615.0,
+80
+]
+],
+"startBinding": {
+"elementId": "cons"
+},
+"endBinding": {
+"elementId": "b1"
+}
+},
+{
+"type": "arrow",
+"id": "a_b1_db",
+"x": 235.0,
+"y": 800,
+"width": 625.0,
+"height": 130,
+"points": [
+[
+0,
+0
+],
+[
+625.0,
+130
+]
+],
+"startBinding": {
+"elementId": "b1"
+},
+"endBinding": {
+"elementId": "db"
+}
+},
+{
+"type": "rectangle",
+"id": "b2",
+"x": 455,
+"y": 330,
+"width": 390,
+"height": 470,
+"strokeColor": "#8b5cf6",
+"backgroundColor": "#d0bfff",
+"roundness": {
+"type": 3
+},
+"opacity": 35
+},
+{
+"type": "text",
+"id": "b2T",
+"x": 470,
+"y": 338,
+"text": "B2 · processCaptureConfirmed\n⟵ capture_confirmed",
+"fontSize": 17,
+"strokeColor": "#6d28d9"
+},
+{
+"type": "rectangle",
+"id": "b2s1",
+"x": 465,
+"y": 400,
+"width": 370,
+"height": 70,
+"strokeColor": "#868e96",
+"backgroundColor": "#f8f9fa",
+"roundness": {
+"type": 3
+},
+"label": {
+"text": "Payment: applyCapture, status CAPTURED",
+"fontSize": 15
+}
+},
+{
+"type": "rectangle",
+"id": "b2s2",
+"x": 465,
+"y": 490,
+"width": 370,
+"height": 80,
+"strokeColor": "#868e96",
+"backgroundColor": "#f8f9fa",
+"roundness": {
+"type": 3
+},
+"label": {
+"text": "CaptureTx: SUCCESS",
+"fontSize": 15
+}
+},
+{
+"type": "arrow",
+"id": "b2s2l",
+"x": 650.0,
+"y": 470,
+"width": 0.0,
+"height": 20,
+"points": [
+[
+0,
+0
+],
+[
+0.0,
+20
+]
+],
+"startBinding": {
+"elementId": "b2s1"
+},
+"endBinding": {
+"elementId": "b2s2"
+},
+"endArrowhead": null
+},
+{
+"type": "rectangle",
+"id": "b2s3",
+"x": 465,
+"y": 590,
+"width": 370,
+"height": 100,
+"strokeColor": "#868e96",
+"backgroundColor": "#f8f9fa",
+"roundness": {
+"type": 3
+},
+"label": {
+"text": "Journal CAPTURE (compound)\nDR AUTH_LIABILITY / CR AUTH_RECEIVABLE\n+ DR PSP_RECEIVABLE / CR CAPTURE_SUSPENSE",
+"fontSize": 15
+}
+},
+{
+"type": "arrow",
+"id": "b2s3l",
+"x": 650.0,
+"y": 570,
+"width": 0.0,
+"height": 20,
+"points": [
+[
+0,
+0
+],
+[
+0.0,
+20
+]
+],
+"startBinding": {
+"elementId": "b2s2"
+},
+"endBinding": {
+"elementId": "b2s3"
+},
+"endArrowhead": null
+},
+{
+"type": "rectangle",
+"id": "b2s4",
+"x": 465,
+"y": 710,
+"width": 370,
+"height": 70,
+"strokeColor": "#ca8a04",
+"backgroundColor": "#fff3bf",
+"label": {
+"text": "append outbox:\njournal_entries_recorded",
+"fontSize": 15
+}
+},
+{
+"type": "arrow",
+"id": "b2s4l",
+"x": 650.0,
+"y": 690,
+"width": 0.0,
+"height": 20,
+"points": [
+[
+0,
+0
+],
+[
+0.0,
+20
+]
+],
+"startBinding": {
+"elementId": "b2s3"
+},
+"endBinding": {
+"elementId": "b2s4"
+},
+"endArrowhead": null
+},
+{
+"type": "arrow",
+"id": "a_cons_b2",
+"x": 850,
+"y": 250,
+"width": -200.0,
+"height": 80,
+"points": [
+[
+0,
+0
+],
+[
+-200.0,
+80
+]
+],
+"startBinding": {
+"elementId": "cons"
+},
+"endBinding": {
+"elementId": "b2"
+}
+},
+{
+"type": "arrow",
+"id": "a_b2_db",
+"x": 650.0,
+"y": 800,
+"width": 210.0,
+"height": 130,
+"points": [
+[
+0,
+0
+],
+[
+210.0,
+130
+]
+],
+"startBinding": {
+"elementId": "b2"
+},
+"endBinding": {
+"elementId": "db"
+}
+},
+{
+"type": "rectangle",
+"id": "b3",
+"x": 870,
+"y": 330,
+"width": 390,
+"height": 470,
+"strokeColor": "#8b5cf6",
+"backgroundColor": "#d0bfff",
+"roundness": {
+"type": 3
+},
+"opacity": 35
+},
+{
+"type": "text",
+"id": "b3T",
+"x": 885,
+"y": 338,
+"text": "B3 · processInternalTransferCommand\n⟵ internal_transfer_command",
+"fontSize": 17,
+"strokeColor": "#6d28d9"
+},
+{
+"type": "rectangle",
+"id": "b3s1",
+"x": 880,
+"y": 400,
+"width": 370,
+"height": 70,
+"strokeColor": "#868e96",
+"backgroundColor": "#f8f9fa",
+"roundness": {
+"type": 3
+},
+"label": {
+"text": "Transfer: TRANSFERRED",
+"fontSize": 15
+}
+},
+{
+"type": "rectangle",
+"id": "b3s2",
+"x": 880,
+"y": 490,
+"width": 370,
+"height": 80,
+"strokeColor": "#868e96",
+"backgroundColor": "#f8f9fa",
+"roundness": {
+"type": 3
+},
+"label": {
+"text": "Journal INTERNAL_TRANSFER\nCAPTURE_SUSPENSE → SELLER_PAYABLE\n/ MERCHANT_*_PAYABLE",
+"fontSize": 15
+}
+},
+{
+"type": "arrow",
+"id": "b3s2l",
+"x": 1065.0,
+"y": 470,
+"width": 0.0,
+"height": 20,
+"points": [
+[
+0,
+0
+],
+[
+0.0,
+20
+]
+],
+"startBinding": {
+"elementId": "b3s1"
+},
+"endBinding": {
+"elementId": "b3s2"
+},
+"endArrowhead": null
+},
+{
+"type": "rectangle",
+"id": "b3s3",
+"x": 880,
+"y": 590,
+"width": 370,
+"height": 100,
+"strokeColor": "#868e96",
+"backgroundColor": "#f8f9fa",
+"roundness": {
+"type": 3
+},
+"label": {
+"text": "or Journal COMMISSION_FEE\nMERCHANT_*_PAYABLE\n→ PLATFORM_FEE_RESERVE",
+"fontSize": 15
+}
+},
+{
+"type": "arrow",
+"id": "b3s3l",
+"x": 1065.0,
+"y": 570,
+"width": 0.0,
+"height": 20,
+"points": [
+[
+0,
+0
+],
+[
+0.0,
+20
+]
+],
+"startBinding": {
+"elementId": "b3s2"
+},
+"endBinding": {
+"elementId": "b3s3"
+},
+"endArrowhead": null
+},
+{
+"type": "rectangle",
+"id": "b3s4",
+"x": 880,
+"y": 710,
+"width": 370,
+"height": 70,
+"strokeColor": "#ca8a04",
+"backgroundColor": "#fff3bf",
+"label": {
+"text": "append outbox:\njournal_entries_recorded",
+"fontSize": 15
+}
+},
+{
+"type": "arrow",
+"id": "b3s4l",
+"x": 1065.0,
+"y": 690,
+"width": 0.0,
+"height": 20,
+"points": [
+[
+0,
+0
+],
+[
+0.0,
+20
+]
+],
+"startBinding": {
+"elementId": "b3s3"
+},
+"endBinding": {
+"elementId": "b3s4"
+},
+"endArrowhead": null
+},
+{
+"type": "arrow",
+"id": "a_cons_b3",
+"x": 850,
+"y": 250,
+"width": 215.0,
+"height": 80,
+"points": [
+[
+0,
+0
+],
+[
+215.0,
+80
+]
+],
+"startBinding": {
+"elementId": "cons"
+},
+"endBinding": {
+"elementId": "b3"
+}
+},
+{
+"type": "arrow",
+"id": "a_b3_db",
+"x": 1065.0,
+"y": 800,
+"width": -205.0,
+"height": 130,
+"points": [
+[
+0,
+0
+],
+[
+-205.0,
+130
+]
+],
+"startBinding": {
+"elementId": "b3"
+},
+"endBinding": {
+"elementId": "db"
+}
+},
+{
+"type": "rectangle",
+"id": "b4",
+"x": 1285,
+"y": 330,
+"width": 390,
+"height": 470,
+"strokeColor": "#8b5cf6",
+"backgroundColor": "#d0bfff",
+"roundness": {
+"type": 3
+},
+"opacity": 35
+},
+{
+"type": "text",
+"id": "b4T",
+"x": 1300,
+"y": 338,
+"text": "B4 · processSettlementLineReconciled\n⟵ settlement_received",
+"fontSize": 17,
+"strokeColor": "#6d28d9"
+},
+{
+"type": "rectangle",
+"id": "b4s1",
+"x": 1295,
+"y": 400,
+"width": 370,
+"height": 70,
+"strokeColor": "#868e96",
+"backgroundColor": "#f8f9fa",
+"roundness": {
+"type": 3
+},
+"label": {
+"text": "Payment: reconcile, status SETTLED",
+"fontSize": 15
+}
+},
+{
+"type": "rectangle",
+"id": "b4s2",
+"x": 1295,
+"y": 490,
+"width": 370,
+"height": 80,
+"strokeColor": "#868e96",
+"backgroundColor": "#f8f9fa",
+"roundness": {
+"type": 3
+},
+"label": {
+"text": "SettleTx: SUCCESS\nCaptureTx settle_status\nMATCHED or DISCREPANCY",
+"fontSize": 15
+}
+},
+{
+"type": "arrow",
+"id": "b4s2l",
+"x": 1480.0,
+"y": 470,
+"width": 0.0,
+"height": 20,
+"points": [
+[
+0,
+0
+],
+[
+0.0,
+20
+]
+],
+"startBinding": {
+"elementId": "b4s1"
+},
+"endBinding": {
+"elementId": "b4s2"
+},
+"endArrowhead": null
+},
+{
+"type": "rectangle",
+"id": "b4s3",
+"x": 1295,
+"y": 590,
+"width": 370,
+"height": 100,
+"strokeColor": "#868e96",
+"backgroundColor": "#f8f9fa",
+"roundness": {
+"type": 3
+},
+"label": {
+"text": "Journal SETTLEMENT\nDR PLATFORM_CASH + PSP_FEE_EXPENSE\n/ CR PSP_RECEIVABLE",
+"fontSize": 15
+}
+},
+{
+"type": "arrow",
+"id": "b4s3l",
+"x": 1480.0,
+"y": 570,
+"width": 0.0,
+"height": 20,
+"points": [
+[
+0,
+0
+],
+[
+0.0,
+20
+]
+],
+"startBinding": {
+"elementId": "b4s2"
+},
+"endBinding": {
+"elementId": "b4s3"
+},
+"endArrowhead": null
+},
+{
+"type": "rectangle",
+"id": "b4s4",
+"x": 1295,
+"y": 710,
+"width": 370,
+"height": 70,
+"strokeColor": "#ca8a04",
+"backgroundColor": "#fff3bf",
+"label": {
+"text": "append outbox:\njournal_entries_recorded",
+"fontSize": 15
+}
+},
+{
+"type": "arrow",
+"id": "b4s4l",
+"x": 1480.0,
+"y": 690,
+"width": 0.0,
+"height": 20,
+"points": [
+[
+0,
+0
+],
+[
+0.0,
+20
+]
+],
+"startBinding": {
+"elementId": "b4s3"
+},
+"endBinding": {
+"elementId": "b4s4"
+},
+"endArrowhead": null
+},
+{
+"type": "arrow",
+"id": "a_cons_b4",
+"x": 850,
+"y": 250,
+"width": 630.0,
+"height": 80,
+"points": [
+[
+0,
+0
+],
+[
+630.0,
+80
+]
+],
+"startBinding": {
+"elementId": "cons"
+},
+"endBinding": {
+"elementId": "b4"
+}
+},
+{
+"type": "arrow",
+"id": "a_b4_db",
+"x": 1480.0,
+"y": 800,
+"width": -620.0,
+"height": 130,
+"points": [
+[
+0,
+0
+],
+[
+-620.0,
+130
+]
+],
+"startBinding": {
+"elementId": "b4"
+},
+"endBinding": {
+"elementId": "db"
+}
+},
+{
+"type": "ellipse",
+"id": "db",
+"x": 580,
+"y": 930,
+"width": 560,
+"height": 140,
+"strokeColor": "#22c55e",
+"backgroundColor": "#b2f2bb",
+"label": {
+"text": "central-db «database»\none commit per consumed event\n(rows + journal + outbox together)",
+"fontSize": 18
+}
+},
+{
+"type": "text",
+"id": "gap",
+"x": 40,
+"y": 1100,
+"text": "⚠ Known gaps in B4 (settlement): the updated CaptureTx (settle_status) is saved after the ledger commit,\nin a separate write, so B4 is not one atomic commit; a DISCREPANCY is recorded but nothing acts on it yet.",
+"fontSize": 16,
+"strokeColor": "#495057"
+}
 ]
