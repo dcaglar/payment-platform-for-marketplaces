@@ -67,7 +67,7 @@ class RedisEventDedupAdapterIntegrationTest {
 
     @BeforeEach
     fun setUp() {
-        redisTemplate.connectionFactory?.connection?.flushAll()
+        redisTemplate.connectionFactory?.connection?.serverCommands()?.flushAll()
     }
 
     @Test

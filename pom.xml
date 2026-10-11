@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.0</version>
+        <version>3.5.16</version>
         <relativePath/> <!-- lookup parent from Maven Central  if left empttly-->
     </parent>
     <packaging>pom</packaging>
@@ -54,12 +54,9 @@ It declares that this module is:
         <detekt.phase>verify</detekt.phase>
         <!-- each module's findings still to fix (tolerated for now); -Ddetekt.baselineFile= (empty) shows every finding -->
         <detekt.baselineFile>${project.basedir}/detekt-baseline.xml</detekt.baselineFile>
-        <kotlin.version>2.1.0</kotlin.version>
-        <postgresql.version>42.7.3</postgresql.version>
-        <mybatis.version>3.0.3</mybatis.version>
+        <kotlin.version>2.2.21</kotlin.version>
+        <postgresql.version>42.7.14</postgresql.version>
         <logstash.version>7.4</logstash.version>
-        <spring-boot.version>3.0.3</spring-boot.version>
-        <caffeine.versione>3.1.8</caffeine.versione>
         <stripe.version>31.0.0</stripe.version>
         <!-- Build plugins -->
         <kotlin.maven.plugin.version>${kotlin.version}</kotlin.maven.plugin.version>
@@ -70,8 +67,7 @@ It declares that this module is:
         <mockito.kotlin.version>5.2.1</mockito.kotlin.version>
         <mockk.version>1.13.8</mockk.version>
         <container.test.version>1.21.4</container.test.version>
-        <opentelemetry.autoinstrument.version>2.29</opentelemetry.autoinstrument.version>
-        <mybatis.spring.starter.version>3.0.3</mybatis.spring.starter.version>
+        <mybatis.spring.starter.version>3.0.5</mybatis.spring.starter.version>
         <skipUnitTests>false</skipUnitTests>
         <okhttp3.version>4.12.0</okhttp3.version>
         <okio.version>3.6.0</okio.version>
@@ -144,6 +140,12 @@ It declares that this module is:
                 <groupId>org.mybatis.spring.boot</groupId>
                 <artifactId>mybatis-spring-boot-starter</artifactId>
                 <version>${mybatis.spring.starter.version}</version>
+            </dependency>
+            <!-- kafka-clients 3.9.x pulls lz4-java 1.10.1 (CVE-2026-106451); Boot's BOM doesn't manage it -->
+            <dependency>
+                <groupId>at.yawk.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>1.11.4</version>
             </dependency>
 
 
@@ -354,6 +356,9 @@ Kotlin dependencies (keep versions here for consistent management) -->
                     </includes>
                     <failIfNoTests>false</failIfNoTests>
                     <useFile>false</useFile>
+                    <!-- what the test JVM prints (Spring, Testcontainers, Kafka client) goes to
+                         target/failsafe-reports/<TestClass>-output.txt instead of the console -->
+                    <redirectTestOutputToFile>true</redirectTestOutputToFile>
                 </configuration>
                 <executions>
                     <!-- Integration tests run in integration-test phase -->
@@ -410,9 +415,6 @@ Kotlin dependencies (keep versions here for consistent management) -->
                     <artifactId>kotlin-maven-plugin</artifactId>
                     <version>${kotlin.version}</version>
                     <configuration>
-                        <args>
-                            <arg>-Xjsr305=strict</arg>
-                        </args>
                         <compilerPlugins>
                             <plugin>spring</plugin>
                             <plugin>jpa</plugin>

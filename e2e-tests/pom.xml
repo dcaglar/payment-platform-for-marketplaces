@@ -251,6 +251,15 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- What the test JVM prints (Spring, Kafka client, container logs) goes to
+                 target/failsafe-reports/<TestClass>-output.txt instead of the console. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <redirectTestOutputToFile>true</redirectTestOutputToFile>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
