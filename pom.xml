@@ -55,7 +55,7 @@ It declares that this module is:
         <!-- each module's findings still to fix (tolerated for now); -Ddetekt.baselineFile= (empty) shows every finding -->
         <detekt.baselineFile>${project.basedir}/detekt-baseline.xml</detekt.baselineFile>
         <kotlin.version>2.2.21</kotlin.version>
-        <postgresql.version>42.7.3</postgresql.version>
+        <postgresql.version>42.7.14</postgresql.version>
         <logstash.version>7.4</logstash.version>
         <stripe.version>31.0.0</stripe.version>
         <!-- Build plugins -->
@@ -140,6 +140,12 @@ It declares that this module is:
                 <groupId>org.mybatis.spring.boot</groupId>
                 <artifactId>mybatis-spring-boot-starter</artifactId>
                 <version>${mybatis.spring.starter.version}</version>
+            </dependency>
+            <!-- kafka-clients 3.9.x pulls lz4-java 1.10.1 (CVE-2026-106451); Boot's BOM doesn't manage it -->
+            <dependency>
+                <groupId>at.yawk.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>1.11.4</version>
             </dependency>
 
 
