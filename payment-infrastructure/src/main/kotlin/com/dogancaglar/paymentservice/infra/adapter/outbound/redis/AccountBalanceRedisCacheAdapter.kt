@@ -68,7 +68,7 @@ class AccountBalanceRedisCacheAdapter(
     override fun addDeltaAndWatermark(accountCode: String, delta: Long, upToEntryId: Long) {
         val key = accPrefix + accountCode
         redisTemplate.execute<Any?> { conn ->
-            conn.eval(
+            conn.scriptingCommands().eval(
                 addDeltaScript.toByteArray(StandardCharsets.UTF_8),
                 ReturnType.MULTI,
                 1,
@@ -85,7 +85,7 @@ class AccountBalanceRedisCacheAdapter(
     override fun getAndResetDeltaWithWatermark(accountCode: String): Pair<Long, Long> {
         val key = accPrefix + accountCode
         val result = redisTemplate.execute<Any?> { conn ->
-            conn.eval(
+            conn.scriptingCommands().eval(
                 getAndResetScript.toByteArray(StandardCharsets.UTF_8),
                 ReturnType.MULTI,
                 1,

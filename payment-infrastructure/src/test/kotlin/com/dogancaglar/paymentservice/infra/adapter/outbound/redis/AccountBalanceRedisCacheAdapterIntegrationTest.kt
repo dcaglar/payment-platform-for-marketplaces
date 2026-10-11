@@ -78,7 +78,7 @@ class AccountBalanceRedisCacheAdapterIntegrationTest {
     @BeforeEach
     fun setUp() {
         // Clean up Redis before each test
-        redisTemplate.connectionFactory?.connection?.flushAll()
+        redisTemplate.connectionFactory?.connection?.serverCommands()?.flushAll()
     }
 
     @Test
