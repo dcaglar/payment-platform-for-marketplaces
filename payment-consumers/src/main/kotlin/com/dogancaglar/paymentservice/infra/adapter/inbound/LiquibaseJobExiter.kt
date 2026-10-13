@@ -13,7 +13,7 @@ import kotlin.system.exitProcess
 class LiquibaseJobExiter(private val context: ApplicationContext) : CommandLineRunner {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    override fun run(vararg args: String?) {
+    override fun run(vararg args: String) {
         logger.info("=========================================================")
         logger.info("Liquibase migration completed successfully. Exiting JVM.")
         logger.info("=========================================================")

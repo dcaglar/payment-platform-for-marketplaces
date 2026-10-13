@@ -1,6 +1,7 @@
 package com.dogancaglar.paymentservice.application.service
 
 import com.dogancaglar.paymentservice.application.command.CreatePaymentIntentCommand
+import com.dogancaglar.paymentservice.application.util.toPublicPaymentIntentId
 import com.dogancaglar.paymentservice.domain.exception.PspPermanentException
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntentStatus
@@ -69,7 +70,11 @@ class CreatePaymentIntentService(
             return createdPaymentIntent
         } catch (e: PspPermanentException) {
             // the PSP refused to create it: a final answer, the intent is still CREATED_PENDING
-            logger.warn("PSP refused to create {}, marking FAILED", paymentIntent.paymentIntentId.value, e)
+            logger.warn(
+                "PSP refused to create {}, marking FAILED",
+                paymentIntent.paymentIntentId.toPublicPaymentIntentId(),
+                e
+            )
             val failed = paymentIntent.markFailed()
             paymentIntentRepository.updatePaymentIntent(failed)
             return failed

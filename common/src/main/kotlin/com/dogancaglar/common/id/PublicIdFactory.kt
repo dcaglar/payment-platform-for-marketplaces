@@ -11,6 +11,9 @@ object PublicIdFactory {
     fun publicInternalTransferId(internalTransferId: Long): String =
         "tr_${PublicIdCodec.encode(internalTransferId)}"
 
+    fun publicTxId(txId: Long): String =
+        "tx_${PublicIdCodec.encode(txId)}"
+
     fun publicLedgerEntryId(id: Long): String =
         "le_${PublicIdCodec.encode(id)}"
 

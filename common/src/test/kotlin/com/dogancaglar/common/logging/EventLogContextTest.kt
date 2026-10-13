@@ -3,7 +3,7 @@ package com.dogancaglar.common.logging
 import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.EventEnvelopeFactory
 import com.dogancaglar.common.time.Utc
-import junit.framework.TestCase.assertTrue
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.slf4j.MDC
 import java.time.Instant

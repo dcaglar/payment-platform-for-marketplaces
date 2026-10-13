@@ -23,6 +23,9 @@ spring:
     timeout-per-shutdown-phase: 30s
   jackson:
     time-zone: UTC
+  http:
+    converters:
+      preferred-json-mapper: jackson2 # Boot 4 step 2: API JSON stays Jackson 2 (our ObjectMapper) until step 3
   data:
     redis:
   liquibase:
@@ -36,9 +39,6 @@ mybatis:
 management:
   server:
     port: 9000
-  health:
-    probes:
-      enabled: true
   endpoints:
     web:
       base-path: /actuator
@@ -48,6 +48,8 @@ management:
     health:
       enabled: true
       show-details: always
+      probes:
+        enabled: true
 
 
 

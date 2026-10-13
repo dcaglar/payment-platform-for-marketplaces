@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
+import com.dogancaglar.common.id.PublicIdFactory
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.AmountDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.JournalEntryDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PaymentDto
@@ -34,8 +35,10 @@ class TxController(
     /** A payment's txs and all its journal entries, in recorded order. */
     @PreAuthorize("hasAuthority('ledger:read') and hasAuthority('merchant:all')")
     @GetMapping("/merchants/{merchantAccount}/payments/{paymentId}")
-    fun getPayment(@PathVariable merchantAccount: String, @PathVariable paymentId: Long): ResponseEntity<PaymentDto> {
-        val txs = txUseCase.findTxsOfPayment(PaymentId(paymentId), merchantAccount)
+    fun getPayment(@PathVariable merchantAccount: String, @PathVariable paymentId: String): ResponseEntity<PaymentDto> {
+        // the API speaks public ids (pay_…, tx_…); the numeric id stays inside
+        val internalPaymentId = PaymentId(PublicIdFactory.toInternalId(paymentId))
+        val txs = txUseCase.findTxsOfPayment(internalPaymentId, merchantAccount)
         if (txs.isEmpty()) {
             throw PaymentDomainException.PaymentNotFoundException(
                 "paymentId=$paymentId, merchantAccount=$merchantAccount"
@@ -46,20 +49,21 @@ class TxController(
             txDtos.add(toDto(tx, merchantAccount, null))
         }
         val entryDtos = mutableListOf<JournalEntryDto>()
-        for (entry in txUseCase.findJournalEntriesOfPayment(PaymentId(paymentId), merchantAccount)) {
+        for (entry in txUseCase.findJournalEntriesOfPayment(internalPaymentId, merchantAccount)) {
             entryDtos.add(toDto(entry))
         }
-        return ResponseEntity.ok(PaymentDto(paymentId.toString(), merchantAccount, txDtos, entryDtos))
+        return ResponseEntity.ok(PaymentDto(paymentId, merchantAccount, txDtos, entryDtos))
     }
 
     /** One tx with its journal entries. */
     @PreAuthorize("hasAuthority('ledger:read') and hasAuthority('merchant:all')")
     @GetMapping("/merchants/{merchantAccount}/{txId}")
-    fun getTx(@PathVariable merchantAccount: String, @PathVariable txId: Long): ResponseEntity<TxDto> {
-        val tx = txUseCase.getTx(TxId(txId), merchantAccount)
+    fun getTx(@PathVariable merchantAccount: String, @PathVariable txId: String): ResponseEntity<TxDto> {
+        val internalTxId = TxId(PublicIdFactory.toInternalId(txId))
+        val tx = txUseCase.getTx(internalTxId, merchantAccount)
             ?: throw LedgerDomainException.TxNotFoundException("txId=$txId, merchantAccount=$merchantAccount")
         val entryDtos = mutableListOf<JournalEntryDto>()
-        for (entry in txUseCase.findJournalEntriesOfTx(TxId(txId), merchantAccount)) {
+        for (entry in txUseCase.findJournalEntriesOfTx(internalTxId, merchantAccount)) {
             entryDtos.add(toDto(entry))
         }
         return ResponseEntity.ok(toDto(tx, merchantAccount, entryDtos))
@@ -88,17 +92,22 @@ class TxController(
             is Tx.PspFeeTx -> parentTxId = tx.parentTxId.value
             else -> {}
         }
+        var publicParentTxId: String? = null
+        if (parentTxId != null) {
+            publicParentTxId = PublicIdFactory.publicTxId(parentTxId)
+        }
+        val publicTxId = PublicIdFactory.publicTxId(tx.txId.value)
         return TxDto(
-            txId = tx.txId.value.toString(),
+            txId = publicTxId,
             txType = tx.txType.name,
-            paymentId = tx.paymentId.value.toString(),
+            paymentId = PublicIdFactory.publicPaymentId(tx.paymentId.value),
             status = tx.status.name,
             amount = AmountDto(tx.amount.quantity, tx.amount.currency.currencyCode),
             acquirerReference = acquirerReference,
-            parentTxId = parentTxId?.toString(),
+            parentTxId = publicParentTxId,
             settleStatus = settleStatus,
             createdAt = tx.createdAt,
-            detailUrl = "/api/v1/txs/merchants/$merchantAccount/${tx.txId.value}",
+            detailUrl = "/api/v1/txs/merchants/$merchantAccount/$publicTxId",
             journalEntries = journalEntries
         )
     }
@@ -126,11 +135,16 @@ class TxController(
                 )
             )
         }
+        val entryTxId = entry.txId
+        var publicTxId: String? = null
+        if (entryTxId != null) {
+            publicTxId = PublicIdFactory.publicTxId(entryTxId.value)
+        }
         return JournalEntryDto(
             id = entry.id,
             journalType = entry.journalType.name,
             name = entry.name,
-            txId = entry.txId?.value?.toString(),
+            txId = publicTxId,
             postings = postings,
             totalDebit = AmountDto(debit, currency),
             totalCredit = AmountDto(credit, currency)

@@ -2,6 +2,7 @@ package com.dogancaglar.paymentservice.application.service
 
 import com.dogancaglar.paymentservice.application.command.CapturePaymentCommand
 import com.dogancaglar.paymentservice.application.events.CaptureRequested
+import com.dogancaglar.paymentservice.application.util.toPublicPaymentIntentId
 import com.dogancaglar.paymentservice.domain.exception.PaymentIntentDomainException
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.ports.inbound.usecases.CapturePaymentUseCase
@@ -19,7 +20,10 @@ class CapturePaymentService(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     override fun capture(cmd: CapturePaymentCommand): PaymentIntent {
-        logger.debug("CapturePaymentService.capture started for paymentIntentId=${cmd.paymentIntentId.value}")
+        logger.debug(
+            "CapturePaymentService.capture started for paymentIntentId={}",
+            cmd.paymentIntentId.toPublicPaymentIntentId()
+        )
 
         val paymentIntent = paymentIntentRepository.findById(cmd.paymentIntentId)
             ?: throw PaymentIntentDomainException.PaymentIntentNotFoundException(

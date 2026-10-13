@@ -1,5 +1,6 @@
 package com.dogancaglar.e2e
 
+import com.dogancaglar.common.id.PublicIdFactory
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -232,8 +233,8 @@ object E2eSupport {
     fun authorize(token: String, publicPaymentIntentId: String): HttpResult =
         postJson("${PlatformStack.paymentServiceBaseUrl}/api/v1/payments/$publicPaymentIntentId/authorize", token, "{}")
 
-    /** Creates and authorizes a payment, waits until the back office has it, returns its central payment id. */
-    fun authorizedPayment(token: String, merchant: String, seller: String, orderId: String): Long {
+    /** Creates and authorizes a payment, waits until the back office has it, returns its public payment id (pay_…). */
+    fun authorizedPayment(token: String, merchant: String, seller: String, orderId: String): String {
         val create = createPayment(token, merchant, seller, orderId)
         check(create.status == HTTP_CREATED) { "createPayment failed: ${create.status} ${create.rawBody}" }
         val publicId = create.body!!.get("paymentIntentId").asText()
@@ -251,7 +252,8 @@ object E2eSupport {
             }
         }
         checkNotNull(paymentId) { "payment $publicId never reached the back office (transactions)" }
-        return paymentId.toLong()
+        // the table holds the numeric id; the API speaks the public one
+        return PublicIdFactory.publicPaymentId(paymentId.toLong())
     }
 
     // ---------------------------------------------------------------------

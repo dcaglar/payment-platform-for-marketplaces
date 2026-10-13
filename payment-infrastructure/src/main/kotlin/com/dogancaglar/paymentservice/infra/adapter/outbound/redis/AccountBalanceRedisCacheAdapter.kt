@@ -8,7 +8,7 @@ import org.springframework.data.redis.connection.ReturnType
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Component
 import java.nio.charset.StandardCharsets
-import java.util.concurrent.TimeUnit
+import java.time.Duration
 
 /**
  * Redis adapter for account balance delta cache.
@@ -102,7 +102,7 @@ class AccountBalanceRedisCacheAdapter(
     override fun markDirty(accountCode: String) {
         val key = accPrefix + accountCode
         redisTemplate.opsForSet().add(dirtySet, key)
-        redisTemplate.expire(dirtySet, deltaTtlSeconds, TimeUnit.SECONDS)
+        redisTemplate.expire(dirtySet, Duration.ofSeconds(deltaTtlSeconds))
     }
 
     override fun getRealTimeBalance(accountId: String, snapshotBalance: Long): Long {

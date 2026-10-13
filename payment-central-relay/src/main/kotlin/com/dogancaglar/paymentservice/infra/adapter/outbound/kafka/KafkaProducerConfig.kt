@@ -9,7 +9,7 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringSerializer
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.kafka.KafkaProperties
+import org.springframework.boot.kafka.autoconfigure.KafkaProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
@@ -41,7 +41,7 @@ class KafkaProducerConfig(
 
     /** Common baseline from Spring Boot props + safe reliability knobs */
     private fun baseProps(): MutableMap<String, Any> =
-        bootKafkaProps.buildProducerProperties(null).toMutableMap().apply {
+        bootKafkaProps.buildProducerProperties().toMutableMap().apply {
             put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java)
             put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, EventEnvelopeKafkaSerializer::class.java)
 

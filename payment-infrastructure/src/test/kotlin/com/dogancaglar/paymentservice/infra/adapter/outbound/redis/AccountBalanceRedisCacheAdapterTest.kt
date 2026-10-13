@@ -13,7 +13,7 @@ import org.springframework.data.redis.core.HashOperations
 import org.springframework.data.redis.core.RedisCallback
 import org.springframework.data.redis.core.SetOperations
 import org.springframework.data.redis.core.StringRedisTemplate
-import java.util.concurrent.TimeUnit
+import java.time.Duration
 
 /**
  * Unit tests for AccountBalanceRedisCacheAdapter using MockK.
@@ -44,7 +44,7 @@ class AccountBalanceRedisCacheAdapterTest {
 
         every { redisTemplate.opsForHash<String, String>() } returns hashOperations
         every { redisTemplate.opsForSet() } returns setOperations
-        every { redisTemplate.expire(any<String>(), any<Long>(), any<TimeUnit>()) } returns true
+        every { redisTemplate.expire(any<String>(), any<Duration>()) } returns true
 
         adapter = AccountBalanceRedisCacheAdapter(redisTemplate, ttlSeconds, OpenTelemetry.noop())
     }
@@ -134,7 +134,7 @@ class AccountBalanceRedisCacheAdapterTest {
 
         // Then
         verify(exactly = 1) { setOperations.add("balances:dirty", expectedKey) }
-        verify(exactly = 1) { redisTemplate.expire("balances:dirty", ttlSeconds, TimeUnit.SECONDS) }
+        verify(exactly = 1) { redisTemplate.expire("balances:dirty", Duration.ofSeconds(ttlSeconds)) }
     }
 
     @Test
