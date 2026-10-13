@@ -2,7 +2,7 @@ package com.dogancaglar.common.event.metadata
 
 import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.EventEnvelope
-import com.fasterxml.jackson.core.type.TypeReference
+import tools.jackson.core.type.TypeReference
 
 /**
  * Kafka-level metadata for a specific event type:

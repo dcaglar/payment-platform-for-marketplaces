@@ -32,9 +32,6 @@ spring:
     timeout-per-shutdown-phase: 45s
   jackson:
     time-zone: UTC
-  http:
-    converters:
-      preferred-json-mapper: jackson2 # Boot 4 step 2: API JSON stays Jackson 2 (our ObjectMapper) until step 3
   datasource:
     payment-consumers:
       driver-class-name: org.postgresql.Driver

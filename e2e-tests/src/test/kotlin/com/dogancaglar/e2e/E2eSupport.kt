@@ -1,9 +1,6 @@
 package com.dogancaglar.e2e
 
 import com.dogancaglar.common.id.PublicIdFactory
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import liquibase.Contexts
 import liquibase.LabelExpression
 import liquibase.Liquibase
@@ -13,6 +10,9 @@ import liquibase.resource.DirectoryResourceAccessor
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.OffsetSpec
 import org.apache.kafka.common.TopicPartition
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.net.HttpURLConnection.HTTP_CREATED
 import java.net.HttpURLConnection.HTTP_OK
 import java.net.URI

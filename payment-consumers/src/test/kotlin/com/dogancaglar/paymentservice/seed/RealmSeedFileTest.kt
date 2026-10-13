@@ -1,8 +1,8 @@
 package com.dogancaglar.paymentservice.seed
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.ObjectMapper
 
 /**
  * The checked-in Keycloak seed must be exactly what merchants.json generates.

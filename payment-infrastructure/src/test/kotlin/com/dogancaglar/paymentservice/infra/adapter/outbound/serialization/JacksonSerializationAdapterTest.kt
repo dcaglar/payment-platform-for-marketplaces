@@ -1,9 +1,8 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.serialization
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import org.junit.jupiter.api.BeforeEach
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.module.kotlin.jacksonObjectMapper
 
 class JacksonSerializationAdapterTest {
 
@@ -12,10 +11,7 @@ class JacksonSerializationAdapterTest {
 
     @BeforeEach
     fun setUp() {
-        objectMapper = ObjectMapper().apply {
-            registerModule(JavaTimeModule())
-            registerKotlinModule()
-        }
+        objectMapper = jacksonObjectMapper()
         adapter = JacksonSerializationAdapter(objectMapper)
     }
 

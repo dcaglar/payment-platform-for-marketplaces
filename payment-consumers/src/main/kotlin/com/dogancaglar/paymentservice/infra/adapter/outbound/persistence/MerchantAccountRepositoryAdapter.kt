@@ -5,10 +5,10 @@ import com.dogancaglar.paymentservice.domain.model.account.Address
 import com.dogancaglar.paymentservice.domain.model.account.MerchantAccount
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.AccountMapper
 import com.dogancaglar.paymentservice.ports.outbound.MerchantAccountRepository
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Repository
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 
 /** Reads merchants from central-db's `accounts` table: one query per call, no cache. */
 @Repository

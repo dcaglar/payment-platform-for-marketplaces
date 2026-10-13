@@ -78,11 +78,6 @@
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
 
-        <!-- Jackson if needed -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-        </dependency>
         <!-- MockK for Kotlin testing -->
         <dependency>
             <groupId>io.mockk</groupId>

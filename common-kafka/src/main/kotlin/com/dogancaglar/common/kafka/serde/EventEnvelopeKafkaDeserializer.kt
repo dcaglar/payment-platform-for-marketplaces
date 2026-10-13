@@ -2,22 +2,22 @@ package com.dogancaglar.common.kafka.serde
 
 import com.dogancaglar.common.event.EventEnvelope
 import com.dogancaglar.common.kafka.metadata.PaymentEventMetadataCatalog
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import org.apache.kafka.common.header.Headers
 import org.apache.kafka.common.serialization.Deserializer
+import tools.jackson.core.type.TypeReference
+import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.cfg.DateTimeFeature
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.module.kotlin.kotlinModule
 
 class EventEnvelopeKafkaDeserializer : Deserializer<EventEnvelope<*>> {
 
-    val objectMapper: ObjectMapper = ObjectMapper()
-        .registerModule(JavaTimeModule())
-        .registerKotlinModule()
-        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+    val objectMapper: ObjectMapper = JsonMapper.builder()
+        .addModule(kotlinModule())
+        .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+        .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        .build()
 
     private val eventTypeMap: Map<String, TypeReference<out EventEnvelope<*>>> =
         PaymentEventMetadataCatalog.all.associate { it.eventType to it.typeRef }
@@ -30,7 +30,7 @@ class EventEnvelopeKafkaDeserializer : Deserializer<EventEnvelope<*>> {
         if (data == null || data.isEmpty()) return null
 
         val jsonNode = objectMapper.readTree(data)
-        val eventType = jsonNode.get("eventType")?.asText()
+        val eventType = jsonNode.get("eventType")?.asString()
             ?: throw IllegalArgumentException("Missing 'eventType' in EventEnvelope JSON for topic: $topic")
 
         val typeRef = eventTypeMap[eventType]
