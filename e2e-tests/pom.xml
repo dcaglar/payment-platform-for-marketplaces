@@ -128,9 +128,9 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Jackson for parsing HTTP responses + outbox envelope payloads -->
+        <!-- Jackson 3 for parsing HTTP responses + outbox envelope payloads -->
         <dependency>
-            <groupId>com.fasterxml.jackson.module</groupId>
+            <groupId>tools.jackson.module</groupId>
             <artifactId>jackson-module-kotlin</artifactId>
             <scope>test</scope>
         </dependency>

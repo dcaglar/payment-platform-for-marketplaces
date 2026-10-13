@@ -7,10 +7,10 @@ import com.dogancaglar.paymentservice.domain.model.account.SellerAccount
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccount
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.AccountMapper
 import com.dogancaglar.paymentservice.ports.outbound.AccountCreationTransactionalFacadePort
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.ObjectMapper
 
 @Repository
 open class AccountCreationTransactionalFacadeAdapter(

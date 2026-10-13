@@ -3,9 +3,9 @@ package com.dogancaglar.common.event.metadata
 import com.dogancaglar.common.event.Event
 import com.dogancaglar.common.event.EventEnvelope
 import com.dogancaglar.common.time.Utc
-import com.fasterxml.jackson.core.type.TypeReference
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.core.type.TypeReference
 import java.time.Instant
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

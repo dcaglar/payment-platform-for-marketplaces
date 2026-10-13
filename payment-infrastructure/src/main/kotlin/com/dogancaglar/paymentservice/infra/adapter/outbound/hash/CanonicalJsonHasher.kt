@@ -1,8 +1,8 @@
 package com.dogancaglar.paymentservice.infra.adapter.outbound.hash
 
 import com.dogancaglar.paymentservice.ports.outbound.HasherPort
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.stereotype.Component
+import tools.jackson.databind.ObjectMapper
 import java.security.MessageDigest
 import java.util.Base64
 

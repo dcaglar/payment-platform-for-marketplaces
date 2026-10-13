@@ -13,8 +13,8 @@ jump (Boot 5, Kotlin 3, whatever comes).
 |---|---|---|---|---|
 | Spring Boot | 3.5.0 | 3.5.16 | 4.1.1 | 4.1.x |
 | Spring Framework | 6.2.x | 6.2.x | 7.0.9 | 7.0.x |
-| Kotlin | 2.1.0 | 2.2.21 | 2.3.21 | 2.3.x (2.4 waits for detekt 2.0) |
-| Jackson | 2.19 | 2.19 | 2.21.5 via `spring-boot-jackson2` bridge | 3.1.x (`tools.jackson`) |
+| Kotlin | 2.1.0 | 2.2.21 | 2.3.21 | 2.4.21 (step 3) |
+| Jackson | 2.19 | 2.19 | 2.21.5 via `spring-boot-jackson2` bridge | 3.1.5 (`tools.jackson`), no Jackson 2 on the classpath |
 | Spring Kafka / kafka-clients | 3.3 / 3.9 | 3.3 / 3.9 | 4.1.1 / 4.2.1 | same |
 | JUnit | 5 | 5 | 6.0.3 | same |
 | mybatis-spring-boot-starter | 3.0.3 | 3.0.5 | 4.1.0 | same |
@@ -84,11 +84,30 @@ is the framework version. Everything that breaks is a Framework 7 behaviour
 change and nothing else. The bridges are deprecated, not removed, so there is
 no deadline pressure inside this step.
 
-### Step 3: Jackson 3 (#240)
+### Step 3: Jackson 3 (#240, 2026-10-13)
 
-`com.fasterxml.jackson` to `tools.jackson`, `ObjectMapper` to `JsonMapper`,
-checked `JsonProcessingException` to unchecked `JacksonException`, remove
-`spring-boot-jackson2` and the converter pin.
+`com.fasterxml.jackson` to `tools.jackson` in 29 files (annotations keep their
+package), the three hand-built mappers to `JsonMapper.builder()` with the Kotlin
+module, `java.time` support is built in so `jackson-datatype-jsr310` is gone,
+checked `JsonProcessingException` to unchecked `JacksonException` at four catch
+sites (one of them hid behind `IOException` in the PSP HTTP adapter), the
+`myObjectMapper` bean typed `JsonMapper` so Boot's own backs off and the HTTP
+converters use it, `spring-boot-jackson2` and the `preferred-json-mapper` pin
+removed. The last Jackson 2 holders went too: `logstash-logback-encoder`
+7.4 to 9.0 (its first Jackson 3 release), and the OTel starter's unused runtime
+extras excluded, the declarative YAML config module and the four cloud
+resource detectors. No `com.fasterxml.jackson` parser code is left; only
+`jackson-annotations` 2.x, which Jackson 3 keeps on purpose (same package, no
+code). The five Jackson 2 CVE lines left `.trivyignore`.
+
+Kotlin 2.3.21 to 2.4.21 in the same step. detekt 1.23.8 runs without type
+resolution, so it only parses the sources and does not care which compiler
+built the classes; the build, detekt and all suites passed unchanged.
+
+Golden files: `EventWireCompatibilityTest` in common-kafka keeps one recorded
+envelope per event type under `src/test/resources/wire/`, written by the
+Jackson 2 code before the switch, and `CreatePaymentBodyHashTest` keeps the
+idempotency hash of the sample create request. Both passed unchanged on Jackson 3.
 
 Why its own step: JSON bytes are a contract in this system. Outbox payloads
 travel edge to central to Kafka, and events already stored in the outbox
@@ -115,8 +134,8 @@ e2e has exactly one explanation: a starter is missing from that module's pom.
 
 ### Deliberately out of scope
 
-Kotlin 2.4 and detekt 2.0 (detekt 2.0 is alpha without an official Maven plugin),
-Testcontainers 2 (we pin 1.21.4), the `List<@Valid ...>` change on
+detekt 2.0 (alpha without an official Maven plugin; 1.23.8 parses Kotlin 2.4
+sources as long as no 2.4-only syntax is used), Testcontainers 2 (we pin 1.21.4), the `List<@Valid ...>` change on
 `CreatePaymentIntentRequestDTO.splits` (needs the Kotlin type-annotation
 emission flag), the `deploy-infra.yml` / `destroy-infra.yml` action bumps.
 Each is its own small PR when wanted.

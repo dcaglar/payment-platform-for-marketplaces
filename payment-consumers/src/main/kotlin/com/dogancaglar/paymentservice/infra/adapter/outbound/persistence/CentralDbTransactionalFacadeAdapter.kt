@@ -17,11 +17,11 @@ import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.PaymentTxMapper
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.TransferMapper
 import com.dogancaglar.paymentservice.ports.outbound.CentralDbTransactionalFacadePort
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.ObjectMapper
 
 @Repository
 open class CentralDbTransactionalFacadeAdapter(

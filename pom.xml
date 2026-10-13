@@ -54,9 +54,13 @@ It declares that this module is:
         <detekt.phase>verify</detekt.phase>
         <!-- each module's findings still to fix (tolerated for now); -Ddetekt.baselineFile= (empty) shows every finding -->
         <detekt.baselineFile>${project.basedir}/detekt-baseline.xml</detekt.baselineFile>
-        <kotlin.version>2.3.21</kotlin.version>
+        <kotlin.version>2.4.21</kotlin.version>
         <postgresql.version>42.7.14</postgresql.version>
-        <logstash.version>7.4</logstash.version>
+        <!-- Boot 4.1.1 manages Jackson 3.1.5; 3.1.7 fixes CVE-2026-68497/89407/89425/91776/91777 (Boot's own override property) -->
+        <jackson-bom.version>3.1.7</jackson-bom.version>
+        <!-- Boot 4.1.1 manages Tomcat 11.0.24; 11.0.25 fixes CVE-2026-65182/65905/68525 (Boot's own override property) -->
+        <tomcat.version>11.0.27</tomcat.version>
+        <logstash.version>9.0</logstash.version> <!-- 9.0 is the first release on Jackson 3 -->
         <stripe.version>31.0.0</stripe.version>
         <!-- Build plugins -->
         <kotlin.maven.plugin.version>${kotlin.version}</kotlin.maven.plugin.version>

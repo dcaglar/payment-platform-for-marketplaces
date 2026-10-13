@@ -3,13 +3,13 @@ package com.dogancaglar.paymentservice.infra.adapter.outbound.redis.client
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
-import com.fasterxml.jackson.core.JsonProcessingException
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.dao.DataAccessException
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Repository
+import tools.jackson.core.JacksonException
+import tools.jackson.databind.ObjectMapper
 import java.time.Duration
 
 @Repository
@@ -30,7 +30,7 @@ class AccountProfileRedisCache(
         return if (json != null) {
             try {
                 objectMapper.readValue(json, AccountProfile::class.java)
-            } catch (e: JsonProcessingException) {
+            } catch (e: JacksonException) {
                 // the cache is best effort: an unreadable entry counts as not cached (the database is the source)
                 logger.warn("Failed to deserialize AccountProfile from Redis. Key: $key", e)
                 null
@@ -45,7 +45,7 @@ class AccountProfileRedisCache(
         // the cache is best effort: a failure to fill it is logged, never fails the caller
         val json = try {
             objectMapper.writeValueAsString(profile)
-        } catch (e: JsonProcessingException) {
+        } catch (e: JacksonException) {
             logger.warn("Failed to serialize AccountProfile for Redis. Key: $key", e)
             return
         }

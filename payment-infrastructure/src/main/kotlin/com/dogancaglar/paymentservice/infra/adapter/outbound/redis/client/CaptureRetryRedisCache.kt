@@ -3,13 +3,13 @@ package com.dogancaglar.paymentservice.infra.adapter.outbound.redis.client
 import com.dogancaglar.common.event.EventEnvelope
 import com.dogancaglar.paymentservice.application.events.CaptureRequested
 import com.dogancaglar.paymentservice.application.util.RetryItem
-import com.fasterxml.jackson.core.JsonProcessingException
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.data.redis.core.RedisCallback
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Repository
+import tools.jackson.core.JacksonException
+import tools.jackson.databind.ObjectMapper
 import kotlin.collections.plusAssign
 
 @Repository
@@ -81,7 +81,7 @@ open class CaptureRetryRedisCache(
                 )
                 val envelope: EventEnvelope<CaptureRequested> = objectMapper.readValue(String(raw), type)
                 items += RetryItem(envelope, raw)
-            } catch (e: JsonProcessingException) {
+            } catch (e: JacksonException) {
                 // unreadable: drop it from inflight to avoid a poison loop. That capture will not be retried,
                 // so log it findably (error, the item itself and the cause)
                 logger.error("Unreadable capture retry item dropped: {}", String(raw).take(MAX_LOGGED_ITEM_CHARS), e)

@@ -1,8 +1,8 @@
 package com.dogancaglar.paymentservice.seed
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.databind.node.ObjectNode
+import tools.jackson.databind.SerializationFeature
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
 import java.io.File
 
 /**
@@ -22,7 +22,7 @@ object RealmSeedGenerator {
 
     val seedFile = File("../keycloak/realm/merchants-seed.json")
 
-    private val json = ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT)
+    private val json = JsonMapper.builder().enable(SerializationFeature.INDENT_OUTPUT).build()
 
     fun generate(merchants: List<MerchantSeed>): String {
         val seed = json.createObjectNode()

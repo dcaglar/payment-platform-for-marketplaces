@@ -9,7 +9,6 @@ import com.dogancaglar.paymentservice.domain.model.payment.PaymentMethod
 import com.dogancaglar.paymentservice.infra.adapter.outbound.psp.PspCardSummary
 import com.dogancaglar.paymentservice.ports.outbound.PspAuthorizationGatewayPort
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -21,7 +20,8 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.stereotype.Component
 import org.springframework.web.client.ResourceAccessException
 import org.springframework.web.client.RestClient
-import java.io.IOException
+import tools.jackson.core.JacksonException
+import tools.jackson.databind.ObjectMapper
 import java.net.ConnectException
 import java.net.http.HttpClient
 import java.net.http.HttpConnectTimeoutException
@@ -219,7 +219,7 @@ class HttpPspAuthorizationGatewayAdapter(
     private fun readIntent(op: PspOperation, id: Long, answer: PspAnswer): IntentResponse {
         try {
             return objectMapper.readValue(answer.body, IntentResponse::class.java)
-        } catch (e: IOException) { // Jackson: unreadable / unexpected body
+        } catch (e: JacksonException) { // Jackson: unreadable / unexpected body
             throw PspUnknownException(op, id, "answered ${answer.status} with an unreadable body", e)
         }
     }
