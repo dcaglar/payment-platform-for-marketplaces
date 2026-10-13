@@ -4,6 +4,7 @@ import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.BalanceDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PageDto
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
@@ -35,7 +36,7 @@ class BalanceController(
     @PreAuthorize("hasAuthority('balance:read') and principal.claims['seller_id'] != null")
     @GetMapping("/balances/sellers/me")
     fun getMySellerBalance(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<BalanceDto> {
-        return ResponseEntity.ok(balanceService.getSellerBalance(jwt.getClaimAsString("seller_id")))
+        return ResponseEntity.ok(balanceService.getSellerBalance(sellerOf(jwt)))
     }
 
     // --- merchant: always its own, from the token ---
@@ -44,7 +45,7 @@ class BalanceController(
     @PreAuthorize("hasAuthority('balance:read') and principal.claims['merchant_id'] != null")
     @GetMapping("/balances/merchants/me")
     fun getMyMerchantBalance(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<BalanceDto> {
-        return ResponseEntity.ok(balanceService.getMerchantBalance(jwt.getClaimAsString("merchant_id")))
+        return ResponseEntity.ok(balanceService.getMerchantBalance(merchantOf(jwt)))
     }
 
     /** A merchant's own sellers with their balances, one page. */
@@ -55,7 +56,7 @@ class BalanceController(
         @RequestParam(defaultValue = "20") size: Int,
         @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<PageDto<BalanceDto>> {
-        val sellers = balanceService.getSellerBalancesOfMerchant(jwt.getClaimAsString("merchant_id"), page, size)
+        val sellers = balanceService.getSellerBalancesOfMerchant(merchantOf(jwt), page, size)
         return ResponseEntity.ok(withDetailUrls(sellers, "/api/v1/balances/merchants/me/sellers/"))
     }
 
@@ -67,7 +68,7 @@ class BalanceController(
         @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<BalanceDto> {
         return ResponseEntity.ok(
-            balanceService.getSellerBalanceForMerchant(sellerId, jwt.getClaimAsString("merchant_id"))
+            balanceService.getSellerBalanceForMerchant(sellerId, merchantOf(jwt))
         )
     }
 
@@ -108,4 +109,12 @@ class BalanceController(
         }
         return sellers.copy(items = items)
     }
+
+    /** The merchant the caller acts for. A token without merchant_id cannot act for any merchant. */
+    private fun merchantOf(jwt: Jwt): String =
+        jwt.getClaimAsString("merchant_id") ?: throw AccessDeniedException("Token has no merchant_id claim")
+
+    /** The seller the caller is. A token without seller_id is not a seller. */
+    private fun sellerOf(jwt: Jwt): String =
+        jwt.getClaimAsString("seller_id") ?: throw AccessDeniedException("Token has no seller_id claim")
 }

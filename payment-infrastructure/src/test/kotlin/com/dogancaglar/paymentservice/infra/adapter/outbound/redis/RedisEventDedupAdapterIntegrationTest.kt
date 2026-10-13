@@ -7,7 +7,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -32,7 +32,7 @@ import org.testcontainers.utility.DockerImageName
 class RedisEventDedupAdapterIntegrationTest {
 
     @Configuration
-    @Import(RedisAutoConfiguration::class)
+    @Import(DataRedisAutoConfiguration::class)
     class TestConfig {
         @Bean
         fun redisEventDedupAdapter(redisTemplate: StringRedisTemplate): RedisEventDedupAdapter {

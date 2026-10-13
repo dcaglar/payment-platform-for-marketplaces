@@ -25,8 +25,8 @@ import java.util.UUID
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BackofficeAccessE2EIntegrationTest {
 
-    private var paymentOf5 = 0L
-    private var paymentOf1 = 0L
+    private var paymentOf5 = ""
+    private var paymentOf1 = ""
     private val api get() = "${PlatformStack.consumersBaseUrl}/api/v1"
 
     @BeforeAll

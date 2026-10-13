@@ -1,6 +1,7 @@
 package com.dogancaglar.paymentservice.application.service
 
 import com.dogancaglar.paymentservice.application.command.ProcessPaymentIntentUpdateCommand
+import com.dogancaglar.paymentservice.application.util.toPublicPaymentIntentId
 import com.dogancaglar.paymentservice.domain.exception.PaymentIntentDomainException
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntent
 import com.dogancaglar.paymentservice.domain.model.payment.PaymentIntentStatus
@@ -15,7 +16,11 @@ class UpdatePaymentIntentService(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     override fun processUpdate(cmd: ProcessPaymentIntentUpdateCommand): PaymentIntent {
-        logger.debug("Processing payment intent update: id={}, status={}", cmd.paymentIntentId.value, cmd.status)
+        logger.debug(
+            "Processing payment intent update: id={}, status={}",
+            cmd.paymentIntentId.toPublicPaymentIntentId(),
+            cmd.status
+        )
 
         val paymentIntent = paymentIntentRepository.findById(cmd.paymentIntentId)
             ?: throw PaymentIntentDomainException.PaymentIntentNotFoundException(
@@ -30,7 +35,7 @@ class UpdatePaymentIntentService(
                         clientSecret = cmd.clientSecret ?: ""
                     )
                     paymentIntentRepository.updatePaymentIntent(updated)
-                    logger.debug("Updated PaymentIntent to CREATED: {}", cmd.paymentIntentId.value)
+                    logger.debug("Updated PaymentIntent to CREATED: {}", cmd.paymentIntentId.toPublicPaymentIntentId())
                     updated
                 } else {
                     logger.warn("Ignoring invalid transition from CREATED_PENDING to {}", cmd.status)
@@ -40,7 +45,7 @@ class UpdatePaymentIntentService(
             PaymentIntentStatus.CREATED -> {
                 // If we receive another CREATED event, just return existing (idempotency)
                 if (cmd.status == PaymentIntentStatus.CREATED) {
-                    logger.debug("PaymentIntent already CREATED: {}", cmd.paymentIntentId.value)
+                    logger.debug("PaymentIntent already CREATED: {}", cmd.paymentIntentId.toPublicPaymentIntentId())
                     paymentIntent
                 } else {
                     // Handle other transitions if needed (e.g. directly to AUTHORIZED? unlikely without PENDING_AUTH)

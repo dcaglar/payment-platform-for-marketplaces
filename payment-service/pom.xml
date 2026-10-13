@@ -14,6 +14,12 @@
 
 
     <dependencies>
+        <!-- Boot 4 step 2: reports renamed/removed properties at startup; remove with the classic starters -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-properties-migrator</artifactId>
+            <scope>runtime</scope>
+        </dependency>
         <dependency>
             <groupId>com.dogancaglar</groupId>
             <artifactId>common</artifactId>
@@ -34,6 +40,10 @@
         <dependency>
             <groupId>com.dogancaglar</groupId>
             <artifactId>common-db</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-classic</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -105,7 +115,7 @@
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
+            <artifactId>spring-boot-starter-test-classic</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

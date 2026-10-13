@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.kafka.KafkaProperties
+import org.springframework.boot.kafka.autoconfigure.KafkaProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
@@ -230,7 +230,7 @@ class KafkaTypedConsumerFactoryConfig(
         batchListener: Boolean = false
     ): ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<T>> =
         ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<T>>().apply {
-            this.consumerFactory = consumerFactory
+            setConsumerFactory(consumerFactory)
             containerProperties.clientId = clientId
             consumerFactory.updateConfigs(
                 mapOf(CLIENT_ID_CONFIG to clientId)
@@ -244,7 +244,7 @@ class KafkaTypedConsumerFactoryConfig(
             setCommonErrorHandler(errorHandler)
             setConcurrency(concurrency)
             setAutoStartup(true)
-            isBatchListener = batchListener
+            setBatchListener(batchListener)
 
             // enforce semantic type at the container level
             expectedEventType?.let {

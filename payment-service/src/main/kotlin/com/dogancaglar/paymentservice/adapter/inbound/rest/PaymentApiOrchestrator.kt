@@ -105,6 +105,9 @@ class PaymentApiOrchestrator(
             status = PaymentIntentStatus.CREATED
         )
         updatePaymentIntentUseCase.processUpdate(cmd)
-        logger.debug("Processed webhook payment_intent.created for ${paymentIntentId.value}")
+        logger.debug(
+            "Processed webhook payment_intent.created for {}",
+            PublicIdFactory.publicPaymentIntentId(paymentIntentId.value)
+        )
     }
 }

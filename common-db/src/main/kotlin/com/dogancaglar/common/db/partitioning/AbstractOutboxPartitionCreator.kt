@@ -94,7 +94,8 @@ abstract class AbstractOutboxPartitionCreator(
 
         logger.debug("Vacuum check for partitions (skipping: $currPartitionName and $nextPartitionName)")
 
-        val partitionNames: List<String> = jdbcTemplate.queryForList(
+        // Spring 7 (JSpecify) types the rows as nullable; a partition name is never null, the loop skips it anyway
+        val partitionNames: List<String?> = jdbcTemplate.queryForList(
             """
             SELECT inhrelid::regclass::text AS partition_name
             FROM pg_inherits
@@ -104,7 +105,12 @@ abstract class AbstractOutboxPartitionCreator(
         )
 
         for (partitionName in partitionNames) {
-            if (partitionName == currPartitionName || partitionName == nextPartitionName) continue
+            if (partitionName == null ||
+                partitionName == currPartitionName ||
+                partitionName == nextPartitionName
+            ) {
+                continue
+            }
 
             val newCount: Int? = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM $partitionName WHERE status IN ('NEW', 'PROCESSING')",

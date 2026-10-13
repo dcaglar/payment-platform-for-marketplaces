@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
+import com.dogancaglar.common.id.PublicIdFactory
 import com.dogancaglar.paymentservice.config.SecurityConfig
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
@@ -12,7 +13,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.context.annotation.Import
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.authority.SimpleGrantedAuthority
@@ -55,14 +56,16 @@ class TxApiAccessTest {
         `when`(txUseCase.getTx(TxId(5001), "MARKETPLACE-5")).thenReturn(authorization)
 
         val payment = mockMvc.get(
-            "/api/v1/txs/merchants/MARKETPLACE-5/payments/1001"
+            "/api/v1/txs/merchants/MARKETPLACE-5/payments/${PublicIdFactory.publicPaymentId(1001)}"
         ) { with(finance) }.andReturn().response.status
         val missingPayment = mockMvc.get(
-            "/api/v1/txs/merchants/MARKETPLACE-5/payments/1009"
+            "/api/v1/txs/merchants/MARKETPLACE-5/payments/${PublicIdFactory.publicPaymentId(1009)}"
         ) { with(finance) }.andReturn().response.status
-        val tx = mockMvc.get("/api/v1/txs/merchants/MARKETPLACE-5/5001") { with(finance) }.andReturn().response.status
+        val tx = mockMvc.get(
+            "/api/v1/txs/merchants/MARKETPLACE-5/${PublicIdFactory.publicTxId(5001)}"
+        ) { with(finance) }.andReturn().response.status
         val missingTx = mockMvc.get(
-            "/api/v1/txs/merchants/MARKETPLACE-5/5009"
+            "/api/v1/txs/merchants/MARKETPLACE-5/${PublicIdFactory.publicTxId(5009)}"
         ) { with(finance) }.andReturn().response.status
 
         assertEquals(HttpStatus.OK.value(), payment)
@@ -80,9 +83,11 @@ class TxApiAccessTest {
         )
 
         val payment = mockMvc.get(
-            "/api/v1/txs/merchants/MARKETPLACE-5/payments/1001"
+            "/api/v1/txs/merchants/MARKETPLACE-5/payments/${PublicIdFactory.publicPaymentId(1001)}"
         ) { with(support) }.andReturn().response.status
-        val tx = mockMvc.get("/api/v1/txs/merchants/MARKETPLACE-5/5001") { with(support) }.andReturn().response.status
+        val tx = mockMvc.get(
+            "/api/v1/txs/merchants/MARKETPLACE-5/${PublicIdFactory.publicTxId(5001)}"
+        ) { with(support) }.andReturn().response.status
 
         assertEquals(HttpStatus.FORBIDDEN.value(), payment)
         assertEquals(HttpStatus.FORBIDDEN.value(), tx)
@@ -94,9 +99,11 @@ class TxApiAccessTest {
             .authorities(SimpleGrantedAuthority("transaction:read"), SimpleGrantedAuthority("ledger:read"))
 
         val payment = mockMvc.get(
-            "/api/v1/txs/merchants/MARKETPLACE-5/payments/1001"
+            "/api/v1/txs/merchants/MARKETPLACE-5/payments/${PublicIdFactory.publicPaymentId(1001)}"
         ) { with(merchant) }.andReturn().response.status
-        val tx = mockMvc.get("/api/v1/txs/merchants/MARKETPLACE-5/5001") { with(merchant) }.andReturn().response.status
+        val tx = mockMvc.get(
+            "/api/v1/txs/merchants/MARKETPLACE-5/${PublicIdFactory.publicTxId(5001)}"
+        ) { with(merchant) }.andReturn().response.status
 
         assertEquals(HttpStatus.FORBIDDEN.value(), payment) // not staff (no merchant:all)
         assertEquals(HttpStatus.FORBIDDEN.value(), tx)
@@ -104,8 +111,12 @@ class TxApiAccessTest {
 
     @Test
     fun `without a token txs are 401`() {
-        val payment = mockMvc.get("/api/v1/txs/merchants/MARKETPLACE-5/payments/1001").andReturn().response.status
-        val tx = mockMvc.get("/api/v1/txs/merchants/MARKETPLACE-5/5001").andReturn().response.status
+        val payment = mockMvc.get(
+            "/api/v1/txs/merchants/MARKETPLACE-5/payments/${PublicIdFactory.publicPaymentId(1001)}"
+        ).andReturn().response.status
+        val tx = mockMvc.get(
+            "/api/v1/txs/merchants/MARKETPLACE-5/${PublicIdFactory.publicTxId(5001)}"
+        ).andReturn().response.status
 
         assertEquals(HttpStatus.UNAUTHORIZED.value(), payment)
         assertEquals(HttpStatus.UNAUTHORIZED.value(), tx)

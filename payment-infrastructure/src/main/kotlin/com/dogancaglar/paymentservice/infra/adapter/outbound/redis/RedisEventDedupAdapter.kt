@@ -3,7 +3,7 @@ package com.dogancaglar.paymentservice.infra.adapter.outbound.redis
 import com.dogancaglar.paymentservice.ports.outbound.EventDeduplicationPort
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Component
-import java.util.concurrent.TimeUnit
+import java.time.Duration
 
 @Component
 class RedisEventDedupAdapter(
@@ -18,8 +18,7 @@ class RedisEventDedupAdapter(
         redis.opsForValue().set(
             dedupKey(prefix, eventId),
             "1",
-            ttlSeconds,
-            TimeUnit.SECONDS
+            Duration.ofSeconds(ttlSeconds)
         )
     }
 

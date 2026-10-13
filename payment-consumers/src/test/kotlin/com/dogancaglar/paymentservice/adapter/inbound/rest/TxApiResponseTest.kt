@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
+import com.dogancaglar.common.id.PublicIdFactory
 import com.dogancaglar.paymentservice.config.SecurityConfig
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
@@ -18,7 +19,7 @@ import com.dogancaglar.paymentservice.ports.inbound.usecases.TxUseCase
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.context.annotation.Import
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.oauth2.jwt.JwtDecoder
@@ -93,13 +94,19 @@ class TxApiResponseTest {
         `when`(txUseCase.findTxsOfPayment(PaymentId(1001), "MARKETPLACE-5")).thenReturn(listOf(authorization, capture))
         `when`(txUseCase.findJournalEntriesOfPayment(PaymentId(1001), "MARKETPLACE-5")).thenReturn(listOf(allocation))
 
-        mockMvc.get("/api/v1/txs/merchants/MARKETPLACE-5/payments/1001") { with(finance) }
+        mockMvc.get(
+            "/api/v1/txs/merchants/MARKETPLACE-5/payments/${PublicIdFactory.publicPaymentId(1001)}"
+        ) { with(finance) }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.txs.length()") { value(2) } }
             .andExpect { jsonPath("$.txs[0].txType") { value("AUTHORIZATION") } }
-            .andExpect { jsonPath("$.txs[0].detailUrl") { value("/api/v1/txs/merchants/MARKETPLACE-5/5001") } }
+            .andExpect {
+                jsonPath("$.txs[0].detailUrl") {
+                    value("/api/v1/txs/merchants/MARKETPLACE-5/${PublicIdFactory.publicTxId(5001)}")
+                }
+            }
             .andExpect { jsonPath("$.txs[1].txType") { value("CAPTURE") } }
-            .andExpect { jsonPath("$.txs[1].parentTxId") { value("5001") } }
+            .andExpect { jsonPath("$.txs[1].parentTxId") { value(PublicIdFactory.publicTxId(5001)) } }
             .andExpect { jsonPath("$.txs[1].settleStatus") { value("MATCHED") } }
             .andExpect { jsonPath("$.txs[1].journalEntries") { doesNotExist() } }
             .andExpect { jsonPath("$.journalEntries.length()") { value(1) } }
@@ -148,13 +155,13 @@ class TxApiResponseTest {
         `when`(txUseCase.getTx(TxId(5001), "MARKETPLACE-5")).thenReturn(authorization)
         `when`(txUseCase.findJournalEntriesOfTx(TxId(5001), "MARKETPLACE-5")).thenReturn(listOf(authHold))
 
-        mockMvc.get("/api/v1/txs/merchants/MARKETPLACE-5/5001") { with(finance) }
+        mockMvc.get("/api/v1/txs/merchants/MARKETPLACE-5/${PublicIdFactory.publicTxId(5001)}") { with(finance) }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.txType") { value("AUTHORIZATION") } }
-            .andExpect { jsonPath("$.paymentId") { value("1001") } }
+            .andExpect { jsonPath("$.paymentId") { value(PublicIdFactory.publicPaymentId(1001)) } }
             .andExpect { jsonPath("$.acquirerReference") { value("psp_1001") } }
             .andExpect { jsonPath("$.journalEntries.length()") { value(1) } }
-            .andExpect { jsonPath("$.journalEntries[0].txId") { value("5001") } }
+            .andExpect { jsonPath("$.journalEntries[0].txId") { value(PublicIdFactory.publicTxId(5001)) } }
             .andExpect { jsonPath("$.journalEntries[0].postings[0].accountType") { value("AUTH_RECEIVABLE") } }
             .andExpect { jsonPath("$.journalEntries[0].postings[0].direction") { value("DEBIT") } }
             .andExpect { jsonPath("$.journalEntries[0].postings[0].amount.quantity") { value(3000) } }

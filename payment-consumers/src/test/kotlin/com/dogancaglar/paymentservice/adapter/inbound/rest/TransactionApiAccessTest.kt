@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
+import com.dogancaglar.common.id.PublicIdFactory
 import com.dogancaglar.paymentservice.application.transaction.Transaction
 import com.dogancaglar.paymentservice.config.SecurityConfig
 import com.dogancaglar.paymentservice.domain.model.common.Amount
@@ -14,7 +15,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.context.annotation.Import
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.authority.SimpleGrantedAuthority
@@ -65,15 +66,17 @@ class TransactionApiAccessTest {
 
         val ownList = mockMvc.get("/api/v1/transactions/merchants/me") { with(merchant) }.andReturn().response.status
         val ownExisting = mockMvc.get(
-            "/api/v1/transactions/merchants/me/1002"
+            "/api/v1/transactions/merchants/me/${PublicIdFactory.publicPaymentId(1002)}"
         ) { with(merchant) }.andReturn().response.status
         val ownMissing = mockMvc.get(
-            "/api/v1/transactions/merchants/me/1001"
+            "/api/v1/transactions/merchants/me/${PublicIdFactory.publicPaymentId(1001)}"
         ) { with(merchant) }.andReturn().response.status
         val staffList = mockMvc.get("/api/v1/transactions/merchants/MARKETPLACE-5") {
             with(merchant)
         }.andReturn().response.status
-        val staffDetail = mockMvc.get("/api/v1/transactions/merchants/MARKETPLACE-5/1002") {
+        val staffDetail = mockMvc.get(
+            "/api/v1/transactions/merchants/MARKETPLACE-5/${PublicIdFactory.publicPaymentId(1002)}"
+        ) {
             with(merchant)
         }.andReturn().response.status
 
@@ -109,10 +112,14 @@ class TransactionApiAccessTest {
         val list = mockMvc.get(
             "/api/v1/transactions/merchants/MARKETPLACE-1"
         ) { with(support) }.andReturn().response.status
-        val existing = mockMvc.get("/api/v1/transactions/merchants/MARKETPLACE-1/2001") {
+        val existing = mockMvc.get(
+            "/api/v1/transactions/merchants/MARKETPLACE-1/${PublicIdFactory.publicPaymentId(2001)}"
+        ) {
             with(support)
         }.andReturn().response.status
-        val missing = mockMvc.get("/api/v1/transactions/merchants/MARKETPLACE-1/1001") {
+        val missing = mockMvc.get(
+            "/api/v1/transactions/merchants/MARKETPLACE-1/${PublicIdFactory.publicPaymentId(1001)}"
+        ) {
             with(support)
         }.andReturn().response.status
         val ownList = mockMvc.get("/api/v1/transactions/merchants/me") { with(support) }.andReturn().response.status
@@ -129,12 +136,14 @@ class TransactionApiAccessTest {
 
         val ownList = mockMvc.get("/api/v1/transactions/merchants/me") { with(neither) }.andReturn().response.status
         val ownDetail = mockMvc.get(
-            "/api/v1/transactions/merchants/me/1001"
+            "/api/v1/transactions/merchants/me/${PublicIdFactory.publicPaymentId(1001)}"
         ) { with(neither) }.andReturn().response.status
         val staffList = mockMvc.get("/api/v1/transactions/merchants/MARKETPLACE-5") {
             with(neither)
         }.andReturn().response.status
-        val staffDetail = mockMvc.get("/api/v1/transactions/merchants/MARKETPLACE-5/1001") {
+        val staffDetail = mockMvc.get(
+            "/api/v1/transactions/merchants/MARKETPLACE-5/${PublicIdFactory.publicPaymentId(1001)}"
+        ) {
             with(neither)
         }.andReturn().response.status
 
@@ -154,7 +163,9 @@ class TransactionApiAccessTest {
         val staffList = mockMvc.get(
             "/api/v1/transactions/merchants/MARKETPLACE-5"
         ) { with(seller) }.andReturn().response.status
-        val staffDetail = mockMvc.get("/api/v1/transactions/merchants/MARKETPLACE-5/1001") {
+        val staffDetail = mockMvc.get(
+            "/api/v1/transactions/merchants/MARKETPLACE-5/${PublicIdFactory.publicPaymentId(1001)}"
+        ) {
             with(seller)
         }.andReturn().response.status
 
@@ -166,9 +177,13 @@ class TransactionApiAccessTest {
     @Test
     fun `without a token every transaction endpoint is 401`() {
         val ownList = mockMvc.get("/api/v1/transactions/merchants/me").andReturn().response.status
-        val ownDetail = mockMvc.get("/api/v1/transactions/merchants/me/1001").andReturn().response.status
+        val ownDetail = mockMvc.get(
+            "/api/v1/transactions/merchants/me/${PublicIdFactory.publicPaymentId(1001)}"
+        ).andReturn().response.status
         val staffList = mockMvc.get("/api/v1/transactions/merchants/MARKETPLACE-5").andReturn().response.status
-        val staffDetail = mockMvc.get("/api/v1/transactions/merchants/MARKETPLACE-5/1001").andReturn().response.status
+        val staffDetail = mockMvc.get(
+            "/api/v1/transactions/merchants/MARKETPLACE-5/${PublicIdFactory.publicPaymentId(1001)}"
+        ).andReturn().response.status
 
         assertEquals(HttpStatus.UNAUTHORIZED.value(), ownList)
         assertEquals(HttpStatus.UNAUTHORIZED.value(), ownDetail)

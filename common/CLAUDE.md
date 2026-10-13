@@ -12,7 +12,7 @@ Framework-light shared kernel used by EVERY service. In hexagonal terms this is 
 - `EventMetaDataRegistry` / `EventMetadata` map an `eventType` string → routing (topic, payload class). It's the single source that `RawEventPublisher` (common-kafka) and deserializers consult. New event type ⇒ register here, don't scatter topic strings.
 
 ## Public IDs — `PublicIdFactory` / `PublicIdCodec`
-- Internal ids are `Long`; external/public ids are prefixed, encoded strings: `pay_`, `pi_` (PaymentIntent), `tr_` (transfer), `le_` (ledger entry).
+- Internal ids are `Long`; external/public ids are prefixed, encoded strings: `pay_`, `pi_` (PaymentIntent), `tx_` (ledger tx), `tr_` (transfer), `le_` (ledger entry).
 - Encode with `PublicIdFactory.public…Id(long)`, decode with `toInternalId(publicId)`. Never expose the raw `Long` over an API boundary; never parse a public id by hand — round-trip through the codec.
 
 ## Time — `Utc`

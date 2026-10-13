@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
+import com.dogancaglar.common.id.PublicIdFactory
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.AmountDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.CardDto
 import com.dogancaglar.paymentservice.adapter.inbound.rest.dto.PageDto
@@ -47,7 +48,7 @@ class TransactionController(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
         @RequestParam(required = false) orderId: String?,
-        @RequestParam(required = false) paymentId: Long?,
+        @RequestParam(required = false) paymentId: String?,
         @RequestParam(required = false) sellerId: String?,
         @RequestParam(required = false) status: PaymentStatus?,
         @RequestParam(required = false) from: Instant?,
@@ -71,11 +72,12 @@ class TransactionController(
     @PreAuthorize("hasAuthority('transaction:read') and principal.claims['merchant_id'] != null")
     @GetMapping("/transactions/merchants/me/{paymentId}")
     fun getMyTransaction(
-        @PathVariable paymentId: Long,
+        @PathVariable paymentId: String,
         @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<TransactionDto> {
         // looked up together with the merchant: another merchant's payment is not found
-        val transaction = transactionUseCase.getTransaction(PaymentId(paymentId), jwt.getClaimAsString("merchant_id"))
+        val transaction = transactionUseCase
+            .getTransaction(internalPaymentId(paymentId), jwt.getClaimAsString("merchant_id"))
             ?: throw PaymentDomainException.PaymentNotFoundException("paymentId=$paymentId")
         return ResponseEntity.ok(
             toDto(transaction, withDetails = true, detailPrefix = "/api/v1/transactions/merchants/me/")
@@ -92,7 +94,7 @@ class TransactionController(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
         @RequestParam(required = false) orderId: String?,
-        @RequestParam(required = false) paymentId: Long?,
+        @RequestParam(required = false) paymentId: String?,
         @RequestParam(required = false) sellerId: String?,
         @RequestParam(required = false) status: PaymentStatus?,
         @RequestParam(required = false) from: Instant?,
@@ -116,9 +118,9 @@ class TransactionController(
     @GetMapping("/transactions/merchants/{merchantAccount}/{paymentId}")
     fun getTransactionOfMerchant(
         @PathVariable merchantAccount: String,
-        @PathVariable paymentId: Long
+        @PathVariable paymentId: String
     ): ResponseEntity<TransactionDto> {
-        val transaction = transactionUseCase.getTransaction(PaymentId(paymentId), merchantAccount)
+        val transaction = transactionUseCase.getTransaction(internalPaymentId(paymentId), merchantAccount)
             ?: throw PaymentDomainException.PaymentNotFoundException(
                 "paymentId=$paymentId, merchantAccount=$merchantAccount"
             )
@@ -137,16 +139,20 @@ class TransactionController(
         return PageDto.of(items, page, size, totalItems)
     }
 
-    private fun paymentIdOrNull(paymentId: Long?): PaymentId? {
-        if (paymentId == null) {
+    // the API speaks public ids (pay_…); the numeric id stays inside
+    private fun internalPaymentId(publicPaymentId: String): PaymentId =
+        PaymentId(PublicIdFactory.toInternalId(publicPaymentId))
+
+    private fun paymentIdOrNull(publicPaymentId: String?): PaymentId? {
+        if (publicPaymentId == null) {
             return null
         }
-        return PaymentId(paymentId)
+        return internalPaymentId(publicPaymentId)
     }
 
     /** [detailPrefix]: where the same caller reads one transaction (the merchant's or the staff URL). */
     private fun toDto(transaction: Transaction, withDetails: Boolean, detailPrefix: String): TransactionDto {
-        val paymentId = transaction.paymentId.value.toString()
+        val paymentId = PublicIdFactory.publicPaymentId(transaction.paymentId.value)
         var splits: List<TransactionSplitDto>? = null
         if (withDetails) {
             val lines = mutableListOf<TransactionSplitDto>()

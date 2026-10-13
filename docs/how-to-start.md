@@ -115,14 +115,30 @@ keycloak/get-access-token.sh user backoffice-admin        # -> keycloak/output/j
 
 ## 2️⃣ Test the payment flow (as a merchant's backend)
 
-Payments are created by the merchant's own backend, with its own credential: the token's `merchant_id` must be the
-`merchantAccount` in the body (else `403`), and a merchant only finds its own payment intents (another merchant's is `404`).
+The caller is the merchant's backend server, not a person. It authenticates with the OAuth 2.0 **client credentials
+grant**: the confidential client `merchant-api-MARKETPLACE-5` presents its client secret to Keycloak and receives an
+access token (a JWT) whose `merchant_id` claim names the merchant it acts for. payment-service is the resource server:
+it validates the token, then authorizes the request by comparing the `merchant_id` claim with the `merchantAccount` in
+the body. A mismatch is authenticated but not authorized, `403`. Reads are scoped to the token's merchant, so another
+merchant's payment intent is simply not found, `404`.
+
+Get that token first. The script runs the client credentials grant for `merchant-api-MARKETPLACE-5` (secret from
+`keycloak/realm/merchants-seed.json`), saves the access token to `keycloak/output/jwt/MARKETPLACE-5.token`, and every
+`curl` below sends it as `Authorization: Bearer`.
+
+Why MARKETPLACE-5: there is no acquirer connection, so the PSP's `capture_confirmed` and `settlement_received` answers are
+simulated for this one merchant only. Its payments are the only ones that reach `SETTLED`; another merchant's payment stops
+at `SENT_FOR_SETTLE` waiting for a PSP confirmation that never comes.
 
 ```bash
 keycloak/get-access-token.sh merchant-api MARKETPLACE-5
 ```
 
 **Step 1: Create Payment Intent**
+
+The merchant's backend registers the checkout before the buyer pays: a 30.00 EUR order for merchant MARKETPLACE-5,
+split into what each seller gets (`BalanceAccount`) and what the marketplace keeps (`Commission`). payment-service
+creates the intent at the PSP and stores it as `CREATED`; nothing is charged yet, that is Step 2.
 
 ```bash
 IDEMPOTENCY_KEY=$(printf '%08x-%04x-7%03x-8%03x-%04x%08x' $((RANDOM*RANDOM)) $((RANDOM)) $((RANDOM%4096)) $((RANDOM%4096)) $((RANDOM)) $((RANDOM*RANDOM)))
@@ -200,7 +216,8 @@ npm install         # once
 npm run setup-env   # the cluster's addresses and the merchants' credentials into .env
 npm run dev         # proxy on 3001, page on http://localhost:3000
 ```
-Open `http://localhost:3000`. Mock mode, scenarios and the card step: [`checkout-demo/README.md`](../checkout-demo/README.md).
+Open `http://localhost:3000`. The page now sends every request to the real payment-service on the cluster.
+[`checkout-demo/README.md`](../checkout-demo/README.md) describes the card step and the idempotency test scenarios.
 
 ## 3️⃣ Test the balance API
 

@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.adapter.inbound.rest
 
+import com.dogancaglar.common.id.PublicIdFactory
 import com.dogancaglar.paymentservice.application.transaction.Transaction
 import com.dogancaglar.paymentservice.application.transaction.TransactionFilter
 import com.dogancaglar.paymentservice.config.SecurityConfig
@@ -18,7 +19,7 @@ import com.dogancaglar.paymentservice.ports.inbound.usecases.TransactionUseCase
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.context.annotation.Import
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.oauth2.jwt.JwtDecoder
@@ -75,11 +76,15 @@ class TransactionApiResponseTest {
         mockMvc.get("/api/v1/transactions/merchants/me") { with(merchant) }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.items.length()") { value(1) } }
-            .andExpect { jsonPath("$.items[0].paymentId") { value("1002") } }
+            .andExpect { jsonPath("$.items[0].paymentId") { value(PublicIdFactory.publicPaymentId(1002)) } }
             .andExpect { jsonPath("$.items[0].orderId") { value("ORDER-2") } }
             .andExpect { jsonPath("$.items[0].status") { value("CAPTURED") } }
             .andExpect { jsonPath("$.items[0].totalAmount.quantity") { value(3000) } }
-            .andExpect { jsonPath("$.items[0].detailUrl") { value("/api/v1/transactions/merchants/me/1002") } }
+            .andExpect {
+                jsonPath("$.items[0].detailUrl") {
+                    value("/api/v1/transactions/merchants/me/${PublicIdFactory.publicPaymentId(1002)}")
+                }
+            }
             .andExpect { jsonPath("$.items[0].splits") { doesNotExist() } }
             .andExpect { jsonPath("$.totalItems") { value(1) } }
             .andExpect { jsonPath("$.hasNext") { value(false) } }
@@ -150,7 +155,7 @@ class TransactionApiResponseTest {
             .andExpect {
                 jsonPath(
                     "$.items[0].detailUrl"
-                ) { value("/api/v1/transactions/merchants/MARKETPLACE-1/2001") }
+                ) { value("/api/v1/transactions/merchants/MARKETPLACE-1/${PublicIdFactory.publicPaymentId(2001)}") }
             }
     }
 
@@ -241,7 +246,7 @@ class TransactionApiResponseTest {
         )
         `when`(transactionUseCase.getTransaction(PaymentId(1001), "MARKETPLACE-5")).thenReturn(settled)
 
-        mockMvc.get("/api/v1/transactions/merchants/me/1001") { with(merchant) }
+        mockMvc.get("/api/v1/transactions/merchants/me/${PublicIdFactory.publicPaymentId(1001)}") { with(merchant) }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.status") { value("SETTLED") } }
             .andExpect { jsonPath("$.buyerId") { value("BUYER-1") } }
@@ -263,7 +268,7 @@ class TransactionApiResponseTest {
         // payment 2001 belongs to MARKETPLACE-1: looked up as MARKETPLACE-5's, it is not there
         `when`(transactionUseCase.getTransaction(PaymentId(2001), "MARKETPLACE-5")).thenReturn(null)
 
-        mockMvc.get("/api/v1/transactions/merchants/me/2001") { with(merchant) }
+        mockMvc.get("/api/v1/transactions/merchants/me/${PublicIdFactory.publicPaymentId(2001)}") { with(merchant) }
             .andExpect { status { isNotFound() } }
             .andExpect { jsonPath("$.code") { value("NOT_FOUND") } }
     }
@@ -293,11 +298,15 @@ class TransactionApiResponseTest {
         `when`(transactionUseCase.getTransaction(PaymentId(2001), "MARKETPLACE-1")).thenReturn(ofMarketplace1)
         `when`(transactionUseCase.getTransaction(PaymentId(2001), "MARKETPLACE-5")).thenReturn(null)
 
-        mockMvc.get("/api/v1/transactions/merchants/MARKETPLACE-1/2001") { with(finance) }
+        mockMvc.get(
+            "/api/v1/transactions/merchants/MARKETPLACE-1/${PublicIdFactory.publicPaymentId(2001)}"
+        ) { with(finance) }
             .andExpect { status { isOk() } }
             .andExpect { jsonPath("$.merchantAccount") { value("MARKETPLACE-1") } }
             .andExpect { jsonPath("$.status") { value("AUTHORIZED") } }
-        mockMvc.get("/api/v1/transactions/merchants/MARKETPLACE-5/2001") { with(finance) }
+        mockMvc.get(
+            "/api/v1/transactions/merchants/MARKETPLACE-5/${PublicIdFactory.publicPaymentId(2001)}"
+        ) { with(finance) }
             .andExpect { status { isNotFound() } }
     }
 }

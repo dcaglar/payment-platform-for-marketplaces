@@ -18,8 +18,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
@@ -917,7 +917,7 @@ class PaymentApiIntegrationTest {
     }
 
     // setup: put the payment in a state (a payment the PSP has not created yet has no PSP reference)
-    private fun outboxEventTypes(publicId: String): List<String> =
+    private fun outboxEventTypes(publicId: String): List<String?> =
         jdbc().queryForList("SELECT event_type FROM outbox_event WHERE aggregate_id = ?", String::class.java, publicId)
 
     private fun outboxPayload(publicId: String): String =
