@@ -6,10 +6,6 @@
 3. **Scope before building.** For any new module / multi-file change, ask the 1–2
    pivotal scoping questions (e.g. build vs. reuse existing images; where config lives)
    BEFORE writing files.
-4. **Verify docs vs code only where they plausibly diverge.** Known drifts to check:
-   real capture topic is `gateway.capture.requested` (doc says `.commands`);
-   eventType is `settlement_received` (doc says `settlement_received_by_psp`);
-   `MARKETPLACE-5` is a hardcoded PSP-sim target (code-only, not in docs).
 
 # Repository Context & AI Assistant Guidelines
 
@@ -18,11 +14,12 @@ This project is an Event-Driven Payment Platform for a Merchant-of-Record (MoR) 
 *   **Tech Stack:** Kotlin, Spring Boot, Maven, PostgreSQL, Kafka, Redis, and OpenTelemetry
 *   **Core Patterns:** Domain-Driven Design (DDD), Hexagonal Architecture (Ports & Adapters), Double-Entry Ledger Accounting, and a Two-Stage Transactional Outbox[cite: 2].
 *   **Topology:** The system is strictly divided into Edge Cells (handling synchronous API acceptance and local outboxing) and a Central Cluster (handling asynchronous ledger reconciliation and heavy PSP processing)[cite: 2].
-*   **Environment:** You can follow [deploy-all-local.sh](/Users/dogancaglar/IdeaProjects/payment-platform-for-marketplaces/infra/scripts/deploy-all-local.sh) to understand how we use env name and spring profile names during the build.
+*   **Environment/Infrasracture:** You can follow [how to start](/Users/dogancaglar/IdeaProjects/payment-platform-for-marketplaces/docs/how-to-start.md) to understand the infrasractuure the application jobs running on and deployments.
 ## 📚 Key Documentation Files
 - **[`Architecture Details`](./docs/architecture/architecture.md)** — Complete system architecture, entity models, flow diagrams, and design patterns,perfect for tracing 
 - **[`How To Start`](./docs/how-to-start.md)** — Step-by-step setup guide to deploy infrastructure on orbstack local, its good to understand the infrastructure running platform.
 - **[`Azure infrastructure details changelog`](./docs/architecture/adr-001-azure-infrastructure.md)** — Azure Infrastructure Details Changelog
+- **[`Code quality and security checks`](./docs/code-quality.md)** — detekt, gitleaks, Trivy: when each runs, its baseline, how to fix findings
 
 ## 2. Immutable Architectural Constraints (The Golden Rules)
 When generating code, analyzing bugs, or suggesting changes, you **must strictly adhere** to these constraints:
@@ -58,8 +55,9 @@ Deployable Spring Boot apps:
 ---
 
 ## 4. Testing Execution
-*   **Unit Tests (`*Test.kt`)**: Run via `mvn test`. Uses mocks, no external dependencies[cite: 3]. 
-*   **Integration Tests (`*IntegrationTest.kt`)**: Run via `mvn verify`. Uses TestContainers and requires the `@Tag("integration")` annotation[cite: 3].
+*   **Unit Tests (`*Test.kt`)**: Run via `mvn test`. Check how [ci.yml](.github/workflows/ci.yml) run unit test
+*   **Integration Tests (`*IntegrationTest.kt`)**: Check how [ci.yml](.github/workflows/ci.yml) run unit test
+*   **Regression Tests (`*E2EIntegrationTest.kt`)**:  Check how [ci.yml](.github/workflows/ci.yml) run unit test
 ---
 
 ## 5. Error Handling Standard
@@ -76,3 +74,15 @@ Never:
 *   leave an entity in a waiting state that nothing will move (every pending state needs an owner: background call, client retry, provider callback, or status check).
 
 A 4xx from a provider means **we** (the caller) were wrong — never pass it through to our client unchanged; translate by what our client should do next.
+
+---
+
+## 6. Code Quality & Security Gates
+Detail in [`docs/code-quality.md`](./docs/code-quality.md). Three tools, each with a **baseline** of findings still to fix. A finding in the baseline is tolerated; **any new finding fails the build**. Baselines only shrink: never add a line to make a build pass, except a verified false positive in `.gitleaksignore` / `.trivyignore` (say what it is in a comment).
+
+*   **detekt** (Kotlin rules + ktlint formatting via `detekt-formatting`, 1.23.8, no type resolution): runs in `mvn verify` / `install` of every module, **not** in `mvn test`. Config `config/detekt/detekt.yml`, baseline `<module>/detekt-baseline.xml`. Rules you will hit: `MaxLineLength` 120, `ImportOrdering` (`*,java.**,javax.**,kotlin.**,^`), `ArgumentListWrapping`, `Wrapping`. Fix only your changed files: `infra/scripts/detekt-changed.sh` (auto-fixes formatting), `--check` to list only. `InstanceOfCheckForException` is off on purpose: §5 requires the exhaustive `when (e)` pattern.
+*   **gitleaks** (secrets): pre-commit hook `.githooks/pre-commit` on staged changes (enable once: `git config core.hooksPath .githooks`); full history in the security scan. Never print or write a real key/token anywhere, including docs and test fixtures.
+*   **Trivy** (HIGH/CRITICAL fixable CVEs in dependencies; misconfigurations in Dockerfiles, Helm charts, Terraform): baseline `.trivyignore`, every line says what fixes it. Fix a dependency CVE by raising the Boot-managed version through Boot's own override property in the root `pom.xml` (`jackson-bom.version`, `tomcat.version`, ...), not by pinning the single artifact.
+*   **Run both scanners:** `infra/scripts/security-scan.sh` (identical to the CI job "Security Scan"; Docker images, no install).
+
+Before handing back a change: `mvn clean install -DskipITs` green (compile + unit tests + detekt). If a `pom.xml`, Dockerfile, chart or Terraform file changed, also `infra/scripts/security-scan.sh`. Integration, e2e and cluster checks only when asked.
