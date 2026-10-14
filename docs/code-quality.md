@@ -110,7 +110,8 @@ Letting it download every pom from Maven Central gets your IP rate-limited (`429
   `.trivyignore` with a comment why.
 
 ### Cleaning up old findings
-- `.trivyignore`: most entries come from Spring Boot 3.5.0; upgrading it fixes them. Then delete their lines.
+- `.trivyignore`: every entry says what fixes it; delete the line when that happens. Boot-managed library versions can be
+  overridden with Boot's own properties (`tomcat.version`, `jackson-bom.version`) when Boot ships one patch behind a fix.
 - `.gitleaksignore`: these are in old commits and stay in the history. The Stripe keys among them are test-mode
   keys (`sk_test_`); roll them in the Stripe dashboard.
 

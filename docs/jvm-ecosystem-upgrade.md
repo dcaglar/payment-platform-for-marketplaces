@@ -18,7 +18,7 @@ jump (Boot 5, Kotlin 3, whatever comes).
 | Spring Kafka / kafka-clients | 3.3 / 3.9 | 3.3 / 3.9 | 4.1.1 / 4.2.1 | same |
 | JUnit | 5 | 5 | 6.0.3 | same |
 | mybatis-spring-boot-starter | 3.0.3 | 3.0.5 | 4.1.0 | same |
-| Boot starters | Boot 3 all-in-one | same | `*-classic` bridges | one modular starter per technology |
+| Boot starters | Boot 3 all-in-one | same | `*-classic` bridges | one modular starter per technology (step 4) |
 
 ## The rule behind the split: one kind of change per PR
 
@@ -119,13 +119,25 @@ step 2 code. That test only makes sense when nothing else changed in between.
 Why before step 4: the Jackson module each app needs depends on which Jackson
 it uses. Choosing modular starters before Jackson 3 means choosing twice.
 
-### Step 4: modular starters, delete every bridge (#241)
+### Step 4: modular starters, delete every bridge (#241, 2026-10-13)
 
-Per module, declare exactly the Boot 4 starters used: `spring-boot-starter-webmvc`,
-`-kafka`, `-jdbc`, `-data-redis`, `-liquibase`, `-actuator`,
-`-security-oauth2-resource-server`, `-aspectj`, and the matching `-test`
-companions. Remove the classic starters and the migrator. Libraries
-(`common`, `payment-application`) likely drop the Boot starter altogether.
+Per module, exactly the Boot 4 starters used. Deployables: `spring-boot-starter-webmvc`
+(all four; edge-workers and central-relay have no controllers but serve the
+actuator health probes over HTTP), `-security-oauth2-resource-server` and
+`-validation` (payment-service, payment-consumers), `-kafka` (central-relay,
+payment-consumers: Boot 4 no longer auto-configures Kafka from plain
+`spring-kafka`), `-liquibase` (payment-service; consumers and edge-workers get
+only the `spring-boot-liquibase` module for the `@LiquibaseDataSource` marker,
+Liquibase itself was never on their runtime classpath), `-actuator`, and the
+MyBatis starter, which brings `-jdbc`. Tests: `spring-boot-starter-webmvc-test`
+where `@WebMvcTest` or MockMvc is used, `spring-boot-starter-test` elsewhere.
+Libraries: `common` needs only `slf4j-api` (no Spring code), `payment-application`
+no Spring at all; the classic starters, the migrator and the stale
+`micrometer-binder-kafka` pin are gone.
+
+Findings on the way: Boot's Maven plugin runs no AOT here, so the `-DskipTests`
+note in the issue did not apply; the two spring-webmvc CVE lines had already
+left `.trivyignore` with Framework 7.0.9.
 
 Why last: this is the step where a mistake is silent. Nothing fails to compile
 when payment-consumers loses its Liquibase auto-configuration. Doing it alone,

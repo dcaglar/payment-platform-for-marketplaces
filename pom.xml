@@ -193,11 +193,6 @@ Kotlin dependencies (keep versions here for consistent management) -->
             </dependency>
 
 
-            <dependency>
-                <groupId>io.micrometer</groupId>
-                <artifactId>micrometer-binder-kafka</artifactId>
-                <version>1.11.0</version>  <!-- or whatever the current Micrometer version is -->
-            </dependency>
 
 
             <!-- Spring Boot dependencies-->
