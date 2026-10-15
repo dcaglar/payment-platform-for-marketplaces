@@ -9,58 +9,104 @@ Names used throughout: **server** = the old M1 (`m1-server`), **laptop** = your 
 ## Phase 0 — Back up and erase (server, with a monitor)
 
 **Goal:** the old laptop holds nothing personal and runs a fresh macOS.
-**Prerequisites:** an external monitor or TV with HDMI, a keyboard; a Time Machine disk or enough iCloud/Drive space.
+**Prerequisites:** an external monitor with HDMI, a **USB keyboard with a USB‑C adapter** (a mouse is optional), the Mac's **own charger**; a Time Machine disk or enough iCloud/Drive space.
 
 1. Full Time Machine backup; confirm Photos, Documents, Desktop and any project folder not in git are on it or in iCloud/Drive/git
-2. Sign out: Messages → Settings → iMessage → Sign Out; FaceTime → Settings → Sign Out; App Store → account → Sign Out; System Settings → Apple ID → Sign Out (choose to keep nothing)
-3. System Settings → General → Transfer or Reset → **Erase All Content and Settings**; the Mac reboots into Setup Assistant
+2. Sign out: Messages → Settings → iMessage → Sign Out; FaceTime → Settings → Sign Out; App Store → account → Sign Out; System Settings → Apple ID → Sign Out (choose to keep nothing). **Turn Find My off here** (Activation Lock), or expect the Activation Lock screen in Phase 1
+3. System Settings → General → Transfer or Reset → **Erase All Content and Settings**; the Mac reboots into Recovery Assistant / Setup Assistant
 
 **Done when:** Setup Assistant's language screen is up, and the Time Machine backup is verified readable from the laptop (open it, find one file).
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | "Erase All Content" greyed out | Activation Lock / Find My still on | Apple ID → Find My → off first |
-| Setup Assistant asks for the previous owner's Apple ID | Activation Lock | sign in once with your Apple ID, then it releases |
+| **Activation Lock** screen: "This Mac is linked to an Apple ID" | Find My was still on | sign in with your own Apple ID; if the spinner runs >3 min, restart and enter it again (happened 2026‑10‑15, second attempt went through); "Use Device Password" (old login password) also works; last resort: icloud.com/find → device → Remove |
+| Mac boots into **Recovery Assistant** (menu bar only, grey screen) instead of Setup Assistant | disk erased from Recovery / Disk Utility, so there is no macOS to boot | Wi‑Fi icon top-right → join; Recovery window → **Reinstall macOS** → target `Macintosh HD` → 30–60 min, several reboots, keep monitor and charger connected; then Setup Assistant appears |
+| **Only the menu bar on the external monitor, no window** | the dead built-in panel is still detected and is the main display; every window opens there | **clamshell mode**: Mac's own charger plugged in (a monitor's USB‑C port is not enough), USB keyboard plugged in, **lid closed**. Turn on by unplugging/replugging the charger or open lid → press power once → close lid. The external is then the only display |
+| Reinstall says no volume to install on | the volume was deleted, not erased | Disk Utility → View → Show All Devices → top-level Apple SSD → Erase, APFS, name `Macintosh HD` → quit → Reinstall macOS |
 
 ---
 
-## Phase 1 — macOS base (server, monitor still attached)
+## Phase 1 — macOS base (monitor + USB keyboard until SSH works, then headless)
 
 **Goal:** headless-safe macOS, reachable by SSH on the LAN, that survives a power cut without anyone present.
+The built-in panel is dead, so the monitor is needed only until SSH is on (steps 1–3). Everything after step 4 is done from the laptop over SSH; no GUI step is required.
 
-1. Setup Assistant: region, no Wi‑Fi? → join the home Wi‑Fi now; **Don't sign in with Apple ID**; create admin account `dogan`; Location Services off; Siri off; Screen Time skip; **FileVault: do not enable**; Touch ID skip
-2. System Settings → General → Sharing → Computer name `m1-server`. Also in Terminal:
+1. Setup Assistant (monitor, lid closed, USB keyboard): **Set up as new**; region; join the home Wi‑Fi; **Don't sign in with Apple ID** (Set Up Later → Skip); create admin account `dogan` (Full Name and Account Name both `dogan`), **uncheck** "Allow computer account password to be reset with your Apple Account"; Location Services off; Siri off; Screen Time skip; **FileVault: do not enable**; Touch ID skip
+   - Keyboard only: **Tab** moves between controls, **Space** presses the focused one, **Enter** presses the blue default button, arrows move in lists. If Enter does nothing, a VoiceOver window is behind the assistant: **Command+F5** turns VoiceOver off. Mouse Keys (Command+Option+F5 → Motor) was not needed
+2. At the desktop (monitor): **Command+Space**, type `Terminal`, Enter. Turn SSH on from the Terminal (`systemsetup -setremotelogin on` fails from Terminal with "requires Full Disk Access"):
+   ```bash
+   sudo launchctl enable system/com.openssh.sshd
+   sudo launchctl bootstrap system /System/Library/LaunchDaemons/ssh.plist
+   sudo launchctl print system/com.openssh.sshd | head -5   # listed = on; "not running" is normal (socket-activated)
+   ipconfig getifaddr en0                                   # note the IP
+   ```
+3. From the laptop: `ssh dogan@<ip>` → works → **unplug the monitor and keyboard; lid stays closed, charger stays in.** Everything below is typed in that SSH session.
+4. Names:
    ```bash
    sudo scutil --set ComputerName m1-server
    sudo scutil --set HostName m1-server
    sudo scutil --set LocalHostName m1-server
    ```
-3. Sharing → **Remote Login** on (allow access for: Administrators), **Screen Sharing** on (Administrators)
-4. Users & Groups → add user `svc`, type **Standard**; then **Automatically log in as: svc** (needs FileVault off — it is)
-5. Power:
+5. Service user (no GUI needed). `sysadminctl -autologin` fails from SSH with `SACSetAutoLoginPassword error:22`, so auto-login is written by a small MIT-licensed script (XOR-encodes the password into `/etc/kcpassword` and sets `autoLoginUser`; read it first, it is 90 lines of plain bash):
    ```bash
-   sudo pmset -a autorestart 1      # power back on after an outage
+   read -s SVC_PW; echo                                   # type the svc password (nothing is echoed), store it in the password manager
+   sudo sysadminctl -addUser svc -fullName svc -password "$SVC_PW"   # prints Error:-14120 (secure token) — harmless, FileVault is off
+   dscl . -authonly svc "$SVC_PW" && echo PASSWORD_OK
+   curl -fsSL https://raw.githubusercontent.com/brunerd/macAdminTools/main/Scripts/setAutoLogin.sh -o /tmp/setAutoLogin.sh
+   sudo bash /tmp/setAutoLogin.sh svc "$SVC_PW"           # "Auto login enabled for 'svc'"
+   unset SVC_PW
+   ```
+   Skip the first-login assistant for `svc` by copying the completed flags from `dogan` (otherwise `svc` sits in "Accessibility / Apple Account" screens after every boot and login items never start):
+   ```bash
+   sudo cp /Users/dogan/Library/Preferences/com.apple.SetupAssistant.plist /Users/svc/Library/Preferences/com.apple.SetupAssistant.plist
+   sudo chown svc:staff /Users/svc/Library/Preferences/com.apple.SetupAssistant.plist
+   ```
+   Changing the svc password later: `sudo passwd svc`, then run the script again with the new password, then `sudo rm -f /Users/svc/Library/Keychains/login.keychain-db` (keychain was encrypted with the old one; it is empty).
+6. Power:
+   ```bash
+   sudo pmset -a autorestart 1      # ignored on MacBooks (no such setting); Apple-silicon laptops power on when power returns anyway
    sudo pmset -c disablesleep 1     # never sleep on power, lid closed or not
    sudo pmset -a powernap 0
    sudo pmset -a womp 1             # wake for network access
    sudo pmset -a displaysleep 1     # the dead panel can "sleep" immediately
-   pmset -g                         # read back
+   pmset -g | grep -iE 'sleepdisabled|womp|powernap'   # SleepDisabled 1, womp 1, powernap 0
    ```
-6. Updates: System Settings → General → Software Update → (i) → all automatic options **off**; `sudo softwareupdate --schedule off`
-7. Firewall: System Settings → Network → Firewall → on. Leave "Block all incoming" off (it would block SSH); Remote Login is allowed automatically
-8. Router: DHCP reservation for the Mac's Wi‑Fi (and Ethernet adapter, if used) MAC address; note the IP
-9. Reboot with the lid closed. From the laptop: `ssh dogan@m1-server.local`
+7. Updates off. `softwareupdate --schedule off` is a no-op on current macOS (still prints "turned on"); write the keys directly:
+   ```bash
+   for k in AutomaticDownload AutomaticallyInstallMacOSUpdates ConfigDataInstall CriticalUpdateInstall; do
+     sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate $k -bool false; done
+   sudo defaults write /Library/Preferences/com.apple.commerce AutoUpdate -bool false
+   defaults read /Library/Preferences/com.apple.SoftwareUpdate | grep -E 'Automatic|Install'   # all 0
+   ```
+   `AutomaticallyInstallMacOSUpdates = 0` is the one that prevents unattended reboots; checking stays on and is harmless.
+8. Firewall on, SSH allowed: `sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on` (stealth/block-all stay off; sshd is a signed system service and is allowed)
+9. Screen Sharing for the rare GUI task (same launchd pattern as SSH):
+   ```bash
+   sudo launchctl enable system/com.apple.screensharing
+   sudo launchctl bootstrap system /System/Library/LaunchDaemons/com.apple.screensharing.plist
+   ```
+   Laptop: `open vnc://m1-server.local`, log in as `dogan`. The `svc` desktop locks after a few idle minutes; that is the lock screen, the session keeps running.
+10. No router DHCP reservation: macOS uses a private (randomised) Wi‑Fi address by default, and the server is always reached by name (`m1-server.local` on the LAN, Tailscale from anywhere).
+11. Reboot with the lid closed (`sudo reboot`; the SSH session hangs then drops, normal). From the laptop: `ssh dogan@m1-server.local who`
 
 **Done when:** after a closed-lid reboot, `ssh dogan@m1-server.local` works within two minutes without touching the machine; `pmset -g | grep -E 'autorestart|disablesleep|womp'` shows `1`; `fdesetup status` → `FileVault is Off`; `who` shows `svc` on `console` (auto-login happened).
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | `m1-server.local` does not resolve from the laptop | mDNS blocked by the router/Wi‑Fi client isolation, or laptop and server on different bands with isolation | use the reserved IP; check router "AP isolation"; both on the same SSID |
-| SSH refused after reboot but ping works | Remote Login lost on reboot (rare) or sshd not yet started | wait 60 s; `sudo systemsetup -setremotelogin on` via Screen Sharing |
-| Machine asleep after lid close | `disablesleep` applied for battery (`-b`) only | `sudo pmset -c disablesleep 1` and keep it on the charger |
-| Auto-login did not happen | FileVault on, or auto-login reset by a password change | `fdesetup status`; Users & Groups → Automatically log in as |
+| SSH refused after reboot but ping works | sshd not enabled persistently | over Screen Sharing or monitor: step 2 again; `launchctl enable` is what persists |
+| `launchctl load -w ssh.plist` → "Load failed: 5: Input/output error" | legacy subcommand on current macOS | use `launchctl enable` + `bootstrap` (step 2) |
+| Machine asleep after lid close | `disablesleep` applied for battery (`-b`) only, or not on the charger | `sudo pmset -c disablesleep 1`; the Mac's own charger, not a monitor's USB‑C |
+| Auto-login did not happen | FileVault on, or svc password changed without rewriting `/etc/kcpassword` | `fdesetup status`; run `setAutoLogin.sh svc <pw>` again (step 5) |
+| LG shows "Accessibility" / "Sign in to your Apple Account" for svc after boot | first-login assistant for a new user; `Not Now` is not reachable with Tab | step 5 plist copy, then `sudo pkill -u svc -f "Setup Assistant"` and `sudo reboot` |
+| `ssh host` pasted together with commands → repeated `Password:` prompts | the pasted commands were consumed as password attempts | paste the `ssh` line alone, wait for the `dogan@m1-server` prompt, then the commands |
+| `sysadminctl -autologin set` → `SACSetAutoLoginPassword error:22` | not supported from an SSH session | step 5 script |
+| `/tmp/setAutoLogin.sh: No such file` | `/tmp` is wiped at reboot | `curl` it again |
+| Screen Sharing connects but shows a tiny or black desktop | no display enumerated (dead panel not detected, no monitor) | still usable; if unbearable, a €5 HDMI dummy plug gives macOS a fake display |
+| `ssh` asks for a password every time | key not copied yet | that is Phase 2 step 1 (`ssh-copy-id`) |
 
-Unplug the monitor and keyboard. From here everything is done from the laptop.
+From here everything is done from the laptop.
 
 ---
 
@@ -68,21 +114,27 @@ Unplug the monitor and keyboard. From here everything is done from the laptop.
 
 **Goal:** the server is reachable from anywhere over Tailscale, has the toolchain, a 14 GB Kubernetes, and its own age key; the laptop can edit secrets both machines can read.
 
-1. Keys and SSH hardening:
+1. Keys and SSH hardening (done 2026‑10‑15):
    ```bash
-   ssh-copy-id dogan@m1-server.local
-   ssh dogan@m1-server.local
+   ssh-copy-id dogan@m1-server.local      # laptop: appends ~/.ssh/id_ed25519.pub to the server's ~dogan/.ssh/authorized_keys (asks the password one last time)
+   ssh dogan@m1-server.local              # laptop: must now log in with no password prompt
+   ```
+   On the server, in that session:
+   ```bash
    sudo sed -i '' -e 's/^#\{0,1\}PasswordAuthentication .*/PasswordAuthentication no/' \
                   -e 's/^#\{0,1\}KbdInteractiveAuthentication .*/KbdInteractiveAuthentication no/' /etc/ssh/sshd_config
    sudo launchctl kickstart -k system/com.openssh.sshd
    ```
-   Open a second terminal and confirm you can still log in before closing the first.
+   - `sed -i ''` edits `/etc/ssh/sshd_config` in place (macOS form, no backup file). The two patterns replace the lines `PasswordAuthentication` and `KbdInteractiveAuthentication`, whether commented out (`#`) or not, with `… no`. Result: sshd accepts only key-based logins; a password, even the right one, is refused with `Permission denied (publickey)`. Brute-force attempts become pointless
+   - `launchctl kickstart -k` restarts the sshd service so the new config applies; existing sessions survive
+   - Verify from the laptop, before closing the session that made the change: `ssh dogan@m1-server.local hostname` → `m1-server`; `ssh -o PubkeyAuthentication=no dogan@m1-server.local` → `Permission denied (publickey)`
+   - Lost the key? The only ways back in are Screen Sharing (`vnc://`, still password-based) or the monitor. Keep the laptop's `~/.ssh/id_ed25519` backed up with the rest of the laptop
 2. Toolchain (on the server):
    ```bash
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    brew install tailscale kubectl helm sops age git jq yq
    brew install --cask orbstack
-   helm plugin install https://github.com/jkroepke/helm-secrets
+   helm plugin install https://github.com/jkroepke/helm-secrets --verify=false   # Helm 4 verifies plugin signatures; this plugin has none yet
    git clone https://github.com/dcaglar/payment-platform-for-marketplaces.git ~/payment-platform
    ```
 3. Tailscale as a system daemon (so it is up before anyone logs in):
@@ -90,36 +142,49 @@ Unplug the monitor and keyboard. From here everything is done from the laptop.
    sudo brew services start tailscale
    sudo tailscale up --hostname m1-server
    ```
-   It prints a login URL: open it on the laptop, sign in. Then in the Tailscale admin console (login.tailscale.com): Machines → `m1-server` → **Disable key expiry**; add tag `tag:server` (define the tag once under Access Controls); DNS → MagicDNS on
-4. Tailscale on the laptop: install the app, same account. Test: `ssh dogan@m1-server` (no `.local`), then from your phone on mobile data with the Tailscale app: `ssh` works there too → the server is reachable from anywhere
-5. Screen Sharing for the GUI steps: Finder → Go → Connect to Server → `vnc://m1-server` → log in as `dogan`, switch to `svc`'s session (Fast User Switching) or log in as `svc`
-6. OrbStack, as `svc` via Screen Sharing: start it once (allow the admin-helper prompt with `dogan`'s password); Settings → Kubernetes → **Enable**; Settings → Resources → Memory **14 GB** (or `orb config set memory_mib 14336`); System Settings → General → Login Items → add OrbStack. **VERIFY** OrbStack's default memory and the Kubernetes API port (`kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'`)
-7. Rename the context (as `svc`, where the kubeconfig lives — OrbStack writes it for the user running it):
+   It prints a login URL: open it on the laptop, sign in. Then in the Tailscale admin console (login.tailscale.com): Machines → `m1-server` → "…" → **Disable key expiry**. MagicDNS is on by default (DNS tab shows "Disable MagicDNS"); tailnet name is `tail5273d7.ts.net`. `tag:server` is optional (needs an access-policy edit), skipped for now
+4. Tailscale on the laptop: the Mac app (App Store, or `brew install --cask tailscale-app`), same account. **NordVPN off** while connecting. Test: `ssh dogan@m1-server` (no `.local`), then from your phone on mobile data with the Tailscale app: `ssh` works there too → the server is reachable from anywhere
+5. Screen Sharing (done 2026‑10‑15). The switch **must be flipped once in System Settings → General → Sharing**; `launchctl`/`kickstart` leave the service "not permitted" (Apple: "must be enabled from System Settings or via MDM"). Access stays **administrators only**. From the laptop: `open vnc://m1-server`, log in as `dogan`; because `svc` holds the console, pick **Log in as yourself**, then the user menu (top right) → `svc` → its password. No approval on the server is needed that way. "Ask for permission" needs a keypress on the M1, avoid it.
+6. OrbStack, once, in that Screen Sharing window on the `svc` desktop (it is a desktop app; this is the only GUI step left): Launchpad → OrbStack → admin helper prompt: `dogan`. Settings → System: memory limit default was **8 GiB**, slider cap **12 GiB** (= ¾ of 16 GB) → set **12 GiB**; **Pause containers while Mac is sleeping: off**; **Use admin privileges: on**; Apply and Restart. Settings → Kubernetes → Enable; leave "Expose services to LAN" **off** (LoadBalancer/API stay on localhost; cloudflared and Tailscale are the only doors). Everything after this is terminal.
+7. `svc`'s shell over SSH (no GUI): `ssh dogan@m1-server` → `sudo -iu svc` (sudo asks for **dogan**'s password). Then:
    ```bash
+   echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile && source ~/.zprofile
+   orb config set app.start_at_login true   # the Login Item, settable from the CLI
+   orb config show | grep -E 'k8s.enable|memory_mib|start_at_login'
+   orb restart k8s                          # first `orb start k8s` returned silently without a kubeconfig; restart brought it up
+   kubectl get nodes                        # orbstack  Ready  control-plane  v1.36.5+orb1
+   kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'; echo   # https://127.0.0.1:26443
    kubectl config rename-context orbstack m1-prod
    kubectl config use-context m1-prod
-   kubectl get nodes
+   kubectl config get-contexts              # only m1-prod
    ```
-8. Server age key (as `svc`, since Argo's bootstrap reads it later):
+   **VERIFY after the next reboot:** OrbStack may rewrite `~/.kube/config` and bring the `orbstack` context name back; if so, the `bootstrap-prod.sh` guard must accept the renamed context or the rename must be redone.
+8. Server age key, as `svc` (Argo's bootstrap reads it later):
    ```bash
    mkdir -p ~/.config/sops/age && age-keygen -o ~/.config/sops/age/keys.txt
-   grep 'public key' ~/.config/sops/age/keys.txt    # age1... → copy
+   grep 'public key' ~/.config/sops/age/keys.txt    # age1g636…madks (m1-server, 2026‑10‑15)
    ```
-   On the laptop, in `$REPO/.sops.yaml`, make `age:` a comma-separated list of both recipients, then:
+   On the laptop, `.sops.yaml` lists both recipients (laptop first, server second); re-encrypt and push:
    ```bash
    for f in *-sops-secrets.yaml; do sops updatekeys -y "$f"; done
    git commit -am "sops: add m1-server age recipient" && git push
    ```
-   On the server: `cd ~/payment-platform && git pull && sops -d central-db-sops-secrets.yaml | head -2` prints plaintext keys.
+   On the server, as `svc`: `git clone https://github.com/dcaglar/payment-platform-for-marketplaces.git ~/payment-platform && cd ~/payment-platform && sops -d central-db-sops-secrets.yaml | head -2` prints plaintext keys.
 
-**Done when:** `ssh dogan@m1-server` works from outside the home network; `kubectl --context m1-prod get nodes` on the server shows `Ready`; `kubectl config get-contexts` on the server has **no** `orbstack` entry; `sops -d` works on the server; the laptop's key file never left the laptop.
+**Done when:** `ssh dogan@m1-server` works from outside the home network; `kubectl --context m1-prod get nodes` as `svc` shows `Ready`; `kubectl config get-contexts` has **no** `orbstack` entry; `sops -d` works on the server as `svc`; the laptop's key file never left the laptop.
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | `tailscale up` says "Logged out" after a while | key expiry not disabled | admin console → Disable key expiry |
+| `ssh dogan@m1-server` hangs from the laptop, `tailscale status` shows the server but no traffic | NordVPN (or any other VPN) active on the laptop; it captures the 100.x routes | disconnect NordVPN while working on the server; never install it on the server |
+| `m1-server.local` fails but `m1-server` (Tailscale) works | TP‑Link Wi‑Fi "AP isolation" / guest network blocks LAN mDNS | use the Tailscale name; or turn AP isolation off in the Tether app |
+| `brew upgrade tailscale` fails with permission errors | the daemon runs as root and `brew services` made the binary root-owned | `sudo brew services stop tailscale`, `brew upgrade tailscale`, `sudo brew services start tailscale` |
 | `brew services start tailscale` runs as user, not at boot | forgot `sudo` | `sudo brew services start tailscale` (system LaunchDaemon) |
-| OrbStack not running after a reboot | not in `svc`'s Login Items, or auto-login user is not `svc` | add Login Item as `svc`; check Users & Groups |
-| `kubectl` as `dogan` sees no cluster | kubeconfig belongs to `svc` | run cluster commands as `svc` (`su - svc`) or copy `~svc/.kube/config` |
+| OrbStack not running after a reboot | `app.start_at_login` false, or auto-login user is not `svc` | `orb config set app.start_at_login true` as `svc`; `sudo defaults read /Library/Preferences/com.apple.loginwindow autoLoginUser` |
+| `orb start k8s` returns at once, `~/.kube` stays empty | first start did not come up | `orb restart k8s`, then `kubectl get nodes` |
+| Screen Sharing: "not permitted on m1-server" | enabled from the CLI, not System Settings | flip the switch off/on in System Settings → Sharing (once, needs the monitor) |
+| Screen Sharing refuses `svc`'s password | access list is administrators only (keep it) | connect as `dogan` → Log in as yourself → switch user to `svc` |
+| `kubectl` as `dogan` sees no cluster (`localhost:8080 refused`) | kubeconfig belongs to `svc` | `sudo -iu svc` first |
 | `sops updatekeys`: "no matching creation rules" / key not found | `.sops.yaml` syntax; laptop key path | `SOPS_AGE_KEY_FILE=~/Library/Application\ Support/sops/age/keys.txt` (macOS default) |
 
 ---
