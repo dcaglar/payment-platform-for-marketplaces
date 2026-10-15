@@ -161,8 +161,10 @@ From here everything is done from the laptop.
    **VERIFY after the next reboot:** OrbStack may rewrite `~/.kube/config` and bring the `orbstack` context name back; if so, the `bootstrap-prod.sh` guard must accept the renamed context or the rename must be redone.
 8. Server age key, as `svc` (Argo's bootstrap reads it later):
    ```bash
-   mkdir -p ~/.config/sops/age && age-keygen -o ~/.config/sops/age/keys.txt
-   grep 'public key' ~/.config/sops/age/keys.txt    # age1g636…madks (m1-server, 2026‑10‑15)
+   mkdir -p ~/Library/Application\ Support/sops/age
+   age-keygen -o ~/Library/Application\ Support/sops/age/keys.txt   # macOS default path; ~/.config/sops/age is NOT searched on macOS
+   chmod 600 ~/Library/Application\ Support/sops/age/keys.txt
+   grep 'public key' ~/Library/Application\ Support/sops/age/keys.txt    # age1g636…madks (m1-server, 2026‑10‑15)
    ```
    On the laptop, `.sops.yaml` lists both recipients (laptop first, server second); re-encrypt and push:
    ```bash
@@ -185,7 +187,8 @@ From here everything is done from the laptop.
 | Screen Sharing: "not permitted on m1-server" | enabled from the CLI, not System Settings | flip the switch off/on in System Settings → Sharing (once, needs the monitor) |
 | Screen Sharing refuses `svc`'s password | access list is administrators only (keep it) | connect as `dogan` → Log in as yourself → switch user to `svc` |
 | `kubectl` as `dogan` sees no cluster (`localhost:8080 refused`) | kubeconfig belongs to `svc` | `sudo -iu svc` first |
-| `sops updatekeys`: "no matching creation rules" / key not found | `.sops.yaml` syntax; laptop key path | `SOPS_AGE_KEY_FILE=~/Library/Application\ Support/sops/age/keys.txt` (macOS default) |
+| `sops -d` on the server: "failed to load age identities … Library/Application Support/sops/age/keys.txt" | key generated under `~/.config/sops/age` (Linux path) | move it to `~/Library/Application Support/sops/age/keys.txt` (step 8) |
+| `sops updatekeys`: "no matching creation rules" | `.sops.yaml` syntax | the `age:` value is one comma-separated string |
 
 ---
 
@@ -352,7 +355,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n argocd create secret generic helm-secrets-private-keys \
-  --from-file=key.txt="$HOME/.config/sops/age/keys.txt" --dry-run=client -o yaml | kubectl apply -f -
+  --from-file=key.txt="$HOME/Library/Application Support/sops/age/keys.txt" --dry-run=client -o yaml | kubectl apply -f -
 helm repo add argo https://argoproj.github.io/argo-helm && helm repo update argo
 helm upgrade --install argocd argo/argo-cd -n argocd -f "$REPO_ROOT/infra/helm-values/argocd-values-prod.yaml"
 kubectl -n argocd rollout status deploy/argocd-repo-server --timeout=5m

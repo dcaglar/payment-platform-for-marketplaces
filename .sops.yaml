@@ -1,6 +1,6 @@
 creation_rules:
   - encrypted_regex: '.*'
-    # laptop key, m1-server key (svc: ~/.config/sops/age/keys.txt)
+    # laptop key, m1-server key (svc: ~/Library/Application Support/sops/age/keys.txt)
     age: >-
       age1yq5dsms95qcm2c6kc6khet5tx3kkzeaj4ccxd4y4q85zyjdf8fcsgvjd9w,
       age1g636xvrdjdz0tntvczpjr4gkqmeuuqd3va63gmc0qxgmk9yxra3slmadks
