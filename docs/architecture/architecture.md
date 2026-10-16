@@ -415,7 +415,7 @@ erDiagram
         varchar acquirer_reference "external PSP proof"
     }
     journal_entries {
-        varchar id PK "e.g. CAPTURE:pi_xxx"
+        varchar id PK "TYPE:internal ids, e.g. CAPTURE:231538886965329920-12 (payment intent id-capture tx id)"
         varchar journal_type "AUTHORIZATION/CAPTURE/INTERNAL_TRANSFER/COMMISSION_FEE/REVENUE_RECOGNITION/SETTLEMENT"
         bigint payment_id
         bigint tx_id FK "proof: WHY this entry exists"
