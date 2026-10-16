@@ -370,8 +370,8 @@ The platform internally uses:
 ### Persistence model (ER) — derived from the Liquibase changelogs
 > Source of truth: charts/central-db/db + charts/payment-edge-cell/db changelogs.
 > payment_intents/idempotency_keys/outbox_event(LOCAL) live in each EDGE db; everything else in central-db.
-> Solid lines are real foreign keys (`payment_tx.parent_tx_id`, `journal_entries.tx_id`, `postings.journal_id`, `accounts.parent_code`); dashed lines are logical links without an FK. The intent→payment link is also cross-database.
-> `accounts` holds every kind of account in one table (`kind` = PLATFORM / MERCHANT / SELLER / LEDGER), with a CHECK per kind. Lookups go through the view `ledger_account_directory`, which shows ledger accounts with their merchant and seller resolved.
+> Solid lines are real foreign keys (`payment_tx.parent_tx_id`, `journal_entries.tx_id`, `postings.journal_id`, `sellers.merchant_code`, `ledger_accounts.seller_code`); dashed lines are logical links without an FK. The intent→payment link is also cross-database.
+> Account holders and ledger accounts are separate tables: `merchants` and `sellers` are who holds accounts, `ledger_accounts` are the double-entry accounts postings are made to. The platform itself (`GLOBAL`) is not a row anywhere; its ledger accounts have `owner_code = GLOBAL`.
 
 ```mermaid
 erDiagram
@@ -423,22 +423,32 @@ erDiagram
     postings {
         bigint id PK
         varchar journal_id FK
-        varchar account_code "logical link to accounts, kind LEDGER (no FK)"
+        varchar account_code "logical link to ledger_accounts (no FK)"
         varchar direction "DEBIT/CREDIT"
         bigint amount "invariant: sum DR = sum CR per journal"
     }
-    accounts {
-        varchar account_code PK "GLOBAL / MARKETPLACE-5 / SELLER-5-1 / ledger code TYPE.MERCHANT[.SELLER].CURRENCY"
-        varchar kind "PLATFORM / MERCHANT / SELLER / LEDGER"
+    merchants {
+        varchar account_code PK "MARKETPLACE-5: what a payment's merchantAccount refers to"
         varchar status "ACTIVE / SUSPENDED / CLOSED"
-        varchar parent_code FK "SELLER: its merchant; LEDGER: its owner (GLOBAL, merchant or seller)"
-        varchar ledger_type "LEDGER only: LedgerAccountType, e.g. SELLER_PAYABLE"
-        char currency "MERCHANT and LEDGER"
-        boolean is_auto_captured "MERCHANT only"
-        boolean is_auto_settled "MERCHANT only"
-        bigint platform_fee_fixed "MERCHANT only"
-        int platform_fee_bps "MERCHANT only"
-        jsonb profile "MERCHANT only: legal name, address, industry"
+        char currency
+        boolean is_auto_captured
+        boolean is_auto_settled
+        bigint platform_fee_fixed
+        int platform_fee_bps
+        jsonb profile "legal name, address, industry"
+    }
+    sellers {
+        varchar account_code PK "SELLER-5-1"
+        varchar merchant_code FK "its merchant"
+        varchar status
+    }
+    ledger_accounts {
+        varchar account_code PK "TYPE.OWNER[.SELLER].CURRENCY, the id stored on postings"
+        varchar ledger_type "LedgerAccountType, e.g. SELLER_PAYABLE"
+        varchar owner_code "a merchant, or GLOBAL (the platform; no row)"
+        varchar seller_code FK "seller accounts only"
+        char currency
+        varchar status
     }
     account_balances {
         varchar account_code PK
@@ -495,9 +505,11 @@ erDiagram
     payments ||..o{ journal_entries : ""
     payment_tx ||--o{ journal_entries : "tx is the proof"
     journal_entries ||--|{ postings : "balanced DR/CR"
-    accounts |o--o{ accounts : "parent: merchant-seller, owner-ledger account"
-    accounts ||..o{ postings : "logical (no FK)"
-    accounts ||--o| account_balances : "projection"
+    merchants ||--o{ sellers : "its sellers"
+    merchants ||..o{ ledger_accounts : "owner_code (no FK: GLOBAL is not a merchant)"
+    sellers ||--o| ledger_accounts : "its SELLER_PAYABLE"
+    ledger_accounts ||..o{ postings : "logical (no FK)"
+    ledger_accounts ||--o| account_balances : "projection"
     payments ||..o{ transfers : "allocation fan-out"
     payments ||..o| transactions : "back-office projection"
     transactions ||--o{ transaction_splits : "its splits"
@@ -515,7 +527,7 @@ erDiagram
 | **Payment Tx** | One per external PSP interaction (auth / capture / refund / settle) | Audit of each network call incl. acquirer references — the **proof** every journal entry cites via `tx_id` |
 | **JournalEntry** | By consumers, in the same commit as state + tx | Immutable double-entry record; invariant **Σ DEBIT = Σ CREDIT** per journal |
 | **Posting** | With its journal entry | One DR/CR leg against one account |
-| **Account** (`accounts`) | `POST /api/v1/accounts` (ADMIN, async): one request creates the merchant, its sellers and all their ledger accounts in one transaction (idempotent: an existing merchant writes nothing). Test seed: `accounts-seed.sql`, generated from `charts/central-db/seed/merchants.json` by the same domain code | One table, four kinds. **Merchant** (what a payment's `merchantAccount` refers to; settings `isAutoCaptured`, `isAutoSettled`, platform fee) and **seller** (under one merchant) carry no ledger meaning. **Ledger accounts** are generated per owner from `LedgerAccountType`'s owner level — money moves between them, never free variables. Platform (once per currency): `PLATFORM_CASH`, `PSP_RECEIVABLE`, `PSP_FEE_EXPENSE`, `PLATFORM_REVENUE`. Per merchant: `AUTH_RECEIVABLE`, `AUTH_LIABILITY`, `CAPTURE_SUSPENSE`, `MERCHANT_COMMISSION_PAYABLE`, `MERCHANT_DIRECT_PAYABLE`, `PLATFORM_FEE_RESERVE`. Per seller: `SELLER_PAYABLE` |
+| **Account** (`merchants`, `sellers`, `ledger_accounts`) | `POST /api/v1/accounts` (ADMIN, async): one request creates the merchant, its sellers and all their ledger accounts in one transaction (idempotent: an existing merchant writes nothing). Test seed: `accounts-seed.sql`, generated from `charts/central-db/seed/merchants.json` by the same domain code | Account holders and ledger accounts are separate tables. **Merchant** (what a payment's `merchantAccount` refers to; settings `isAutoCaptured`, `isAutoSettled`, platform fee) and **seller** (under one merchant) carry no ledger meaning. **Ledger accounts** are created with their owner from the explicit lists in `CreateAccountService` — money moves between them, never free variables. The platform's own (`owner_code = GLOBAL`, once per supported currency, from the `ledger_accounts` changelog, not from onboarding): `PLATFORM_CASH`, `PSP_RECEIVABLE`, `PSP_FEE_EXPENSE`, `PLATFORM_REVENUE`. Per merchant: `AUTH_RECEIVABLE`, `AUTH_LIABILITY`, `CAPTURE_SUSPENSE`, `MERCHANT_COMMISSION_PAYABLE`, `MERCHANT_DIRECT_PAYABLE`, `PLATFORM_FEE_RESERVE`. Per seller: `SELLER_PAYABLE` |
 | **Balance** | Projection from applied entries (Redis deltas + snapshot job) | Reporting/payouts; **eventually consistent by design** — the sync path never waits on it |
 | **Transaction** (`transactions` + `transaction_splits`) | `TransactionConsumer`, from `journal_entries_recorded`: saved on the AUTHORIZATION journal, `captured_at` / `settled_at` set on CAPTURE / SETTLEMENT | The back office's payment list and detail, read without touching the ledger. Only authorized payments appear. Status is derived, not stored (settled → SETTLED, captured → CAPTURED, else AUTHORIZED). Not the same as **Tx** (one PSP interaction) |
 
@@ -850,14 +862,14 @@ flowchart TB
     ING[/"«edge-infra»<br/>NGINX ingress<br/>/api/v1/balances · transactions · txs · accounts"/]:::infra
     PC["«kafka-consumer»<br/>payment-consumers<br/>BalanceController · TransactionController · TxController"]:::consumer
     T{{"«topic»<br/>journal.entries.recorded"}}:::topic
-    DB[("«database»<br/>central-db<br/>transactions · accounts · account_balances<br/>payment_tx · journal_entries · postings")]:::db
+    DB[("«database»<br/>central-db<br/>transactions · ledger_accounts · account_balances<br/>payment_tx · journal_entries · postings")]:::db
     R[("«cache»<br/>redis<br/>balance deltas")]:::cache
 
     U -->|"1 · /auth/*, GET /api/v1/* (one origin)"| BFF
     BFF -->|"2 · login: authorization code + PKCE<br/>(client backoffice-ui)"| KC
     BFF -->|"3 · GET /api/v1/… + the user's access token"| ING
     ING -->|4| PC
-    PC -->|"5 · transactions (list/detail) · accounts + account_balances + redis delta (balances)<br/>· payment_tx, journal_entries, postings (finance)"| DB
+    PC -->|"5 · transactions (list/detail) · ledger_accounts + account_balances + redis delta (balances)<br/>· payment_tx, journal_entries, postings (finance)"| DB
     PC -.-> R
     T -->|"6 · TransactionConsumer, AccountBalanceConsumer<br/>keep transactions and balances up to date"| PC
 ```
@@ -935,7 +947,7 @@ It logs people in with Keycloak, keeps their tokens, and calls the payment API f
 
 What the reads are built on:
 - **Transactions** come from the `transactions` / `transaction_splits` read model, written by `TransactionConsumer` from `journal_entries_recorded`: saved on the AUTHORIZATION journal (buyer, order, PSP reference, card brand + last 4, splits), `captured_at` / `settled_at` set once on CAPTURE / SETTLEMENT. Only authorized payments exist there. The **status is derived**, not stored: `settled_at` set → SETTLED, `captured_at` set → CAPTURED, else AUTHORIZED. Page size 1–100.
-- **Balances**: accounts are found through `ledger_account_directory` (a seller by its id, a merchant's by its code); each balance is real-time = `account_balances` snapshot + the Redis delta. One response has one currency: an owner with accounts in two currencies is refused.
+- **Balances**: accounts are found in `ledger_accounts` (a seller's by `seller_code`, a merchant's by `owner_code`); each balance is real-time = `account_balances` snapshot + the Redis delta. One response has one currency: an owner with accounts in two currencies is refused.
 - **Finance** reads the ledger itself (`payment_tx`, `journal_entries`, `postings`); a payment with no tx for that merchant is a `404`.
 
 ### Roles and permissions (Keycloak realm `ecommerce-platform`)

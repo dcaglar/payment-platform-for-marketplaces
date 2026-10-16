@@ -163,18 +163,16 @@ private constructor( // the object's own fields
         // =====================================================================
         // REFUND
         // =====================================================================
-
         /**
          * refund
          *
-         * Reverses a prior capture by crediting the PSP with the refunded amount
-         * and debiting the merchant's gross pool.
+         * Reverses the money the capture recognized: the merchant's gross pool goes down by the refunded amount
+         * and so does what the PSP owes us, since the PSP pays the shopper back out of it. The auth hold is not
+         * touched: the capture already closed it.
          *
          * Postings:
          *   DR CAPTURE_SUSPENSE    (reduces the merchant's balance)
          *   CR PSP_RECEIVABLE      (records the outbound refund to PSP)
-         *   DR AUTH_LIABILITY      (re-opens the liability position)
-         *   CR AUTH_RECEIVABLE     (reduces the receivable by refund amount)
          *
          * Called by: PspResultConsumer, processing a PaymentRefunded webhook event.
          */
@@ -183,8 +181,6 @@ private constructor( // the object's own fields
             globalJournalEntryId: Long,
             refundTx: Tx.RefundTx, // the payment, the tx and the refunded amount
             journalIdentifier: String,
-            authReceivable: LedgerAccount,
-            authLiability: LedgerAccount,
             merchantGrossPool: LedgerAccount,
             pspReceivable: LedgerAccount,
             reason: String? = "REFUNDCONFIRMATION"
@@ -198,9 +194,7 @@ private constructor( // the object's own fields
                 txId = refundTx.txId,
                 postings = listOf(
                     Posting.Debit.create(merchantGrossPool, refundTx.amount),
-                    Posting.Credit.create(pspReceivable, refundTx.amount),
-                    Posting.Debit.create(authLiability, refundTx.amount),
-                    Posting.Credit.create(authReceivable, refundTx.amount)
+                    Posting.Credit.create(pspReceivable, refundTx.amount)
                 ),
                 reason = reason
             )

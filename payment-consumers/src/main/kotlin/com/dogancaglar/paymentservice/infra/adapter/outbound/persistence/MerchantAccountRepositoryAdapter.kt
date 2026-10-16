@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 
-/** Reads merchants from central-db's `accounts` table: one query per call, no cache. */
+/** Reads merchants from central-db's `merchants` table: one query per call, no cache. */
 @Repository
 class MerchantAccountRepositoryAdapter(
     private val accountMapper: AccountMapper,

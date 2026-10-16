@@ -61,8 +61,11 @@ data class AddressDTO(
     @field:NotBlank @field:Size(min = 2, max = 2) val country: String
 )
 
-/** Letters, digits, '-' and '_'; no '.', which separates the parts of a ledger account code. */
+/**
+ * Letters, digits, '-' and '_'; no '.', which separates the parts of a ledger account code; not GLOBAL, the
+ * platform's own code.
+ */
 /** 100% in basis points: the platform fee percentage can't be more. */
 const val MAX_FEE_BASIS_POINTS = 10_000L
 
-const val ACCOUNT_CODE = "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+const val ACCOUNT_CODE = "^(?!GLOBAL$)[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"

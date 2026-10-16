@@ -1,42 +1,25 @@
 package com.dogancaglar.common.db.converter
 
-import com.dogancaglar.common.db.entity.AccountEntity
+import com.dogancaglar.common.db.entity.LedgerAccountEntity
+import com.dogancaglar.common.db.entity.MerchantEntity
+import com.dogancaglar.common.db.entity.SellerEntity
 import com.dogancaglar.paymentservice.domain.model.account.AccountStatus
 import com.dogancaglar.paymentservice.domain.model.account.Address
 import com.dogancaglar.paymentservice.domain.model.account.MerchantAccount
-import com.dogancaglar.paymentservice.domain.model.account.PlatformAccount
 import com.dogancaglar.paymentservice.domain.model.account.PlatformFee
 import com.dogancaglar.paymentservice.domain.model.account.SellerAccount
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccount
 
-/** Domain accounts <-> `accounts` rows. */
+/** Domain accounts <-> rows of `merchants`, `sellers` and `ledger_accounts`. */
 object AccountEntityMapper {
 
-    fun toEntity(platform: PlatformAccount): AccountEntity =
-        AccountEntity(
-            platform.accountCode,
-            "PLATFORM",
-            platform.status.name,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
-        )
-
     /** [profileJson] is the merchant's legal name, address and industry, already serialized by the adapter. */
-    fun toEntity(merchant: MerchantAccount, profileJson: String): AccountEntity =
-        AccountEntity(
+    fun toEntity(merchant: MerchantAccount, profileJson: String): MerchantEntity =
+        MerchantEntity(
             accountCode = merchant.accountCode,
-            kind = "MERCHANT",
             status = merchant.status.name,
-            parentCode = null,
-            ledgerType = null,
             currency = merchant.currency.currencyCode,
             isAutoCaptured = merchant.isAutoCaptured,
             isAutoSettled = merchant.isAutoSettled,
@@ -46,11 +29,11 @@ object AccountEntityMapper {
         )
 
     /**
-     * A MERCHANT row back to the domain. [legalName], [address] and [industry] come from its profile JSON, read by the
+     * A merchant row back to the domain. [legalName], [address] and [industry] come from its profile JSON, read by the
      * adapter.
      */
-    fun toMerchant(entity: AccountEntity, legalName: String, address: Address, industry: String): MerchantAccount {
-        val currency = Currency(entity.currency!!)
+    fun toMerchant(entity: MerchantEntity, legalName: String, address: Address, industry: String): MerchantAccount {
+        val currency = Currency(entity.currency)
         return MerchantAccount.rehydrate(
             accountCode = entity.accountCode,
             status = AccountStatus.valueOf(entity.status),
@@ -58,45 +41,22 @@ object AccountEntityMapper {
             address = address,
             industry = industry,
             currency = currency,
-            isAutoCaptured = entity.isAutoCaptured!!,
-            isAutoSettled = entity.isAutoSettled!!,
-            platformFee = PlatformFee.of(Amount.of(entity.platformFeeFixed!!, currency), entity.platformFeeBps!!)
+            isAutoCaptured = entity.isAutoCaptured,
+            isAutoSettled = entity.isAutoSettled,
+            platformFee = PlatformFee.of(Amount.of(entity.platformFeeFixed, currency), entity.platformFeeBps)
         )
     }
 
-    fun toEntity(seller: SellerAccount): AccountEntity =
-        AccountEntity(
-            seller.accountCode,
-            "SELLER",
-            seller.status.name,
-            seller.masterAccountCode,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
-        )
+    fun toEntity(seller: SellerAccount): SellerEntity =
+        SellerEntity(seller.accountCode, seller.masterAccountCode, seller.status.name)
 
-    /** A ledger account hangs under its owner row: the seller for seller accounts, otherwise the merchant or GLOBAL. */
-    fun toEntity(ledgerAccount: LedgerAccount): AccountEntity {
-        var parentCode = ledgerAccount.ownerCode
-        if (ledgerAccount.sellerCode != null) {
-            parentCode = ledgerAccount.sellerCode!!
-        }
-        return AccountEntity(
+    fun toEntity(ledgerAccount: LedgerAccount): LedgerAccountEntity =
+        LedgerAccountEntity(
             accountCode = ledgerAccount.accountCode,
-            kind = "LEDGER",
-            status = ledgerAccount.status.name,
-            parentCode = parentCode,
             ledgerType = ledgerAccount.type.name,
+            ownerCode = ledgerAccount.ownerCode,
+            sellerCode = ledgerAccount.sellerCode,
             currency = ledgerAccount.currency.currencyCode,
-            isAutoCaptured = null,
-            isAutoSettled = null,
-            platformFeeFixed = null,
-            platformFeeBps = null,
-            profile = null
+            status = ledgerAccount.status.name
         )
-    }
 }

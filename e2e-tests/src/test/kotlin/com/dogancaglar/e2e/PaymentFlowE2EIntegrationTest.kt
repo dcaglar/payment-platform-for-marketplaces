@@ -287,15 +287,15 @@ class PaymentFlowE2EIntegrationTest {
             )
         ).withFailMessage("Found unbalanced journal entries").isEqualTo(0L)
 
-        // M14: every posting of this payment is on a ledger account that exists in `accounts`,
+        // M14: every posting of this payment is on a ledger account that exists in `ledger_accounts`,
         // with the same account type (postings.account_code has no foreign key, so check it here)
         assertThat(
             centralCount(
                 "SELECT count(*) FROM postings p JOIN journal_entries j ON j.id = p.journal_id " +
-                    "LEFT JOIN accounts a ON a.account_code = p.account_code AND a.kind = 'LEDGER' " +
+                    "LEFT JOIN ledger_accounts a ON a.account_code = p.account_code " +
                     "WHERE j.payment_id=$paymentIdSub AND (a.account_code IS NULL OR a.ledger_type <> p.account_type)"
             )
-        ).withFailMessage("Found postings on ledger accounts missing from accounts").isEqualTo(0L)
+        ).withFailMessage("Found postings on ledger accounts missing from ledger_accounts").isEqualTo(0L)
 
         // Seller and operator accounts are touched only by the journals above, nothing else
         assertThat(allPostings(seller1, paymentIdSub)).containsExactly("INTERNAL_TRANSFER|CREDIT|1320")

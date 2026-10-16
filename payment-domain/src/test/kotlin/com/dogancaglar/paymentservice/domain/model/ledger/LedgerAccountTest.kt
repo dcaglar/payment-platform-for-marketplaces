@@ -44,43 +44,6 @@ class LedgerAccountTest {
         assertEquals(AccountStatus.ACTIVE, account.status)
     }
 
-    // --------------------------------------------------------------- owner level rules
-
-    @Test
-    fun `platform type must belong to GLOBAL`() {
-        assertFailsWith<LedgerDomainException.InvariantViolationException> {
-            LedgerAccount.createNew(LedgerAccountType.PLATFORM_CASH, "MARKETPLACE-5", null, eur)
-        }
-    }
-
-    @Test
-    fun `merchant type cannot belong to GLOBAL`() {
-        assertFailsWith<LedgerDomainException.InvariantViolationException> {
-            LedgerAccount.createNew(LedgerAccountType.AUTH_RECEIVABLE, "GLOBAL", null, eur)
-        }
-    }
-
-    @Test
-    fun `merchant type cannot have a seller`() {
-        assertFailsWith<LedgerDomainException.InvariantViolationException> {
-            LedgerAccount.createNew(LedgerAccountType.MERCHANT_COMMISSION_PAYABLE, "MARKETPLACE-5", "SELLER-5-1", eur)
-        }
-    }
-
-    @Test
-    fun `seller type needs a seller`() {
-        assertFailsWith<LedgerDomainException.InvariantViolationException> {
-            LedgerAccount.createNew(LedgerAccountType.SELLER_PAYABLE, "MARKETPLACE-5", null, eur)
-        }
-    }
-
-    @Test
-    fun `owner code cannot contain the code separator`() {
-        assertFailsWith<LedgerDomainException.InvariantViolationException> {
-            LedgerAccount.createNew(LedgerAccountType.CAPTURE_SUSPENSE, "MARKET.PLACE", null, eur)
-        }
-    }
-
     // --------------------------------------------------------------- rebuilding
 
     @Test

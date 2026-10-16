@@ -9,7 +9,6 @@ import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.AccountDirectoryMapper
 import com.dogancaglar.paymentservice.infra.adapter.outbound.serialization.JacksonConfig
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
@@ -82,21 +81,20 @@ class AccountCreationTransactionalFacadeAdapterIntegrationTest {
     @BeforeEach
     fun setUp() {
         service = CreateAccountService(facade)
-        // remove what earlier tests created; the seed (MARKETPLACE-1..5, GLOBAL) stays
-        jdbcTemplate.update("DELETE FROM accounts WHERE kind = 'LEDGER' AND account_code LIKE '%.NEW-%'")
-        jdbcTemplate.update("DELETE FROM accounts WHERE kind = 'LEDGER' AND currency = 'USD'")
-        jdbcTemplate.update("DELETE FROM accounts WHERE kind = 'SELLER' AND parent_code LIKE 'NEW-%'")
-        jdbcTemplate.update("DELETE FROM accounts WHERE kind = 'MERCHANT' AND account_code LIKE 'NEW-%'")
+        // remove what earlier tests created; the seed (MARKETPLACE-1..5) and the platform's accounts stay
+        jdbcTemplate.update("DELETE FROM ledger_accounts WHERE owner_code LIKE 'NEW-%'")
+        jdbcTemplate.update("DELETE FROM sellers WHERE merchant_code LIKE 'NEW-%'")
+        jdbcTemplate.update("DELETE FROM merchants WHERE account_code LIKE 'NEW-%'")
     }
 
     @Test
     fun `creates the merchant, its sellers and all their ledger accounts`() {
         service.create(command("NEW-1", listOf("NEW-1-S1", "NEW-1-S2")))
 
-        assertEquals(1, count("SELECT count(*) FROM accounts WHERE account_code = 'NEW-1' AND kind = 'MERCHANT'"))
-        assertEquals(2, count("SELECT count(*) FROM accounts WHERE kind = 'SELLER' AND parent_code = 'NEW-1'"))
+        assertEquals(1, count("SELECT count(*) FROM merchants WHERE account_code = 'NEW-1'"))
+        assertEquals(2, count("SELECT count(*) FROM sellers WHERE merchant_code = 'NEW-1'"))
         // 6 merchant-level ledger accounts + 1 SELLER_PAYABLE per seller
-        assertEquals(8, count("SELECT count(*) FROM ledger_account_directory WHERE master_account_code = 'NEW-1'"))
+        assertEquals(8, count("SELECT count(*) FROM ledger_accounts WHERE owner_code = 'NEW-1'"))
 
         // the payment flow's lookups find them
         val suspense = accountDirectoryMapper.findByEntityAndType("CAPTURE_SUSPENSE", "NEW-1", "EUR")
@@ -105,7 +103,7 @@ class AccountCreationTransactionalFacadeAdapterIntegrationTest {
         assertEquals("SELLER_PAYABLE.NEW-1.NEW-1-S2.EUR", sellerPayable?.accountCode)
 
         // merchant settings are stored as columns, the profile as JSON
-        val row = jdbcTemplate.queryForMap("SELECT * FROM accounts WHERE account_code = 'NEW-1'")
+        val row = jdbcTemplate.queryForMap("SELECT * FROM merchants WHERE account_code = 'NEW-1'")
         assertEquals(true, row["is_auto_captured"])
         assertEquals(false, row["is_auto_settled"])
         assertEquals(30L, row["platform_fee_fixed"])
@@ -113,14 +111,14 @@ class AccountCreationTransactionalFacadeAdapterIntegrationTest {
         assertEquals(
             "New Merchant B.V.",
             jdbcTemplate.queryForObject(
-                "SELECT profile->>'legalName' FROM accounts WHERE account_code = 'NEW-1'",
+                "SELECT profile->>'legalName' FROM merchants WHERE account_code = 'NEW-1'",
                 String::class.java
             )
         )
         assertEquals(
             "NL",
             jdbcTemplate.queryForObject(
-                "SELECT profile->'address'->>'country' FROM accounts WHERE account_code = 'NEW-1'",
+                "SELECT profile->'address'->>'country' FROM merchants WHERE account_code = 'NEW-1'",
                 String::class.java
             )
         )
@@ -133,8 +131,8 @@ class AccountCreationTransactionalFacadeAdapterIntegrationTest {
         // a repeat (here even with an extra seller): no error, no change
         service.create(command("NEW-2", listOf("NEW-2-S1", "NEW-2-S9")))
 
-        assertEquals(1, count("SELECT count(*) FROM accounts WHERE kind = 'SELLER' AND parent_code = 'NEW-2'"))
-        assertEquals(0, count("SELECT count(*) FROM accounts WHERE account_code = 'NEW-2-S9'"))
+        assertEquals(1, count("SELECT count(*) FROM sellers WHERE merchant_code = 'NEW-2'"))
+        assertEquals(0, count("SELECT count(*) FROM sellers WHERE account_code = 'NEW-2-S9'"))
     }
 
     @Test
@@ -144,37 +142,24 @@ class AccountCreationTransactionalFacadeAdapterIntegrationTest {
             service.create(command("NEW-3", listOf("NEW-3-S1", "SELLER-5-1")))
         }
 
-        assertEquals(0, count("SELECT count(*) FROM accounts WHERE account_code = 'NEW-3'"))
-        assertEquals(0, count("SELECT count(*) FROM accounts WHERE account_code LIKE '%NEW-3%'"))
+        assertEquals(0, count("SELECT count(*) FROM merchants WHERE account_code = 'NEW-3'"))
+        assertEquals(0, count("SELECT count(*) FROM sellers WHERE merchant_code = 'NEW-3'"))
+        assertEquals(0, count("SELECT count(*) FROM ledger_accounts WHERE owner_code = 'NEW-3'"))
         assertEquals(
             "MARKETPLACE-5",
             jdbcTemplate.queryForObject(
-                "SELECT parent_code FROM accounts WHERE account_code = 'SELLER-5-1'",
+                "SELECT merchant_code FROM sellers WHERE account_code = 'SELLER-5-1'",
                 String::class.java
             )
         )
     }
 
     @Test
-    fun `the first merchant in a new currency also gets the platform ledger accounts for it`() {
-        assertEquals(
-            0,
-            count(
-                "SELECT count(*) FROM ledger_account_directory WHERE master_account_code = 'GLOBAL' AND currency = " +
-                    "'USD'"
-            )
-        )
-
+    fun `a merchant in a currency without platform accounts gets only its own accounts`() {
         service.create(command("NEW-4", listOf("NEW-4-S1"), currency = "USD"))
 
-        assertEquals(
-            4,
-            count(
-                "SELECT count(*) FROM ledger_account_directory WHERE master_account_code = 'GLOBAL' AND currency = " +
-                    "'USD'"
-            )
-        )
-        assertNotNull(accountDirectoryMapper.findByEntityAndType("PSP_RECEIVABLE", "GLOBAL", "USD"))
+        assertEquals(7, count("SELECT count(*) FROM ledger_accounts WHERE owner_code = 'NEW-4'"))
+        assertEquals(0, count("SELECT count(*) FROM ledger_accounts WHERE owner_code = 'GLOBAL' AND currency = 'USD'"))
     }
 
     private fun command(merchant: String, sellers: List<String>, currency: String = "EUR"): CreateAccountCommand {

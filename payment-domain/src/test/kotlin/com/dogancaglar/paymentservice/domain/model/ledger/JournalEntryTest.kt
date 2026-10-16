@@ -1,5 +1,6 @@
 package com.dogancaglar.paymentservice.domain.model.ledger
 
+import com.dogancaglar.paymentservice.domain.exception.LedgerDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.vo.PaymentId
@@ -7,345 +8,404 @@ import com.dogancaglar.paymentservice.domain.model.vo.PaymentIntentId
 import com.dogancaglar.paymentservice.domain.model.vo.TxId
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 
 /**
- * JournalEntryTest — The Mor-DC Ledger Textbook
+ * What each journal entry does to the balance of each ledger account. The signed amount of a posting is what the
+ * balance projection applies: positive moves the account towards its normal side (a debit on an asset, a credit
+ * on a liability), negative away from it.
  *
- * This test suite validates the core double-entry accounting invariants of the system.
- * * Golden Rules of Double-Entry Bookkeeping enforced here:
- * 1. ASSETS & EXPENSES: Normal balance is DEBIT. (Debit increases them, Credit decreases them).
- * 2. LIABILITIES, EQUITY & REVENUE: Normal balance is CREDIT. (Credit increases them, Debit decreases them).
- * 3. Every transaction MUST balance: Total Debits == Total Credits.
+ * The running example is one €100.00 marketplace payment: €60.00 for the seller, €40.00 commission for the
+ * merchant, our €3.50 platform fee (€0.50 + 3%) taken from that commission, and the PSP's €1.75 fee (€0.25 + 1.5%)
+ * taken at settlement. Journal identifiers are
+ * what the callers pass: internal ids, since a journal id never leaves the platform (the payment intent id, plus
+ * the tx or transfer id that makes the entry unique), e.g. `CAPTURE:231538886965329920-12`.
  */
 class JournalEntryTest {
 
-    private val eur = Currency("EUR")
-    private val paymentId = PaymentId(100L)
-    private val paymentIntentId = PaymentIntentId(200L)
-    private val txId = TxId(1L)
-    private val journalId = "PAY-1"
-
-    // === MOCK ACCOUNT DIRECTORY ===
-    // Assets (Normal Balance: DEBIT)
-    private val platformCashAccount = LedgerAccount.fromCode(
-        LedgerAccountType.PLATFORM_CASH,
-        "PLATFORM_CASH.GLOBAL.EUR"
-    )
-    private val pspReceivableAccount = LedgerAccount.fromCode(
-        LedgerAccountType.PSP_RECEIVABLE,
-        "PSP_RECEIVABLE.GLOBAL.EUR"
-    )
-    private val authReceivableAccount = LedgerAccount.fromCode(
-        LedgerAccountType.AUTH_RECEIVABLE,
-        "AUTH_RECEIVABLE.M-1.EUR"
-    )
-
-    // Expenses (Normal Balance: DEBIT)
-    private val pspFeeExpenseAccount = LedgerAccount.fromCode(
-        LedgerAccountType.PSP_FEE_EXPENSE,
-        "PSP_FEE_EXPENSE.GLOBAL.EUR"
-    )
-
-    // Liabilities (Normal Balance: CREDIT)
-    private val authLiabilityAccount = LedgerAccount.fromCode(
-        LedgerAccountType.AUTH_LIABILITY,
-        "AUTH_LIABILITY.M-1.EUR"
-    )
-    private val merchantSuspenseAccount = LedgerAccount.fromCode(
-        LedgerAccountType.CAPTURE_SUSPENSE,
-        "CAPTURE_SUSPENSE.M-1.EUR"
-    )
-    private val operatorCommissionAccount = LedgerAccount.fromCode(
-        LedgerAccountType.MERCHANT_COMMISSION_PAYABLE,
-        "MERCHANT_COMMISSION_PAYABLE.M-1.EUR"
-    )
-    private val subSellerAccount = LedgerAccount.fromCode(
-        LedgerAccountType.SELLER_PAYABLE,
-        "SELLER_PAYABLE.M-1.S-1.EUR"
-    )
-    private val feeReserveAccount = LedgerAccount.fromCode(
-        LedgerAccountType.PLATFORM_FEE_RESERVE,
-        "PLATFORM_FEE_RESERVE.M-1.EUR"
-    )
-
-    // Revenue (Normal Balance: CREDIT)
-    private val platformRevenueAccount = LedgerAccount.fromCode(
-        LedgerAccountType.PLATFORM_REVENUE,
-        "PLATFORM_REVENUE.GLOBAL.EUR"
-    )
-
-    // === HELPER ASSERTIONS ===
-
-    private fun assertBalanced(entry: JournalEntry) {
-        val totalDebits = entry.postings.filterIsInstance<Posting.Debit>().sumOf { it.amount.quantity }
-        val totalCredits = entry.postings.filterIsInstance<Posting.Credit>().sumOf { it.amount.quantity }
-        assertEquals(
-            totalDebits,
-            totalCredits,
-            "CRITICAL LEDGER FAILURE: Journal entry [${entry.id}] is not balanced. Debits: $totalDebits, Credits: " +
-                "$totalCredits"
-        )
-        assertTrue(totalDebits > 0, "Journal entry has zero financial movement.")
-    }
-
-    private fun assertPostingContains(
-        entry: JournalEntry,
-        account: LedgerAccount,
-        isDebit: Boolean,
-        expectedAmount: Long
-    ) {
-        val matchingPostings = entry.postings.filter {
-            it.account == account && ((isDebit && it is Posting.Debit) || (!isDebit && it is Posting.Credit))
-        }
-        assertTrue(
-            matchingPostings.isNotEmpty(),
-            "Expected ${if (isDebit) "Debit (DR)" else "Credit (CR)"} for account ${account.type} was not found."
-        )
-        assertEquals(
-            expectedAmount,
-            matchingPostings.sumOf {
-                it.amount.quantity
-            },
-            "Financial miscalculation for account ${account.accountCode}"
-        )
-    }
-
-    // =========================================================================
-    // THE TESTS (EXECUTABLE DOCUMENTATION)
-    // =========================================================================
+    // ------------------------------------------------------------------ one entry per business event
 
     @Test
-    fun `authHold - reserves customer funds without moving real cash`() {
-        /*
-         * SCENARIO: Customer clicks "Pay". Bank approves €100 hold. No physical money has moved yet.
-         * * RULE:
-         * - DR Auth Receivable (+Asset): We expect €100 from the card network eventually.
-         * - CR Auth Liability (+Liability): We owe €100 to the merchant once it clears.
-         */
-        val amount = Amount.of(10_000, eur) // €100.00
-
-        val authTx = Tx.AuthorizationTx(txId, paymentId, paymentIntentId, "psp-auth-1", amount)
-        val entries = JournalEntry.authHold(
-            1L,
-            authTx,
-            journalId,
-            authReceivableAccount,
-            authLiabilityAccount
+    fun `authorization holds the amount as a receivable from the card network and a liability to the merchant`() {
+        val eur = Currency("EUR")
+        val authReceivable = LedgerAccount.createNew(LedgerAccountType.AUTH_RECEIVABLE, "M-1", null, eur)
+        val authLiability = LedgerAccount.createNew(LedgerAccountType.AUTH_LIABILITY, "M-1", null, eur)
+        val authTx = Tx.AuthorizationTx(
+            TxId(1L),
+            PaymentId(100L),
+            PaymentIntentId(200L),
+            "psp-auth-1",
+            Amount.of(10_000, eur)
         )
-        val entry = entries.first()
 
-        assertBalanced(entry)
+        val entry = JournalEntry.authHold(1L, authTx, "231538886965329920", authReceivable, authLiability).single()
+
+        assertEquals("AUTH:231538886965329920", entry.id)
         assertEquals(JournalType.AUTHORIZATION, entry.journalType)
-        assertPostingContains(entry, authReceivableAccount, isDebit = true, expectedAmount = 10_000)
-        assertPostingContains(entry, authLiabilityAccount, isDebit = false, expectedAmount = 10_000)
+        assertEquals(PaymentId(100L), entry.paymentId)
+        assertEquals(TxId(1L), entry.txId)
+        val effects = mutableListOf<Pair<String, Long>>()
+        for (posting in entry.postings) {
+            effects.add(posting.account.accountCode to posting.getSignedAmount().quantity)
+        }
+        assertEquals(
+            listOf("AUTH_RECEIVABLE.M-1.EUR" to 10_000L, "AUTH_LIABILITY.M-1.EUR" to 10_000L),
+            effects
+        )
     }
 
     @Test
-    fun `captureGrossAsset - finalizes the sale and opens real receivables`() {
-        /*
-         * SCENARIO: The platform captures the authorized funds. Adyen confirms the capture.
-         * * RULE:
-         * - DR Auth Liability (-Liability): Erase the temporary hold liability.
-         * - CR Auth Receivable (-Asset): Erase the temporary hold asset.
-         * - DR PSP Receivable (+Asset): Adyen now legally owes us real cash.
-         * - CR Merchant Suspense (+Liability): We officially owe this gross money to the merchant ecosystem.
-         */
-        val amount = Amount.of(10_000, eur)
+    fun `capture closes the hold and replaces it with a PSP receivable and the merchant's gross pool`() {
+        val eur = Currency("EUR")
+        val authReceivable = LedgerAccount.createNew(LedgerAccountType.AUTH_RECEIVABLE, "M-1", null, eur)
+        val authLiability = LedgerAccount.createNew(LedgerAccountType.AUTH_LIABILITY, "M-1", null, eur)
+        val captureSuspense = LedgerAccount.createNew(LedgerAccountType.CAPTURE_SUSPENSE, "M-1", null, eur)
+        val pspReceivable = LedgerAccount.createNew(LedgerAccountType.PSP_RECEIVABLE, "GLOBAL", null, eur)
+        val captureTx = Tx.CaptureTx(
+            TxId(2L),
+            PaymentId(100L),
+            PaymentIntentId(200L),
+            TxId(1L),
+            "psp-cap-1",
+            Amount.of(10_000, eur)
+        )
 
-        val captureTx = Tx.CaptureTx(txId, paymentId, paymentIntentId, TxId(0L), "psp-cap-1", amount)
-        val entries = JournalEntry.captureGrossAsset(
+        val entry = JournalEntry.captureGrossAsset(
             2L,
             captureTx,
-            journalId,
-            amount,
-            authReceivableAccount,
-            authLiabilityAccount,
-            merchantSuspenseAccount,
-            pspReceivableAccount
-        )
-        val entry = entries.first()
+            "231538886965329920-12",
+            Amount.of(10_000, eur),
+            authReceivable,
+            authLiability,
+            captureSuspense,
+            pspReceivable
+        ).single()
 
-        assertBalanced(entry)
+        assertEquals("CAPTURE:231538886965329920-12", entry.id)
         assertEquals(JournalType.CAPTURE, entry.journalType)
-        assertPostingContains(entry, authLiabilityAccount, isDebit = true, expectedAmount = 10_000)
-        assertPostingContains(entry, authReceivableAccount, isDebit = false, expectedAmount = 10_000)
-        assertPostingContains(entry, pspReceivableAccount, isDebit = true, expectedAmount = 10_000)
-        assertPostingContains(entry, merchantSuspenseAccount, isDebit = false, expectedAmount = 10_000)
+        assertEquals(TxId(2L), entry.txId)
+        val effects = mutableListOf<Pair<String, Long>>()
+        for (posting in entry.postings) {
+            effects.add(posting.account.accountCode to posting.getSignedAmount().quantity)
+        }
+        assertEquals(
+            listOf(
+                "AUTH_LIABILITY.M-1.EUR" to -10_000L,
+                "AUTH_RECEIVABLE.M-1.EUR" to -10_000L,
+                "PSP_RECEIVABLE.GLOBAL.EUR" to 10_000L,
+                "CAPTURE_SUSPENSE.M-1.EUR" to 10_000L
+            ),
+            effects
+        )
     }
 
     @Test
-    fun `internalTransfer - shifts liability balances inside the platform`() {
-        /*
-         * SCENARIO: Outbox consumer distributes €50 from suspense to a specific sub-seller's wallet.
-         * * RULE:
-         * - DR Suspense Pool (-Liability): We no longer owe this generic pool.
-         * - CR Seller Balance (+Liability): We now owe this specific sub-seller.
-         */
-        val amount = Amount.of(5_000, eur) // €50.00
+    fun `internal transfer moves the seller's share from the merchant's gross pool to the seller`() {
+        val eur = Currency("EUR")
+        val captureSuspense = LedgerAccount.createNew(LedgerAccountType.CAPTURE_SUSPENSE, "M-1", null, eur)
+        val sellerPayable = LedgerAccount.createNew(LedgerAccountType.SELLER_PAYABLE, "M-1", "S-1", eur)
 
-        val entries = JournalEntry.internalTransfer(
+        val entry = JournalEntry.internalTransfer(
             3L,
-            paymentId,
-            journalId,
-            amount,
-            merchantSuspenseAccount,
-            subSellerAccount,
-            "ts"
-        )
-        val entry = entries.first()
+            PaymentId(100L),
+            "231538886965329920-45",
+            Amount.of(6_000, eur),
+            captureSuspense,
+            sellerPayable,
+            "MARKETPLACE_SELLER_SPLIT"
+        ).single()
 
-        assertBalanced(entry)
+        assertEquals("INTERNAL_TRANSFER:231538886965329920-45", entry.id)
         assertEquals(JournalType.INTERNAL_TRANSFER, entry.journalType)
-        assertPostingContains(entry, merchantSuspenseAccount, isDebit = true, expectedAmount = 5_000)
-        assertPostingContains(entry, subSellerAccount, isDebit = false, expectedAmount = 5_000)
+        assertEquals("MARKETPLACE_SELLER_SPLIT", entry.reason)
+        assertNull(entry.txId) // no PSP interaction behind it
+        val effects = mutableListOf<Pair<String, Long>>()
+        for (posting in entry.postings) {
+            effects.add(posting.account.accountCode to posting.getSignedAmount().quantity)
+        }
+        assertEquals(
+            listOf("CAPTURE_SUSPENSE.M-1.EUR" to -6_000L, "SELLER_PAYABLE.M-1.S-1.EUR" to 6_000L),
+            effects
+        )
     }
 
     @Test
-    fun `settlementLineItem - reconciles incoming physical cash and records processing fees`() {
-        /*
-         * SCENARIO: Adyen sends the daily settlement CSV. A €100 capture arrived, but Adyen took €5 in fees.
-         * We receive €95 in our physical bank account.
-         * * RULE:
-         * - DR Platform Cash (+Asset): Our physical bank balance increases by €95.
-         * - DR PSP Fee Expense (+Expense): We record a €5 cost of doing business.
-         * - CR PSP Receivable (-Asset): We wipe out the entire €100 IOU from Adyen.
-         */
-        val gross = Amount.of(10_000, eur)
-        val settledAmount = Amount.of(9_500, eur)
-        val feeAmount = Amount.of(500, eur)
+    fun `platform fee moves from what we owe the merchant into the merchant's fee reserve`() {
+        val eur = Currency("EUR")
+        val commissionPayable = LedgerAccount.createNew(LedgerAccountType.MERCHANT_COMMISSION_PAYABLE, "M-1", null, eur)
+        val feeReserve = LedgerAccount.createNew(LedgerAccountType.PLATFORM_FEE_RESERVE, "M-1", null, eur)
 
-        val captureTx = Tx.CaptureTx(TxId(2L), paymentId, paymentIntentId, TxId(0L), "psp-cap-1", gross)
-        val settleTx = Tx.createSettleTx(txId, captureTx, "psp-batch-1", gross)
-        val entries = JournalEntry.settlementLineItem(
+        val entry = JournalEntry.commissionFeeRegistered(
             4L,
-            settleTx,
-            journalId,
-            settledAmount,
-            feeAmount,
-            platformCashAccount,
-            pspReceivableAccount,
-            pspFeeExpenseAccount
-        )
-        val entry = entries.first()
+            PaymentId(100L),
+            "231538886965329920-46",
+            Amount.of(350, eur),
+            feeReserve,
+            commissionPayable
+        ).single()
 
-        assertBalanced(entry)
-        assertEquals(JournalType.SETTLEMENT, entry.journalType)
-        assertPostingContains(entry, platformCashAccount, isDebit = true, expectedAmount = 9_500)
-        assertPostingContains(entry, pspFeeExpenseAccount, isDebit = true, expectedAmount = 500)
-        assertPostingContains(entry, pspReceivableAccount, isDebit = false, expectedAmount = 10_000)
-    }
-
-    @Test
-    fun `commissionFeeRegistered - isolates Mor-DC's infrastructure cut into the fee reserve`() {
-        /*
-         * SCENARIO: Mor-DC charges a €2 platform fee to the marketplace operator.
-         * * RULE:
-         * - DR Operator Commission Account (-Liability): We reduce the operator's payable earnings by €2.(LIAbility
-         * means should beon right but we put left becasuse it needs to reduce,
-         * on the ohter hand, we do increase a special temp accopunt which will potential be in our commission in
-         * future)
-         * * - CR Platform Fee Reserve (+Liability): We lock that €2 into the fee reserve.
-         * (Still a liability because chargebacks could force us to return it) THAT MAKES IT NOT AN ASSET OR REVENUE
-         * YET,BECAUSE WE MIGHT HAVE TO PAY BACK IF 14 DAYS ARE NOT PASSED AFTER AUTH
-         */
-        val amount = Amount.of(200, eur)
-
-        val entries = JournalEntry.commissionFeeRegistered(
-            5L,
-            paymentId,
-            journalId,
-            amount,
-            feeReserveAccount,
-            operatorCommissionAccount
-        )
-        val entry = entries.first()
-
-        assertBalanced(entry)
+        assertEquals("MOR_DC_COMMISSION:231538886965329920-46", entry.id)
         assertEquals(JournalType.COMMISSION_FEE, entry.journalType)
-        assertPostingContains(entry, operatorCommissionAccount, isDebit = true, expectedAmount = 200)
-        assertPostingContains(entry, feeReserveAccount, isDebit = false, expectedAmount = 200)
-    }
-
-    @Test
-    fun `recognizePlatformRevenue - moves the fee reserve into confirmed earnings, a liability becomes revenue`() {
-        /*
-         * SCENARIO: 14 days have passed. The risk window is closed. Mor-DC officially claims the €2 fee as profit.
-         * * RULE:
-         * - DR Platform Fee Reserve (-Liability,This account is a de): Remove the funds from the safety cage.
-         * - CR Platform Operational Revenue (+Revenue): Officially record the €2 as company profit.
-         *
-
-         *Does looking at it as "Deferred Revenue" make the Liability classification click
-         */
-        val amount = Amount.of(200, eur)
-
-        val entries = JournalEntry.recognizePlatformRevenue(
-            6L,
-            journalId,
-            amount,
-            feeReserveAccount,
-            platformRevenueAccount
+        assertNull(entry.txId)
+        val effects = mutableListOf<Pair<String, Long>>()
+        for (posting in entry.postings) {
+            effects.add(posting.account.accountCode to posting.getSignedAmount().quantity)
+        }
+        assertEquals(
+            listOf("MERCHANT_COMMISSION_PAYABLE.M-1.EUR" to -350L, "PLATFORM_FEE_RESERVE.M-1.EUR" to 350L),
+            effects
         )
-        val entry = entries.first()
+    }
 
-        assertBalanced(entry)
+    @Test
+    fun `platform fee can only be reserved in a fee reserve account`() {
+        val eur = Currency("EUR")
+        val commissionPayable = LedgerAccount.createNew(LedgerAccountType.MERCHANT_COMMISSION_PAYABLE, "M-1", null, eur)
+        val notAReserve = LedgerAccount.createNew(LedgerAccountType.CAPTURE_SUSPENSE, "M-1", null, eur)
+
+        assertFailsWith<LedgerDomainException.InvariantViolationException> {
+            JournalEntry.commissionFeeRegistered(
+                4L,
+                PaymentId(100L),
+                "231538886965329920-46",
+                Amount.of(350, eur),
+                notAReserve,
+                commissionPayable
+            )
+        }
+    }
+
+    @Test
+    fun `settlement turns the PSP receivable into cash in the bank and the PSP fee`() {
+        val eur = Currency("EUR")
+        val platformCash = LedgerAccount.createNew(LedgerAccountType.PLATFORM_CASH, "GLOBAL", null, eur)
+        val pspReceivable = LedgerAccount.createNew(LedgerAccountType.PSP_RECEIVABLE, "GLOBAL", null, eur)
+        val pspFeeExpense = LedgerAccount.createNew(LedgerAccountType.PSP_FEE_EXPENSE, "GLOBAL", null, eur)
+        val captureTx = Tx.CaptureTx(
+            TxId(2L),
+            PaymentId(100L),
+            PaymentIntentId(200L),
+            TxId(1L),
+            "psp-cap-1",
+            Amount.of(10_000, eur)
+        )
+        val settleTx = Tx.createSettleTx(TxId(5L), captureTx, "psp-batch-1", Amount.of(10_000, eur))
+
+        val entry = JournalEntry.settlementLineItem(
+            5L,
+            settleTx,
+            "SDR_RECON_LN_15",
+            Amount.of(9_825, eur),
+            Amount.of(175, eur),
+            platformCash,
+            pspReceivable,
+            pspFeeExpense
+        ).single()
+
+        assertEquals("SETTLE:SDR_RECON_LN_15", entry.id)
+        assertEquals(JournalType.SETTLEMENT, entry.journalType)
+        assertEquals(TxId(5L), entry.txId)
+        val effects = mutableListOf<Pair<String, Long>>()
+        for (posting in entry.postings) {
+            effects.add(posting.account.accountCode to posting.getSignedAmount().quantity)
+        }
+        assertEquals(
+            listOf(
+                "PLATFORM_CASH.GLOBAL.EUR" to 9_825L,
+                "PSP_FEE_EXPENSE.GLOBAL.EUR" to 175L,
+                "PSP_RECEIVABLE.GLOBAL.EUR" to -10_000L
+            ),
+            effects
+        )
+    }
+
+    @Test
+    fun `settlement whose cash and fee do not add up to the gross amount is rejected`() {
+        val eur = Currency("EUR")
+        val platformCash = LedgerAccount.createNew(LedgerAccountType.PLATFORM_CASH, "GLOBAL", null, eur)
+        val pspReceivable = LedgerAccount.createNew(LedgerAccountType.PSP_RECEIVABLE, "GLOBAL", null, eur)
+        val pspFeeExpense = LedgerAccount.createNew(LedgerAccountType.PSP_FEE_EXPENSE, "GLOBAL", null, eur)
+        val captureTx = Tx.CaptureTx(
+            TxId(2L),
+            PaymentId(100L),
+            PaymentIntentId(200L),
+            TxId(1L),
+            "psp-cap-1",
+            Amount.of(10_000, eur)
+        )
+        val settleTx = Tx.createSettleTx(TxId(5L), captureTx, "psp-batch-1", Amount.of(10_000, eur))
+
+        assertFailsWith<LedgerDomainException.UnbalancedJournalEntryException> {
+            JournalEntry.settlementLineItem(
+                5L,
+                settleTx,
+                "SDR_RECON_LN_15",
+                Amount.of(9_825, eur),
+                Amount.of(100, eur), // 9,825 + 100 is not 10,000
+                platformCash,
+                pspReceivable,
+                pspFeeExpense
+            )
+        }
+    }
+
+    @Test
+    fun `revenue recognition releases the matured fee reserve into platform revenue`() {
+        val eur = Currency("EUR")
+        val feeReserve = LedgerAccount.createNew(LedgerAccountType.PLATFORM_FEE_RESERVE, "M-1", null, eur)
+        val platformRevenue = LedgerAccount.createNew(LedgerAccountType.PLATFORM_REVENUE, "GLOBAL", null, eur)
+
+        val entry = JournalEntry.recognizePlatformRevenue(
+            6L,
+            "2026-10-M-1",
+            Amount.of(350, eur),
+            feeReserve,
+            platformRevenue
+        )
+            .single()
+
+        assertEquals("REV_REC:2026-10-M-1", entry.id)
         assertEquals(JournalType.REVENUE_RECOGNITION, entry.journalType)
-        assertPostingContains(entry, feeReserveAccount, isDebit = true, expectedAmount = 200)
-        assertPostingContains(entry, platformRevenueAccount, isDebit = false, expectedAmount = 200)
+        assertEquals(PaymentId(0L), entry.paymentId) // a batch over many payments, not one
+        assertNull(entry.txId)
+        val effects = mutableListOf<Pair<String, Long>>()
+        for (posting in entry.postings) {
+            effects.add(posting.account.accountCode to posting.getSignedAmount().quantity)
+        }
+        assertEquals(
+            listOf("PLATFORM_FEE_RESERVE.M-1.EUR" to -350L, "PLATFORM_REVENUE.GLOBAL.EUR" to 350L),
+            effects
+        )
     }
 
     @Test
-    fun `payout - disburses physical cash to a vendor's external bank account`() {
-        /*
-         * SCENARIO: A sub-seller requests a wire transfer for their €98 earnings.
-         * * RULE:
-         * - DR Seller Balance (-Liability): We no longer owe the seller this money.reduce liability(credit),so seller
-         * balance on the left(DR) , PlatformCAsh(Debit) is reduced (so put in right side)
-         * - CR Platform Cash (-Asset): Our physical bank account liquidity decreases.
-         */
-        val amount = Amount.of(9_800, eur)
+    fun `revenue recognition only goes from a fee reserve to platform revenue`() {
+        val eur = Currency("EUR")
+        val feeReserve = LedgerAccount.createNew(LedgerAccountType.PLATFORM_FEE_RESERVE, "M-1", null, eur)
+        val platformRevenue = LedgerAccount.createNew(LedgerAccountType.PLATFORM_REVENUE, "GLOBAL", null, eur)
+        val platformCash = LedgerAccount.createNew(LedgerAccountType.PLATFORM_CASH, "GLOBAL", null, eur)
+        val commissionPayable = LedgerAccount.createNew(LedgerAccountType.MERCHANT_COMMISSION_PAYABLE, "M-1", null, eur)
 
-        val payoutTx = Tx.PayoutTx(txId, paymentId, paymentIntentId, "SELLER-1", "payout-batch-1", amount)
-        val entries = JournalEntry.payout(7L, payoutTx, journalId, subSellerAccount, platformCashAccount)
-        val entry = entries.first()
+        assertFailsWith<LedgerDomainException.InvariantViolationException> {
+            JournalEntry.recognizePlatformRevenue(
+                6L,
+                "2026-10-M-1",
+                Amount.of(350, eur),
+                commissionPayable,
+                platformRevenue
+            )
+        }
+        assertFailsWith<LedgerDomainException.InvariantViolationException> {
+            JournalEntry.recognizePlatformRevenue(6L, "2026-10-M-1", Amount.of(350, eur), feeReserve, platformCash)
+        }
+    }
 
-        assertBalanced(entry)
+    @Test
+    fun `payout settles what we owe the seller with cash from the bank`() {
+        val eur = Currency("EUR")
+        val sellerPayable = LedgerAccount.createNew(LedgerAccountType.SELLER_PAYABLE, "M-1", "S-1", eur)
+        val platformCash = LedgerAccount.createNew(LedgerAccountType.PLATFORM_CASH, "GLOBAL", null, eur)
+        val payoutTx = Tx.PayoutTx(
+            TxId(7L),
+            PaymentId(100L),
+            PaymentIntentId(200L),
+            "S-1",
+            "payout-batch-1",
+            Amount.of(6_000, eur)
+        )
+
+        val entry = JournalEntry.payout(
+            7L,
+            payoutTx,
+            "PAYOUT_BATCH_2026-10-16-S-1",
+            sellerPayable,
+            platformCash
+        ).single()
+
+        assertEquals("PAYOUT:PAYOUT_BATCH_2026-10-16-S-1", entry.id)
         assertEquals(JournalType.PAYOUT, entry.journalType)
-        assertPostingContains(entry, subSellerAccount, isDebit = true, expectedAmount = 9_800)
-        assertPostingContains(entry, platformCashAccount, isDebit = false, expectedAmount = 9_800)
+        assertEquals(TxId(7L), entry.txId)
+        val effects = mutableListOf<Pair<String, Long>>()
+        for (posting in entry.postings) {
+            effects.add(posting.account.accountCode to posting.getSignedAmount().quantity)
+        }
+        assertEquals(
+            listOf("SELLER_PAYABLE.M-1.S-1.EUR" to -6_000L, "PLATFORM_CASH.GLOBAL.EUR" to -6_000L),
+            effects
+        )
     }
 
     @Test
-    fun `refund - reverses captured positions for a customer return`() {
-        /*
-         * SCENARIO: A customer is refunded €100.
-         * * RULE:
-         * - DR Merchant Suspense / Pool (-Liability): Deduct the €100 from the merchant's balance.
-         * - CR PSP Receivable (-Asset): Record that Adyen will pull this €100 from our next settlement.
-         * - DR Auth Liability (+Liability) & CR Auth Receivable (+Asset): Temporarily reopen the auth states for
-         * tracking.
-         */
-        val amount = Amount.of(10_000, eur)
+    fun `refund takes the amount back out of the merchant's gross pool and the PSP receivable`() {
+        val eur = Currency("EUR")
+        val captureSuspense = LedgerAccount.createNew(LedgerAccountType.CAPTURE_SUSPENSE, "M-1", null, eur)
+        val pspReceivable = LedgerAccount.createNew(LedgerAccountType.PSP_RECEIVABLE, "GLOBAL", null, eur)
+        val captureTx = Tx.CaptureTx(
+            TxId(2L),
+            PaymentId(100L),
+            PaymentIntentId(200L),
+            TxId(1L),
+            "psp-cap-1",
+            Amount.of(10_000, eur)
+        )
+        val refundTx = Tx.createRefundTx(TxId(8L), captureTx, "psp-refund-1", Amount.of(10_000, eur))
 
-        val captureTx = Tx.CaptureTx(TxId(2L), paymentId, paymentIntentId, TxId(0L), "psp-cap-1", amount)
-        val refundTx = Tx.createRefundTx(txId, captureTx, "psp-refund-1", amount)
-        val entries = JournalEntry.refund(
+        val entry = JournalEntry.refund(
             8L,
             refundTx,
-            journalId,
-            authReceivableAccount,
-            authLiabilityAccount,
-            merchantSuspenseAccount,
-            pspReceivableAccount
-        )
-        val entry = entries.first()
+            "231538886965329920-18",
+            captureSuspense,
+            pspReceivable
+        ).single()
 
-        assertBalanced(entry)
+        assertEquals("REFUND:231538886965329920-18", entry.id)
         assertEquals(JournalType.REFUND, entry.journalType)
-        assertPostingContains(entry, merchantSuspenseAccount, isDebit = true, expectedAmount = 10_000)
-        assertPostingContains(entry, pspReceivableAccount, isDebit = false, expectedAmount = 10_000)
-        assertPostingContains(entry, authLiabilityAccount, isDebit = true, expectedAmount = 10_000)
-        assertPostingContains(entry, authReceivableAccount, isDebit = false, expectedAmount = 10_000)
+        assertEquals(TxId(8L), entry.txId)
+        val effects = mutableListOf<Pair<String, Long>>()
+        for (posting in entry.postings) {
+            effects.add(posting.account.accountCode to posting.getSignedAmount().quantity)
+        }
+        assertEquals(
+            listOf("CAPTURE_SUSPENSE.M-1.EUR" to -10_000L, "PSP_RECEIVABLE.GLOBAL.EUR" to -10_000L),
+            effects
+        )
+    }
+
+    // ------------------------------------------------------------------ what no entry may do
+
+    @Test
+    fun `an entry cannot post to the same account twice`() {
+        val eur = Currency("EUR")
+        val captureSuspense = LedgerAccount.createNew(LedgerAccountType.CAPTURE_SUSPENSE, "M-1", null, eur)
+
+        assertFailsWith<LedgerDomainException.DuplicateAccountInJournalException> {
+            JournalEntry.internalTransfer(
+                3L,
+                PaymentId(100L),
+                "231538886965329920-45",
+                Amount.of(6_000, eur),
+                captureSuspense,
+                captureSuspense
+            )
+        }
+    }
+
+    @Test
+    fun `an entry needs a positive global journal entry id`() {
+        val eur = Currency("EUR")
+        val authReceivable = LedgerAccount.createNew(LedgerAccountType.AUTH_RECEIVABLE, "M-1", null, eur)
+        val authLiability = LedgerAccount.createNew(LedgerAccountType.AUTH_LIABILITY, "M-1", null, eur)
+        val authTx = Tx.AuthorizationTx(
+            TxId(1L),
+            PaymentId(100L),
+            PaymentIntentId(200L),
+            "psp-auth-1",
+            Amount.of(10_000, eur)
+        )
+
+        assertFailsWith<LedgerDomainException.InvariantViolationException> {
+            JournalEntry.authHold(0L, authTx, "231538886965329920", authReceivable, authLiability)
+        }
     }
 }

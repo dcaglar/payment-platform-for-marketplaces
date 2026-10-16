@@ -27,8 +27,8 @@ import org.testcontainers.utility.DockerImageName
  * Tests every method of AccountDirectoryMapper against a real Postgres (Testcontainers).
  * Liquibase builds the schema from the real changelog before the tests run.
  *
- * Each test inserts the rows it needs into `accounts` (merchant, seller, ledger account), calls one
- * mapper method, and checks what comes back through the ledger_account_directory view.
+ * Each test inserts the rows it needs (merchant, seller, ledger account), calls one
+ * mapper method, and checks what comes back from `ledger_accounts`.
  *
  * Runs via `mvn verify -pl payment-consumers -am` (Failsafe, @Tag "integration").
  */
@@ -71,7 +71,7 @@ class AccountDirectoryMapperIntegrationTest {
     @BeforeEach
     fun cleanDatabase() {
         // Clean the table before each test (this also removes the seed) to keep tests independent
-        jdbcTemplate.execute("TRUNCATE TABLE accounts CASCADE")
+        jdbcTemplate.execute("TRUNCATE TABLE ledger_accounts, sellers, merchants CASCADE")
     }
 
     // ------------------------------------------------------------ findByAccountCode
@@ -324,32 +324,21 @@ class AccountDirectoryMapperIntegrationTest {
         assertEquals(0, result.size)
     }
 
-    // ---------------------------------------------------------- accounts table rules
+    // ---------------------------------------------------------- ledger_accounts table rules
 
     @Test
-    fun `should reject a seller row that carries ledger columns`() {
+    fun `should reject a seller ledger account whose seller does not exist`() {
         insertMerchant("MERCHANT-A", "EUR")
 
         val error = assertThrows(DataIntegrityViolationException::class.java) {
-            jdbcTemplate.update(
-                "INSERT INTO accounts (account_code, kind, parent_code, ledger_type) VALUES ('SELLER-A-1', 'SELLER', " +
-                    "'MERCHANT-A', 'SELLER_PAYABLE')"
-            )
+            insertLedger("SELLER_PAYABLE.MERCHANT-A.SELLER-X.EUR", "SELLER_PAYABLE", "MERCHANT-A", "SELLER-X", "EUR")
         }
-        assertTrue(error.message!!.contains("chk_accounts_seller"), error.message)
-    }
-
-    @Test
-    fun `should reject a ledger row whose owner does not exist`() {
-        val error = assertThrows(DataIntegrityViolationException::class.java) {
-            insertLedger("CAPTURE_SUSPENSE.MERCHANT-X.EUR", "CAPTURE_SUSPENSE", "MERCHANT-X", "EUR")
-        }
-        assertTrue(error.message!!.contains("accounts_parent_code_fkey"), error.message)
+        assertTrue(error.message!!.contains("ledger_accounts_seller_code_fkey"), error.message)
     }
 
     // --------------------------------------------------------------- test helpers (the mapper has no insert method)
 
-    /** The ledger account plus the rows it hangs under: its merchant, and its seller for seller accounts. */
+    /** The ledger account plus the rows it references: its merchant, and its seller for seller accounts. */
     private fun insertAccount(
         accountCode: String,
         accountType: String,
@@ -358,25 +347,22 @@ class AccountDirectoryMapperIntegrationTest {
         currency: String
     ) {
         insertMerchant(merchant, currency)
-        var owner = merchant
         if (subEntityId != null) {
             jdbcTemplate.update(
-                "INSERT INTO accounts (account_code, kind, parent_code) VALUES (?, 'SELLER', ?) ON CONFLICT " +
-                    "(account_code) DO NOTHING",
+                "INSERT INTO sellers (account_code, merchant_code) VALUES (?, ?) ON CONFLICT (account_code) DO NOTHING",
                 subEntityId,
                 merchant
             )
-            owner = subEntityId
         }
-        insertLedger(accountCode, accountType, owner, currency)
+        insertLedger(accountCode, accountType, merchant, subEntityId, currency)
     }
 
     private fun insertMerchant(merchant: String, currency: String) {
         jdbcTemplate.update(
             """
-            INSERT INTO accounts (account_code, kind, currency, is_auto_captured, is_auto_settled,
-                                  platform_fee_fixed, platform_fee_bps, profile)
-            VALUES (?, 'MERCHANT', ?, true, false, 0, 0, '{}'::jsonb)
+            INSERT INTO merchants (account_code, currency, is_auto_captured, is_auto_settled,
+                                   platform_fee_fixed, platform_fee_bps, profile)
+            VALUES (?, ?, true, false, 0, 0, '{}'::jsonb)
             ON CONFLICT (account_code) DO NOTHING
             """.trimIndent(),
             merchant,
@@ -384,13 +370,20 @@ class AccountDirectoryMapperIntegrationTest {
         )
     }
 
-    private fun insertLedger(accountCode: String, accountType: String, owner: String, currency: String) {
+    private fun insertLedger(
+        accountCode: String,
+        accountType: String,
+        owner: String,
+        seller: String?,
+        currency: String
+    ) {
         jdbcTemplate.update(
-            "INSERT INTO accounts (account_code, kind, parent_code, ledger_type, currency) VALUES (?, 'LEDGER', ?, " +
-                "?, ?)",
+            "INSERT INTO ledger_accounts (account_code, ledger_type, owner_code, seller_code, currency) " +
+                "VALUES (?, ?, ?, ?, ?)",
             accountCode,
-            owner,
             accountType,
+            owner,
+            seller,
             currency
         )
     }

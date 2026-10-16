@@ -5,13 +5,13 @@
 
 <mapper namespace="com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.AccountDirectoryMapper">
 
-    <!-- Column order must match the AccountProfile constructor.
-         ledger_account_directory is a view over `accounts`: ledger accounts with their merchant and seller resolved. -->
+    <!-- Column order must match the AccountProfile constructor: the ledger_accounts row, owner_code as the master
+         account (a merchant or GLOBAL) and seller_code as the sub entity. -->
     <sql id="accountProfileColumns">
         account_code,
-        account_type AS type,
-        master_account_code,
-        sub_entity_id,
+        ledger_type AS type,
+        owner_code AS master_account_code,
+        seller_code AS sub_entity_id,
         currency,
         status
     </sql>
@@ -22,10 +22,10 @@
             resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
         SELECT
         <include refid="accountProfileColumns"/>
-        FROM ledger_account_directory
-        WHERE account_type = #{accountType}
-        AND master_account_code = #{masterAccountCode}
-        AND sub_entity_id IS NULL
+        FROM ledger_accounts
+        WHERE ledger_type = #{accountType}
+        AND owner_code = #{masterAccountCode}
+        AND seller_code IS NULL
         AND currency = #{currency}
     </select>
 
@@ -35,10 +35,10 @@
             resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
         SELECT
         <include refid="accountProfileColumns"/>
-        FROM ledger_account_directory
-        WHERE account_type = #{accountType}
-        AND master_account_code = #{masterAccountCode}
-        AND sub_entity_id = #{subEntityId}
+        FROM ledger_accounts
+        WHERE ledger_type = #{accountType}
+        AND owner_code = #{masterAccountCode}
+        AND seller_code = #{subEntityId}
         AND currency = #{currency}
     </select>
 
@@ -48,9 +48,9 @@
             resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
         SELECT
         <include refid="accountProfileColumns"/>
-        FROM ledger_account_directory
-        WHERE account_type = #{accountType}
-        AND sub_entity_id = #{subEntityId}
+        FROM ledger_accounts
+        WHERE ledger_type = #{accountType}
+        AND seller_code = #{subEntityId}
         ORDER BY currency
     </select>
 
@@ -60,10 +60,10 @@
             resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
         SELECT
         <include refid="accountProfileColumns"/>
-        FROM ledger_account_directory
-        WHERE account_type = #{accountType}
-        AND master_account_code = #{masterAccountCode}
-        AND sub_entity_id IS NULL
+        FROM ledger_accounts
+        WHERE ledger_type = #{accountType}
+        AND owner_code = #{masterAccountCode}
+        AND seller_code IS NULL
         ORDER BY currency
     </select>
 
@@ -74,11 +74,11 @@
             resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
         SELECT
         <include refid="accountProfileColumns"/>
-        FROM ledger_account_directory
-        WHERE account_type = #{accountType}
-        AND master_account_code = #{masterAccountCode}
-        AND sub_entity_id IS NOT NULL
-        ORDER BY sub_entity_id COLLATE natural_order, currency
+        FROM ledger_accounts
+        WHERE ledger_type = #{accountType}
+        AND owner_code = #{masterAccountCode}
+        AND seller_code IS NOT NULL
+        ORDER BY seller_code COLLATE natural_order, currency
     </select>
 
     <select id="findByAccountCode"
@@ -86,7 +86,7 @@
             resultType="com.dogancaglar.paymentservice.domain.model.ledger.AccountProfile">
         SELECT
         <include refid="accountProfileColumns"/>
-        FROM ledger_account_directory
+        FROM ledger_accounts
         WHERE account_code = #{accountCode}
     </select>
 </mapper>

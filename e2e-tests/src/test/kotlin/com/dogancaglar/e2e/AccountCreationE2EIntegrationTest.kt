@@ -85,24 +85,23 @@ class AccountCreationE2EIntegrationTest {
         await().atMost(created).pollInterval(poll).untilAsserted {
             assertThat(
                 centralRows(
-                    "SELECT kind || '|' || status || '|' || currency || '|' || is_auto_captured || '|' || " +
+                    "SELECT status || '|' || currency || '|' || is_auto_captured || '|' || " +
                         "is_auto_settled || '|' || platform_fee_fixed || '|' || platform_fee_bps || '|' || " +
                         "(profile->>'legalName') || '|' || (profile->'address'->>'country') " +
-                        "FROM accounts WHERE account_code='$merchant'"
+                        "FROM merchants WHERE account_code='$merchant'"
                 )
-            ).containsExactly("MERCHANT|ACTIVE|EUR|true|false|30|150|Marketplace E2E One B.V.|NL")
+            ).containsExactly("ACTIVE|EUR|true|false|30|150|Marketplace E2E One B.V.|NL")
         }
         assertThat(
-            centralRows("SELECT account_code FROM accounts WHERE kind='SELLER' AND parent_code='$merchant' ORDER BY 1")
+            centralRows("SELECT account_code FROM sellers WHERE merchant_code='$merchant' ORDER BY 1")
         )
             .containsExactly("SELLER-E2E-1-1", "SELLER-E2E-1-2")
 
-        // ---- A4: exactly these ledger accounts, under the right owners ---------------------
+        // ---- A4: exactly these ledger accounts, under the right owner and seller ---------------------
         assertThat(
             centralRows(
-                "SELECT account_code || '|' || parent_code || '|' || ledger_type || '|' || currency || '|' || status " +
-                    "FROM accounts WHERE kind='LEDGER' AND (parent_code='$merchant' OR parent_code IN " +
-                    "(SELECT account_code FROM accounts WHERE kind='SELLER' AND parent_code='$merchant')) ORDER BY 1"
+                "SELECT account_code || '|' || COALESCE(seller_code, owner_code) || '|' || ledger_type || '|' || " +
+                    "currency || '|' || status FROM ledger_accounts WHERE owner_code='$merchant' ORDER BY 1"
             )
         ).containsExactly(
             "AUTH_LIABILITY.$merchant.EUR|$merchant|AUTH_LIABILITY|EUR|ACTIVE",
@@ -114,25 +113,14 @@ class AccountCreationE2EIntegrationTest {
             "SELLER_PAYABLE.$merchant.SELLER-E2E-1-1.EUR|SELLER-E2E-1-1|SELLER_PAYABLE|EUR|ACTIVE",
             "SELLER_PAYABLE.$merchant.SELLER-E2E-1-2.EUR|SELLER-E2E-1-2|SELLER_PAYABLE|EUR|ACTIVE"
         )
-        // nothing else was created for this merchant
-        assertThat(centralCount("SELECT count(*) FROM accounts WHERE account_code LIKE '%E2E-1%'")).isEqualTo(11L)
-
-        // the view the payment flow uses resolves merchant and seller for every one of them
+        // nothing else was created for this merchant: 1 merchant, 2 sellers, 8 ledger accounts
         assertThat(
-            centralRows(
-                "SELECT account_type || '|' || master_account_code || '|' || COALESCE(sub_entity_id, '-') " +
-                    "FROM ledger_account_directory WHERE master_account_code='$merchant' ORDER BY 1"
+            centralCount(
+                "SELECT (SELECT count(*) FROM merchants WHERE account_code LIKE '%E2E-1%') + " +
+                    "(SELECT count(*) FROM sellers WHERE account_code LIKE '%E2E-1%') + " +
+                    "(SELECT count(*) FROM ledger_accounts WHERE account_code LIKE '%E2E-1%')"
             )
-        ).containsExactly(
-            "AUTH_LIABILITY|$merchant|-",
-            "AUTH_RECEIVABLE|$merchant|-",
-            "CAPTURE_SUSPENSE|$merchant|-",
-            "MERCHANT_COMMISSION_PAYABLE|$merchant|-",
-            "MERCHANT_DIRECT_PAYABLE|$merchant|-",
-            "PLATFORM_FEE_RESERVE|$merchant|-",
-            "SELLER_PAYABLE|$merchant|SELLER-E2E-1-1",
-            "SELLER_PAYABLE|$merchant|SELLER-E2E-1-2"
-        )
+        ).isEqualTo(11L)
     }
 
     @Test
@@ -149,7 +137,7 @@ class AccountCreationE2EIntegrationTest {
         )
         assertThat(first.status).isEqualTo(HTTP_ACCEPTED)
         await().atMost(created).pollInterval(poll).untilAsserted {
-            assertThat(centralCount("SELECT count(*) FROM accounts WHERE account_code='$merchant'")).isEqualTo(1L)
+            assertThat(centralCount("SELECT count(*) FROM merchants WHERE account_code='$merchant'")).isEqualTo(1L)
         }
 
         // same code again, with a different seller: accepted and relayed, then a no-op (creation is idempotent)
@@ -173,13 +161,13 @@ class AccountCreationE2EIntegrationTest {
         await().during(Duration.ofSeconds(5)).atMost(Duration.ofSeconds(10)).pollInterval(poll).untilAsserted {
             assertThat(E2eSupport.topicRecordCount(PlatformStack.kafka.bootstrapServers, dlq)).isEqualTo(dlqBefore)
             assertThat(
-                centralCount("SELECT count(*) FROM accounts WHERE account_code LIKE '%SELLER-E2E-2-9%'")
+                centralCount("SELECT count(*) FROM sellers WHERE account_code LIKE '%SELLER-E2E-2-9%'")
             ).isEqualTo(0L)
         }
         assertThat(
-            centralCount("SELECT count(*) FROM accounts WHERE account_code LIKE '%SELLER-E2E-2-9%'")
+            centralCount("SELECT count(*) FROM ledger_accounts WHERE account_code LIKE '%SELLER-E2E-2-9%'")
         ).isEqualTo(0L)
-        assertThat(centralRows("SELECT account_code FROM accounts WHERE kind='SELLER' AND parent_code='$merchant'"))
+        assertThat(centralRows("SELECT account_code FROM sellers WHERE merchant_code='$merchant'"))
             .containsExactly("SELLER-E2E-2-1")
     }
 

@@ -114,8 +114,8 @@ class ProcessPspResultProcessingServiceTest {
         val journalIds = recordedInternalTransferJournalIds()
         assertEquals(2, journalIds.size)
         assertNotEquals(journalIds[0], journalIds[1], "each transfer must get its own journal id")
-        assertTrue(journalIds[0].contains(PublicIdFactory.publicInternalTransferId(firstTransferId)))
-        assertTrue(journalIds[1].contains(PublicIdFactory.publicInternalTransferId(secondTransferId)))
+        assertEquals("INTERNAL_TRANSFER:${paymentIntentId.value}-$firstTransferId", journalIds[0])
+        assertEquals("INTERNAL_TRANSFER:${paymentIntentId.value}-$secondTransferId", journalIds[1])
     }
 
     @Test

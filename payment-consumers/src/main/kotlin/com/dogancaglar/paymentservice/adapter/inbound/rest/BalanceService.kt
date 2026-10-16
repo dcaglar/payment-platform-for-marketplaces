@@ -14,9 +14,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 /**
- * Reads balances for the balance API. Accounts are found in `accounts` (via the ledger_account_directory view): a
- * seller's account
- * by its sub_entity_id, a merchant's accounts by master_account_code. Each balance is the real-time
+ * Reads balances for the balance API. Accounts are found in `ledger_accounts`: a seller's account by its
+ * seller_code, a merchant's accounts by owner_code. Each balance is the real-time
  * value (snapshot + Redis delta).
  */
 @Service

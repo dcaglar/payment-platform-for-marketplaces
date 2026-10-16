@@ -4,82 +4,14 @@ import com.dogancaglar.paymentservice.domain.exception.AccountDomainException
 import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
-import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccount
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/** Which ledger accounts each owner gets: the platform, a merchant, and a seller. */
+/** The merchant and seller accounts' own rules. */
 class AccountGenerationTest {
 
     private val eur = Currency("EUR")
-
-    @Test
-    fun `platform gets its four platform-level ledger accounts per currency`() {
-        val platform = PlatformAccount.createNew()
-
-        val codes = codesOf(platform.ledgerAccounts(eur))
-
-        assertEquals(
-            listOf(
-                "PLATFORM_CASH.GLOBAL.EUR",
-                "PSP_RECEIVABLE.GLOBAL.EUR",
-                "PLATFORM_REVENUE.GLOBAL.EUR",
-                "PSP_FEE_EXPENSE.GLOBAL.EUR"
-            ),
-            codes
-        )
-    }
-
-    @Test
-    fun `merchant gets its six merchant-level ledger accounts in its currency`() {
-        val codes = codesOf(merchant().ledgerAccounts())
-
-        assertEquals(
-            listOf(
-                "AUTH_RECEIVABLE.MARKETPLACE-5.EUR",
-                "AUTH_LIABILITY.MARKETPLACE-5.EUR",
-                "CAPTURE_SUSPENSE.MARKETPLACE-5.EUR",
-                "MERCHANT_DIRECT_PAYABLE.MARKETPLACE-5.EUR",
-                "MERCHANT_COMMISSION_PAYABLE.MARKETPLACE-5.EUR",
-                "PLATFORM_FEE_RESERVE.MARKETPLACE-5.EUR"
-            ),
-            codes
-        )
-    }
-
-    @Test
-    fun `merchant ledger accounts can be generated for another currency`() {
-        val codes = codesOf(merchant().ledgerAccounts(Currency("USD")))
-
-        assertEquals(6, codes.size)
-        assertEquals("AUTH_RECEIVABLE.MARKETPLACE-5.USD", codes[0])
-    }
-
-    @Test
-    fun `seller gets one seller payable under its merchant in the merchant currency`() {
-        val seller = SellerAccount.createNew("SELLER-5-1", "MARKETPLACE-5")
-
-        val codes = codesOf(seller.ledgerAccounts(merchant()))
-
-        assertEquals(listOf("SELLER_PAYABLE.MARKETPLACE-5.SELLER-5-1.EUR"), codes)
-    }
-
-    @Test
-    fun `seller ledger accounts cannot be generated under another merchant`() {
-        val seller = SellerAccount.createNew("SELLER-1-1", "MARKETPLACE-1")
-
-        assertFailsWith<AccountDomainException.InvariantViolationException> {
-            seller.ledgerAccounts(merchant())
-        }
-    }
-
-    @Test
-    fun `merchant code must be a valid owner code`() {
-        assertFailsWith<AccountDomainException.InvariantViolationException> { merchant(code = "GLOBAL") }
-        assertFailsWith<AccountDomainException.InvariantViolationException> { merchant(code = "MARKET.PLACE") }
-        assertFailsWith<AccountDomainException.InvariantViolationException> { merchant(code = "") }
-    }
 
     @Test
     fun `platform fee must be in the merchant currency`() {
@@ -120,14 +52,6 @@ class AccountGenerationTest {
 
         assertEquals(true, merchant.isAutoCaptured)
         assertEquals(false, merchant.isAutoSettled)
-    }
-
-    private fun codesOf(accounts: List<LedgerAccount>): List<String> {
-        val codes = mutableListOf<String>()
-        for (account in accounts) {
-            codes.add(account.accountCode)
-        }
-        return codes
     }
 
     @Test

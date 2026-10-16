@@ -4,31 +4,31 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.dogancaglar.paymentservice.infra.adapter.outbound.persistence.mapper.AccountMapper">
 
-    <sql id="insertAccount">
-        INSERT INTO accounts (
-            account_code, kind, status, parent_code, ledger_type, currency,
-            is_auto_captured, is_auto_settled, platform_fee_fixed, platform_fee_bps, profile
+    <insert id="insertMerchantIfAbsent" parameterType="com.dogancaglar.common.db.entity.MerchantEntity">
+        INSERT INTO merchants (
+            account_code, status, currency, is_auto_captured, is_auto_settled, platform_fee_fixed, platform_fee_bps, profile
         ) VALUES (
-            #{accountCode}, #{kind}, #{status}, #{parentCode}, #{ledgerType}, #{currency},
-            #{isAutoCaptured}, #{isAutoSettled}, #{platformFeeFixed}, #{platformFeeBps}, CAST(#{profile} AS jsonb)
+            #{accountCode}, #{status}, #{currency}, #{isAutoCaptured}, #{isAutoSettled}, #{platformFeeFixed},
+            #{platformFeeBps}, CAST(#{profile} AS jsonb)
         )
-    </sql>
-
-    <insert id="insert" parameterType="com.dogancaglar.common.db.entity.AccountEntity">
-        <include refid="insertAccount"/>
-    </insert>
-
-    <insert id="insertIfAbsent" parameterType="com.dogancaglar.common.db.entity.AccountEntity">
-        <include refid="insertAccount"/>
         ON CONFLICT (account_code) DO NOTHING
     </insert>
 
-    <!-- Column order must match the AccountEntity constructor -->
-    <select id="findMerchantByCode" parameterType="string" resultType="com.dogancaglar.common.db.entity.AccountEntity">
-        SELECT account_code, kind, status, parent_code, ledger_type, currency,
-               is_auto_captured, is_auto_settled, platform_fee_fixed, platform_fee_bps, profile::text AS profile
-        FROM accounts
+    <insert id="insertSeller" parameterType="com.dogancaglar.common.db.entity.SellerEntity">
+        INSERT INTO sellers (account_code, merchant_code, status)
+        VALUES (#{accountCode}, #{merchantCode}, #{status})
+    </insert>
+
+    <insert id="insertLedgerAccount" parameterType="com.dogancaglar.common.db.entity.LedgerAccountEntity">
+        INSERT INTO ledger_accounts (account_code, ledger_type, owner_code, seller_code, currency, status)
+        VALUES (#{accountCode}, #{ledgerType}, #{ownerCode}, #{sellerCode}, #{currency}, #{status})
+    </insert>
+
+    <!-- Column order must match the MerchantEntity constructor -->
+    <select id="findMerchantByCode" parameterType="string" resultType="com.dogancaglar.common.db.entity.MerchantEntity">
+        SELECT account_code, status, currency, is_auto_captured, is_auto_settled, platform_fee_fixed, platform_fee_bps,
+               profile::text AS profile
+        FROM merchants
         WHERE account_code = #{accountCode}
-          AND kind = 'MERCHANT'
     </select>
 </mapper>
