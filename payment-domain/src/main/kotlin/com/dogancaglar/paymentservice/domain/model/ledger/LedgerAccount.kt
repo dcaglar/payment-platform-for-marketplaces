@@ -1,8 +1,6 @@
 package com.dogancaglar.paymentservice.domain.model.ledger
 
 import com.dogancaglar.paymentservice.domain.exception.LedgerDomainException
-import com.dogancaglar.paymentservice.domain.model.account.Account
-import com.dogancaglar.paymentservice.domain.model.account.AccountCodes
 import com.dogancaglar.paymentservice.domain.model.account.AccountStatus
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.common.require
@@ -21,10 +19,10 @@ data class LedgerAccount private constructor(
     val ownerCode: String,
     val sellerCode: String?,
     val currency: Currency,
-    override val status: AccountStatus
-) : Account() {
+    val status: AccountStatus
+) {
 
-    override val accountCode: String
+    val accountCode: String
         get() = buildCode(type, ownerCode, sellerCode, currency)
 
     fun isDebitAccount() = type.normalBalance == NormalBalance.DEBIT
@@ -35,65 +33,14 @@ data class LedgerAccount private constructor(
         private const val CODE_PARTS_WITHOUT_SELLER = 3 // TYPE.OWNER.CURRENCY
         private const val CODE_PARTS_WITH_SELLER = 4 // TYPE.OWNER.SELLER.CURRENCY
 
-        /**
-         * A new ledger account. The owner must match the type's owner level: platform types belong to GLOBAL,
-         * merchant types to a merchant, seller types to a seller under its merchant.
-         */
+        /** A new ledger account of [type] for [ownerCode] (a merchant, or GLOBAL), under [sellerCode] if any. */
         fun createNew(
             type: LedgerAccountType,
             ownerCode: String,
             sellerCode: String?,
             currency: Currency,
             status: AccountStatus = AccountStatus.ACTIVE
-        ): LedgerAccount {
-            when (type.owner) {
-                AccountOwner.PLATFORM -> {
-                    require(
-                        ownerCode == AccountCodes.PLATFORM
-                    ) {
-                        LedgerDomainException.InvariantViolationException(
-                            "$type belongs to the platform, owner must be ${AccountCodes.PLATFORM}, was $ownerCode"
-                        )
-                    }
-                    require(sellerCode == null) {
-                        LedgerDomainException.InvariantViolationException(
-                            "$type is a platform account and has no seller"
-                        )
-                    }
-                }
-                AccountOwner.MERCHANT -> {
-                    require(
-                        AccountCodes.isValidOwnerCode(ownerCode)
-                    ) {
-                        LedgerDomainException.InvariantViolationException(
-                            "$type needs a merchant code as owner, was '$ownerCode'"
-                        )
-                    }
-                    require(sellerCode == null) {
-                        LedgerDomainException.InvariantViolationException(
-                            "$type is a merchant account and has no seller"
-                        )
-                    }
-                }
-                AccountOwner.SELLER -> {
-                    require(
-                        AccountCodes.isValidOwnerCode(ownerCode)
-                    ) {
-                        LedgerDomainException.InvariantViolationException(
-                            "$type needs the seller's merchant code as owner, was '$ownerCode'"
-                        )
-                    }
-                    require(
-                        sellerCode != null && AccountCodes.isValidOwnerCode(sellerCode)
-                    ) {
-                        LedgerDomainException.InvariantViolationException(
-                            "$type needs a seller code, was '$sellerCode'"
-                        )
-                    }
-                }
-            }
-            return LedgerAccount(type, ownerCode, sellerCode, currency, status)
-        }
+        ): LedgerAccount = LedgerAccount(type, ownerCode, sellerCode, currency, status)
 
         /** Rebuilds an account from an account-directory row. Trusts the stored data. */
         fun fromProfile(profile: AccountProfile): LedgerAccount =

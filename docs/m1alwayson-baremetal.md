@@ -71,7 +71,7 @@ OrbStack's `LoadBalancer` IPs (the ingress IP how-to-start uses) exist only on t
 | Familiarity | Same environment already used for local development | New: systemd, native Linux networking |
 | Risk | Lowest, already proven | Higher short-term, removes the VM tax permanently |
 
-Stay on OrbStack for the first deployment. Revisit Asahi + k3s once the platform is stable, to reclaim the RAM the VM layer costs on a 16 GB machine. OrbStack caps its VM memory by default (check the value in Settings → Resources on the machine); set it to **14 GB** (`orb config set memory_mib 14336`), leaving 2 GB for macOS; §4.1 says why. CPU needs no change. OrbStack is a user application, not a system daemon: it runs under the auto-login service user as a Login Item, and the cluster is gone if that user logs out.
+Stay on OrbStack for the first deployment. Revisit Asahi + k3s once the platform is stable, to reclaim the RAM the VM layer costs on a 16 GB machine. OrbStack's default is 8 GiB and its slider caps at 12 GiB (three quarters of 16 GB, verified 2026-10-15); set it to **12 GB** (`orb config set memory_mib 12288`), leaving 4 GB for macOS; §4.1 says why. CPU needs no change. OrbStack is a user application, not a system daemon: it runs under the auto-login service user as a Login Item, and the cluster is gone if that user logs out.
 
 ### 3.2 A `prod` track next to `local`; `azure` is out of date
 
@@ -191,7 +191,7 @@ kube-prometheus-stack (Prometheus 2 h retention, Grafana, Alertmanager, node-exp
 | Kubernetes system pods inside the OrbStack VM | ~0.5 GB | — |
 | OrbStack VM overhead + macOS itself | 2 GB | fixed cost before a single pod runs |
 
-Sum of the limits inside the VM: about 12 GB. Pods rarely sit at their limit; the VM is 14 GB. If it gets tight, Grafana and Tempo at 512 Mi each are enough for one person. Do not shrink Kafka, Keycloak or the databases. Each JVM app already gets its heap from the chart (`jvmOpts` with `-XX:MaxRAMPercentage=45` against the container limit): the memory limits in `prod/values.yaml` are the knob, no `-Xmx` needed.
+Sum of the limits inside the VM: about 12 GB. Pods rarely sit at their limit; the VM is 12 GB. If it gets tight, Grafana and Tempo at 512 Mi each are enough for one person. Do not shrink Kafka, Keycloak or the databases. Each JVM app already gets its heap from the chart (`jvmOpts` with `-XX:MaxRAMPercentage=45` against the container limit): the memory limits in `prod/values.yaml` are the knob, no `-Xmx` needed.
 
 ### 4.2 Facts that shape the plan
 

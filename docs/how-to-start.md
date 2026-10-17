@@ -347,7 +347,7 @@ curl -i -X POST "http://$(kubectl get svc ingress-nginx-controller -n ingress-co
 | Case | Result |
 |---|---|
 | valid request, admin | `202`, `"status": "ACCEPTED"`; a moment later the merchant, its 6 ledger accounts, each seller and its `SELLER_PAYABLE` exist |
-| invalid field or rule (bad currency, code with `.`, same seller twice) | `400`, `"code": "VALIDATION_ERROR"`; nothing is queued |
+| invalid field or rule (bad currency, code with `.` or `GLOBAL`, same seller twice) | `400`, `"code": "VALIDATION_ERROR"`; nothing is queued |
 | no `account:write` (support, finance, merchant) / no token | `403` / `401` |
 | merchant code already exists | still `202`; creation is idempotent, so nothing is written |
 | a seller code that belongs to another merchant | still `202`; the creation fails in the consumer and the request lands in `account.creation.requested.DLQ` |

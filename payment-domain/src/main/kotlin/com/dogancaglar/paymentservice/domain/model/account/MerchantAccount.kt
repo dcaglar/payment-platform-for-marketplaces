@@ -5,17 +5,14 @@ import com.dogancaglar.paymentservice.domain.exception.PaymentDomainException
 import com.dogancaglar.paymentservice.domain.model.common.Amount
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 import com.dogancaglar.paymentservice.domain.model.common.require
-import com.dogancaglar.paymentservice.domain.model.ledger.AccountOwner
-import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccount
-import com.dogancaglar.paymentservice.domain.model.ledger.LedgerAccountType
 
 /**
  * The merchant a payment's `merchantAccount` refers to. Holds who the merchant is and how its payments are
- * processed; it has no ledger meaning itself. Its ledger accounts are generated from it ([ledgerAccounts]).
+ * processed; it has no ledger meaning itself. Its ledger accounts are created with it (CreateAccountService).
  */
 data class MerchantAccount private constructor(
-    override val accountCode: String,
-    override val status: AccountStatus,
+    val accountCode: String,
+    val status: AccountStatus,
     val legalName: String,
     val address: Address,
     val industry: String,
@@ -23,21 +20,7 @@ data class MerchantAccount private constructor(
     val isAutoCaptured: Boolean, // capture is requested automatically right after a successful authorization
     val isAutoSettled: Boolean, // capture confirmation and settlement are simulated (no acquirer)
     val platformFee: PlatformFee // what we charge the merchant per payment, taken from its payable
-) : Account() {
-
-    /** One ledger account per merchant-level type, in the merchant's currency. */
-    fun ledgerAccounts(): List<LedgerAccount> = ledgerAccounts(currency)
-
-    /** One ledger account per merchant-level type, in the given currency (for when a merchant gets more currencies). */
-    fun ledgerAccounts(currency: Currency): List<LedgerAccount> {
-        val accounts = mutableListOf<LedgerAccount>()
-        for (type in LedgerAccountType.entries) {
-            if (type.owner == AccountOwner.MERCHANT) {
-                accounts.add(LedgerAccount.createNew(type, accountCode, null, currency))
-            }
-        }
-        return accounts
-    }
+) {
 
     companion object {
         @Suppress("LongParameterList") // the object's own fields
@@ -52,9 +35,6 @@ data class MerchantAccount private constructor(
             isAutoSettled: Boolean = false,
             status: AccountStatus = AccountStatus.ACTIVE
         ): MerchantAccount {
-            require(AccountCodes.isValidOwnerCode(accountCode)) {
-                AccountDomainException.InvariantViolationException("Invalid merchant account code: '$accountCode'")
-            }
             require(legalName.isNotBlank()) {
                 AccountDomainException.InvariantViolationException("Merchant legal name must not be blank")
             }

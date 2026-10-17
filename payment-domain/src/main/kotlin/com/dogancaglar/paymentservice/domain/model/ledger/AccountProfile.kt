@@ -3,7 +3,7 @@ package com.dogancaglar.paymentservice.domain.model.ledger
 import com.dogancaglar.paymentservice.domain.model.account.AccountStatus
 import com.dogancaglar.paymentservice.domain.model.common.Currency
 
-/** A ledger account as the account lookups return it (from the ledger_account_directory view). */
+/** A ledger account as the account lookups return it (a `ledger_accounts` row). */
 data class AccountProfile(
     val accountCode: String,
     val type: LedgerAccountType,

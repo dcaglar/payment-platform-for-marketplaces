@@ -59,9 +59,9 @@ class MerchantAccountRepositoryAdapterIntegrationTest {
     fun `a merchant row is read back with its settings and profile`() {
         jdbcTemplate.update(
             """
-            INSERT INTO accounts (account_code, kind, status, parent_code, ledger_type, currency,
-                                  is_auto_captured, is_auto_settled, platform_fee_fixed, platform_fee_bps, profile)
-            VALUES ('MERCHANT-READ-1', 'MERCHANT', 'ACTIVE', NULL, NULL, 'EUR', true, true, 25, 150,
+            INSERT INTO merchants (account_code, status, currency, is_auto_captured, is_auto_settled,
+                                   platform_fee_fixed, platform_fee_bps, profile)
+            VALUES ('MERCHANT-READ-1', 'ACTIVE', 'EUR', true, true, 25, 150,
                     '{"legalName":"Read One BV","address":{"line1":"Main 1","line2":null,"city":"Amsterdam","postalCode":"1011AA","country":"NL"},"industry":"retail"}'::jsonb)
             """
         )
@@ -84,16 +84,16 @@ class MerchantAccountRepositoryAdapterIntegrationTest {
     fun `an unknown merchant is not found, and neither is a seller with that code`() {
         jdbcTemplate.update(
             """
-            INSERT INTO accounts (account_code, kind, status, parent_code, ledger_type, currency,
-                                  is_auto_captured, is_auto_settled, platform_fee_fixed, platform_fee_bps, profile)
-            VALUES ('MERCHANT-READ-2', 'MERCHANT', 'ACTIVE', NULL, NULL, 'EUR', true, false, 0, 0,
+            INSERT INTO merchants (account_code, status, currency, is_auto_captured, is_auto_settled,
+                                   platform_fee_fixed, platform_fee_bps, profile)
+            VALUES ('MERCHANT-READ-2', 'ACTIVE', 'EUR', true, false, 0, 0,
                     '{"legalName":"Read Two BV","address":{"line1":"Main 2","line2":null,"city":"Utrecht","postalCode":"3511AA","country":"NL"},"industry":"retail"}'::jsonb)
             """
         )
         jdbcTemplate.update(
             """
-            INSERT INTO accounts (account_code, kind, status, parent_code)
-            VALUES ('SELLER-READ-2-1', 'SELLER', 'ACTIVE', 'MERCHANT-READ-2')
+            INSERT INTO sellers (account_code, merchant_code, status)
+            VALUES ('SELLER-READ-2-1', 'MERCHANT-READ-2', 'ACTIVE')
             """
         )
 

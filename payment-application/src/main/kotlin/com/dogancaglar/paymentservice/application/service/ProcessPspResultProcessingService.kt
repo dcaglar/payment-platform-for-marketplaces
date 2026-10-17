@@ -168,7 +168,8 @@ constructor( // constructor injection: one port per collaborator
             captureTx = updatedTx,
             // One journal per capture: keyed by the capture tx id, so multiple (partial/manual) captures
             // of one payment don't share an id, while a redelivery of the same capture still does.
-            journalIdentifier = "${event.publicPaymentIntentId}-${captureTx.txId.value}",
+            // Internal ids: a journal id never leaves the platform.
+            journalIdentifier = "${captureTx.paymentIntentId.value}-${captureTx.txId.value}",
             capturedAmount = amount,
             authReceivable = authReceivable,
             authLiability = authLiability,
@@ -218,7 +219,8 @@ constructor( // constructor injection: one port per collaborator
         val publicTransferId = PublicIdFactory.publicInternalTransferId(transferId.value)
         // One journal per transfer: keyed by the transfer id (stable on redelivery, unique per transfer).
         // Source+target is not enough: two transfers on the same route in one payment would share the id.
-        val journalIdentifier = "${event.publicPaymentIntentId}-$publicTransferId"
+        // Internal ids: a journal id never leaves the platform.
+        val journalIdentifier = "${paymentIntentId.value}-${transferId.value}"
 
         //  Polymorphic invocation selects exact journal factory profile structures cleanly!
         val journalEntries =
